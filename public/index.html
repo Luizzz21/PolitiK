@@ -2,61 +2,71 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>PolitiK - Dashboard</title>
-                <!-- Importacao da biblioteca Chart.js para renderizacao dos graficos -->
-                    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-                        <style>
-                                body { font-family: sans-serif; background: #f4f4f9; padding: 20px; }
-                                        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-                                                h1, h3 { text-align: center; color: #333; }
-                                                        .total { font-size: 24px; font-weight: bold; text-align: center; color: #d32f2f; margin-bottom: 20px; }
-                                                                .footer { text-align: center; font-size: 12px; color: #888; margin-top: 30px; }
-                                                                    </style>
-                                                                    </head>
-                                                                    <body>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PolitiK - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #f4f4f9; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1, h3 { text-align: center; color: #333; }
+        .total { font-size: 24px; font-weight: bold; text-align: center; color: #d32f2f; margin-bottom: 20px; }
+        .footer { text-align: center; font-size: 12px; color: #888; margin-top: 30px; }
+    </style>
+</head>
+<body>
 
-                                                                    <div class="container">
-                                                                        <h1>Gastos da Cota Parlamentar (2026)</h1>
-                                                                            <div class="total" id="valorTotal">Carregando os dados...</div>
-                                                                                
-                                                                                    <!-- Elemento canvas onde o grafico sera renderizado -->
-                                                                                        <canvas id="meuGrafico"></canvas>
-                                                                                            
-                                                                                                <div class="footer" id="dataAtualizacao"></div>
-                                                                                                </div>
+<div class="container">
+    <!-- O titulo agora tem um ID para ser alterado pelo Javascript -->
+    <h1 id="titulo">Carregando painel...</h1>
+    <div class="total" id="valorTotal">Buscando dados da API...</div>
+    
+    <canvas id="meuGrafico"></canvas>
+    
+    <div class="footer" id="dataAtualizacao"></div>
+</div>
 
-                                                                                                <script>
-                                                                                                    // Requisita o arquivo JSON gerado pelo script Python
-                                                                                                        // Adiciona um timestamp na URL para enganar o cache do navegador
-                                                                                                        fetch('dados.json?v=' + new Date().getTime())
+<script>
+    // Burlador de cache garantindo que o celular pegue o arquivo novo
+    fetch('dados.json?v=' + new Date().getTime())
+        .then(response => response.json())
+        .then(data => {
+            // Atualiza o titulo com o ANO exato do arquivo
+            document.getElementById('titulo').innerText = `Gastos da Cota Parlamentar (${data.ano})`;
+            
+            document.getElementById('valorTotal').innerText = `Total Gasto: R$ ${data.total.toLocaleString('pt-BR')}`;
+            
+            const dataData = new Date(data.atualizado_em);
+            document.getElementById('dataAtualizacao').innerText = `Ultima atualizacao: ${dataData.toLocaleString('pt-BR')}`;
 
-                                                                                                                .then(response => response.json())
-                                                                                                                        .then(data => {
-                                                                                                                                    // Atualiza os elementos de texto no DOM
-                                                                                                                                                document.getElementById('valorTotal').innerText = `Total Gasto: R$ ${data.total.toLocaleString('pt-BR')}`;
-                                                                                                                                                            const dataData = new Date(data.atualizado_em);
-                                                                                                                                                                        document.getElementById('dataAtualizacao').innerText = `Ultima atualizacao: ${dataData.toLocaleString('pt-BR')}`;
+            const categorias = Object.keys(data.gastos_por_categoria);
+            const valores = Object.values(data.gastos_por_categoria);
 
-                                                                                                                                                                                    // Extrai as chaves e valores para os eixos do grafico
-                                                                                                                                                                                                const categorias = Object.keys(data.gastos_por_categoria);
-                                                                                                                                                                                                            const valores = Object.values(data.gastos_por_categoria);
+            const ctx = document.getElementById('meuGrafico').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: categorias,
+                    datasets: [{
+                        label: 'Gasto em R$',
+                        data: valores,
+                        backgroundColor: '#1976d2',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            document.getElementById('valorTotal').innerText = "Erro ao processar dados.";
+        });
+</script>
 
-                                                                                                                                                                                                                        // Instancia e configura o grafico de barras
-                                                                                                                                                                                                                                    const ctx = document.getElementById('meuGrafico').getContext('2d');
-                                                                                                                                                                                                                                                new Chart(ctx, {
-                                                                                                                                                                                                                                                                type: 'bar',
-                                                                                                                                                                                                                                                                                data: {
-                                                                                                                                                                                                                                                                                                    labels: categorias,
-                                                                                                                                                                                                                                                                                                                        datasets: [{
-                                                                                                                                                                                                                                                                                                                                                label: 'Gasto em R$',
-                                                                                                                                                                                                                                                                                                                                                                        data: valores,
-                                                                                                                                                                                                                                                                                                                                                                                                backgroundColor: '#1976d2',
-                                                                                                                                                                                                                                                                                                                                                                                                                    }]
-                                                                                                                                                                                                                                                                                                                                                                                                                                    },
-                                                                                                                                                                                                                                                                                                                                                                                                                                                    options: {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                        responsive: true,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            plugins: {
+</body>
+</html>
+plugins: {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     legend: { display: false }
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         }
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         }
