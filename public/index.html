@@ -11,6 +11,9 @@
         h1, h3 { text-align: center; color: #333; }
         .total { font-size: 24px; font-weight: bold; text-align: center; color: #d32f2f; margin-bottom: 20px; }
         .footer { text-align: center; font-size: 12px; color: #888; margin-top: 30px; }
+        /* Estilos do Botão de Recarregar */
+        .btn-recarregar { display: none; margin: 0 auto 20px auto; padding: 10px 20px; font-size: 16px; background-color: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; text-align: center; }
+        .btn-recarregar:hover { background-color: #115293; }
     </style>
 </head>
 <body>
@@ -19,82 +22,107 @@
     <h1 id="titulo">Carregando painel...</h1>
     <div class="total" id="valorTotal">Buscando dados diretamente da API da Câmara...</div>
     
+    <!-- Botão de recarregar, inicialmente oculto -->
+    <button id="btnRecarregar" class="btn-recarregar" onclick="iniciarBusca()">Tentar Novamente</button>
+    
     <canvas id="meuGrafico"></canvas>
     
     <div class="footer" id="dataAtualizacao"></div>
 </div>
 
 <script>
-    // Configuração do alvo da pesquisa (ID 204374) consultando as 100 despesas mais recentes
     const DEPUTADO_ID = '204374';
     const URL_API = `https://dadosabertos.camara.leg.br/api/v2/deputados/${DEPUTADO_ID}/despesas?itens=100`;
+    let graficoInstancia = null;
 
-    // A requisição ocorre diretamente no navegador do usuário
-    fetch(URL_API)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Falha na comunicação com o servidor governamental.');
-            }
-            return response.json();
-        })
-        .then(data => {
-            const despesas = data.dados;
-
-            if (despesas.length === 0) {
-                document.getElementById('titulo').innerText = 'Nenhuma despesa recente encontrada';
-                document.getElementById('valorTotal').innerText = 'Total Gasto: R$ 0,00';
-                return;
-            }
-
-            // Agrupamento matemático dos valores por categoria
-            let gastosAgrupados = {};
-            let totalGasto = 0;
-
-            despesas.forEach(despesa => {
-                const tipo = despesa.tipoDespesa;
-                const valor = parseFloat(despesa.valorDocumento);
-
-                if (gastosAgrupados[tipo]) {
-                    gastosAgrupados[tipo] += valor;
-                } else {
-                    gastosAgrupados[tipo] = valor;
+    // Função de Fetch com lógica de Retry e Backoff
+    async function fetchComRetry(url, tentativas = 3) {
+        let erroRecente;
+        for (let i = 0; i < tentativas; i++) {
+            try {
+                // Adicionamos um cabeçalho de simulação e controle de cache
+                const response = await fetch(url, {
+                    headers: { 'Accept': 'application/json' },
+                    cache: 'no-store'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status}`);
                 }
-                totalGasto += valor;
-            });
+                return await response.json();
+            } catch (error) {
+                erroRecente = error;
+                console.warn(`Tentativa ${i + 1} falhou. Aguardando para tentar novamente...`);
+                // Espera um tempo progressivo (1s, 2s, 4s...) antes da próxima tentativa
+                await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+            }
+        }
+        throw erroRecente;
+    }
 
-            // Renderização das informações em tela
-            document.getElementById('titulo').innerText = 'Gastos Recentes da Cota Parlamentar';
-            document.getElementById('valorTotal').innerText = `Total Gasto: R$ ${totalGasto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-            
-            const dataAtual = new Date();
-            document.getElementById('dataAtualizacao').innerText = `Consulta efetuada em: ${dataAtual.toLocaleString('pt-BR')}`;
+    function iniciarBusca() {
+        // Reseta o estado visual inicial
+        document.getElementById('titulo').innerText = 'Carregando painel...';
+        document.getElementById('valorTotal').innerText = 'Buscando dados da API...';
+        document.getElementById('btnRecarregar').style.display = 'none';
 
-            // Geração do gráfico de barras
-            const categorias = Object.keys(gastosAgrupados);
-            const valores = Object.values(gastosAgrupados);
+        fetchComRetry(URL_API)
+            .then(data => {
+                const despesas = data.dados;
 
-            const ctx = document.getElementById('meuGrafico').getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: categorias,
-                    datasets: [{
-                        label: 'Gasto em R$',
-                        data: valores,
-                        backgroundColor: '#1976d2',
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: { legend: { display: false } }
+                if (despesas.length === 0) {
+                    document.getElementById('titulo').innerText = 'Nenhuma despesa recente encontrada';
+                    document.getElementById('valorTotal').innerText = 'Total Gasto: R$ 0,00';
+                    return;
                 }
+
+                let gastosAgrupados = {};
+                let totalGasto = 0;
+
+                despesas.forEach(despesa => {
+                    const tipo = despesa.tipoDespesa;
+                    const valor = parseFloat(despesa.valorDocumento);
+                    gastosAgrupados[tipo] = (gastosAgrupados[tipo] || 0) + valor;
+                    totalGasto += valor;
+                });
+
+                document.getElementById('titulo').innerText = 'Gastos Recentes da Cota Parlamentar';
+                document.getElementById('valorTotal').innerText = `Total Gasto: R$ ${totalGasto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+                document.getElementById('dataAtualizacao').innerText = `Consulta efetuada em: ${new Date().toLocaleString('pt-BR')}`;
+
+                const categorias = Object.keys(gastosAgrupados);
+                const valores = Object.values(gastosAgrupados);
+
+                // Destrói o gráfico antigo antes de criar o novo (evita sobreposição)
+                if (graficoInstancia) {
+                    graficoInstancia.destroy();
+                }
+
+                const ctx = document.getElementById('meuGrafico').getContext('2d');
+                graficoInstancia = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: categorias,
+                        datasets: [{
+                            label: 'Gasto em R$',
+                            data: valores,
+                            backgroundColor: '#1976d2',
+                        }]
+                    },
+                    options: { responsive: true, plugins: { legend: { display: false } } }
+                });
+            })
+            .catch(error => {
+                console.error('Erro de processamento:', error);
+                document.getElementById('titulo').innerText = 'Erro de Conexão';
+                document.getElementById('valorTotal').innerText = 'Não foi possível carregar os dados após várias tentativas.';
+                // Exibe o botão para o usuário forçar a recarga
+                document.getElementById('btnRecarregar').style.display = 'block';
             });
-        })
-        .catch(error => {
-            console.error('Erro de processamento:', error);
-            document.getElementById('titulo').innerText = 'Erro de Conexão';
-            document.getElementById('valorTotal').innerText = 'Não foi possível estabelecer link com a Câmara.';
-        });
+    }
+
+    // Inicia a busca automaticamente ao abrir a página
+    iniciarBusca();
 </script>
 
 </body>
