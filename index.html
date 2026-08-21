@@ -50,17 +50,18 @@
 
 <script>
     // Configuração de Conexão com o Banco de Dados
-    const SUPABASE_URL = 'https://eqpaebepyoqxfqrxzkct.supabase.co'; // Ex: https://xxxxxxxxxxxx.supabase.co
-    const SUPABASE_ANON_KEY = 'sb_publishable_DWU6EdF9nMQqpwSFWzvdkg_UR_ZaF6s'; // Chave publica
+    const SUPABASE_URL = 'https://eqpaebepyoqxfqrxzkct.supabase.co'; 
+    const SUPABASE_ANON_KEY = 'sb_publishable_DWU6EdF9nMQqpwSFWzvdkg_UR_ZaF6s'; 
 
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Correção: Nome da variável alterado para evitar conflito com a biblioteca global
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     let chartInstance = null;
     let mapMandatos = {}; 
 
     async function inicializar() {
         try {
             // Busca a lista de políticos cadastrados pelo robô
-            const { data: politicos, error: errPol } = await supabase
+            const { data: politicos, error: errPol } = await supabaseClient
                 .from('politico')
                 .select('id, nome_civil')
                 .order('nome_civil');
@@ -83,7 +84,7 @@
             });
 
             // Mapeia o ID do político para o ID do mandato ativo dele
-            const { data: mandatos, error: errMan } = await supabase
+            const { data: mandatos, error: errMan } = await supabaseClient
                 .from('mandato')
                 .select('id, politico_id');
             
@@ -116,7 +117,7 @@
             const dataFim = `${ano}-12-31`;
 
             // Busca as despesas atreladas ao mandato dentro do ano selecionado
-            const { data: despesas, error } = await supabase
+            const { data: despesas, error } = await supabaseClient
                 .from('despesa')
                 .select('tipo_verba, valor_pago')
                 .eq('mandato_id', mandatoId)
