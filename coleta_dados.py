@@ -10,13 +10,15 @@ url = f"https://dadosabertos.camara.leg.br/api/v2/deputados/{DEPUTADO_ID}/despes
 print(f"Buscando dados da URL: {url}")
 
 try:
-    # Adicionamos uma "identidade" para a API do governo não bloquear o robô
+    # Identidade transparente para não ser bloqueado pelo firewall do governo
     headers = {
         'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+        'User-Agent': 'PolitiK-Bot/1.0'
     }
     req = urllib.request.Request(url, headers=headers)
-    response = urllib.request.urlopen(req)
+    
+    # Adicionando timeout de 15 segundos para o script não travar
+    response = urllib.request.urlopen(req, timeout=15)
     dados_brutos = json.loads(response.read().decode('utf-8'))
     despesas = dados_brutos.get('dados', [])
     
@@ -49,4 +51,3 @@ try:
 
 except Exception as e:
     print(f"Erro ao buscar os dados: {e}")
-    
