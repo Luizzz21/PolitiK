@@ -3,58 +3,187 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PolitiK - Gastos Parlamentares</title>
+    <title>PolitiK - Monitor de Gastos</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
-        .card { max-width: 650px; margin: 20px auto; background: #ffffff; padding: 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        h1 { margin: 0 0 8px 0; font-size: 22px; color: #1a1a1a; text-align: center; }
-        .total { font-size: 20px; font-weight: bold; color: #c62828; text-align: center; margin-bottom: 24px; }
-        .footer { font-size: 12px; color: #757575; text-align: center; margin-top: 20px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; margin: 0; padding: 16px; }
+        .card { max-width: 720px; margin: 0 auto; background: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        h1 { margin: 0 0 16px 0; font-size: 20px; color: #1a1a1a; text-align: center; }
+        .filtros { display: flex; gap: 10px; margin-bottom: 20px; }
+        select { flex: 1; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px; background: #fff; }
+        .total-container { text-align: center; margin-bottom: 20px; }
+        .total-label { font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+        .total-valor { font-size: 24px; font-weight: bold; color: #c62828; margin-top: 4px; }
+        .chart-container { position: relative; width: 100%; min-height: 280px; }
+        .footer { font-size: 11px; color: #888; text-align: center; margin-top: 24px; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h1>Gastos da Cota Parlamentar</h1>
-    <div class="total" id="total">Carregando dados...</div>
-    <canvas id="grafico"></canvas>
-    <div class="footer" id="data"></div>
+    <h1>Cota Parlamentar</h1>
+
+    <div class="filtros">
+        <select id="selectDeputado" onchange="renderizarDados()">
+            <option>Carregando...</option>
+        </select>
+        <select id="selectAno" onchange="renderizarDados()">
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
+            <option value="2024" selected>2024</option>
+            <option value="2023">2023</option>
+        </select>
+    </div>
+
+    <div class="total-container">
+        <div class="total-label">Total Liquidado</div>
+        <div class="total-valor" id="totalDisplay">R$ 0,00</div>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="grafico"></canvas>
+    </div>
+
+    <div class="footer" id="dataAtualizacao">Conectado ao Banco de Dados Público.</div>
 </div>
 
 <script>
-    fetch('dados.json?t=' + new Date().getTime())
-        .then(res => res.json())
-        .then(d => {
-            document.getElementById('total').innerText = "Total: R$ " + d.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-            document.getElementById('data').innerText = "Atualizado em: " + d.atualizado_em;
+    // Configuração de Conexão com o Banco de Dados
+    const SUPABASE_URL = 'https://eqpaebepyoqxfqrxzkct.supabase.co/rest/v1/'; // Ex: https://xxxxxxxxxxxx.supabase.co
+    const SUPABASE_ANON_KEY = 'sb_publishable_DWU6EdF9nMQqpwSFWzvdkg_UR_ZaF6s'; // Chave publica
 
-            const ctx = document.getElementById('grafico').getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: Object.keys(d.gastos),
-                    datasets: [{
-                        label: 'Despesas (R$)',
-                        data: Object.values(d.gastos),
-                        backgroundColor: '#1976d2',
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        y: { beginAtZero: true }
-                    }
-                }
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let chartInstance = null;
+    let mapMandatos = {}; 
+
+    async function inicializar() {
+        try {
+            // Busca a lista de políticos cadastrados pelo robô
+            const { data: politicos, error: errPol } = await supabase
+                .from('politico')
+                .select('id, nome_civil')
+                .order('nome_civil');
+
+            if (errPol) throw errPol;
+
+            const selectDep = document.getElementById('selectDeputado');
+            selectDep.innerHTML = '';
+            
+            if (politicos.length === 0) {
+                selectDep.innerHTML = '<option>Aguardando processamento de dados...</option>';
+                return;
+            }
+
+            politicos.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.innerText = p.nome_civil;
+                selectDep.appendChild(opt);
             });
-        })
-        .catch(err => {
-            document.getElementById('total').innerText = "Erro ao carregar dados.";
+
+            // Mapeia o ID do político para o ID do mandato ativo dele
+            const { data: mandatos, error: errMan } = await supabase
+                .from('mandato')
+                .select('id, politico_id');
+            
+            if (errMan) throw errMan;
+            
+            mandatos.forEach(m => {
+                mapMandatos[m.politico_id] = m.id;
+            });
+
+            await renderizarDados();
+
+        } catch (error) {
+            console.error("Falha de conexão:", error);
+            document.getElementById('totalDisplay').innerText = "Erro ao acessar a base.";
+        }
+    }
+
+    async function renderizarDados() {
+        const politicoId = document.getElementById('selectDeputado').value;
+        const ano = document.getElementById('selectAno').value;
+        const mandatoId = mapMandatos[politicoId];
+
+        if (!mandatoId) {
+            atualizarGrafico({}, 0);
+            return;
+        }
+
+        try {
+            const dataInicio = `${ano}-01-01`;
+            const dataFim = `${ano}-12-31`;
+
+            // Busca as despesas atreladas ao mandato dentro do ano selecionado
+            const { data: despesas, error } = await supabase
+                .from('despesa')
+                .select('tipo_verba, valor_pago')
+                .eq('mandato_id', mandatoId)
+                .gte('data_emissao', dataInicio)
+                .lte('data_emissao', dataFim);
+
+            if (error) throw error;
+
+            let gastosAgrupados = {};
+            let total = 0;
+
+            despesas.forEach(d => {
+                const tipo = d.tipo_verba;
+                const valor = parseFloat(d.valor_pago);
+                gastosAgrupados[tipo] = (gastosAgrupados[tipo] || 0) + valor;
+                total += valor;
+            });
+
+            atualizarGrafico(gastosAgrupados, total);
+
+        } catch (error) {
+            console.error("Erro na extração de despesas:", error);
+        }
+    }
+
+    function atualizarGrafico(gastos, total) {
+        document.getElementById('totalDisplay').innerText = "R$ " + total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+        const labels = Object.keys(gastos);
+        const valores = Object.values(gastos);
+
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+
+        const ctx = document.getElementById('grafico').getContext('2d');
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels.length > 0 ? labels : ['Sem registros no período'],
+                datasets: [{
+                    label: 'Despesa (R$)',
+                    data: valores.length > 0 ? valores : [0],
+                    backgroundColor: '#1976d2',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: {
+                        ticks: {
+                            callback: function(val, index) {
+                                const texto = this.getLabelForValue(val);
+                                return texto.length > 18 ? texto.substr(0, 18) + '...' : texto;
+                            }
+                        }
+                    },
+                    y: { beginAtZero: true }
+                }
+            }
         });
+    }
+
+    inicializar();
 </script>
 
 </body>
