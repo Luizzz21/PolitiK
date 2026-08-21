@@ -10,7 +10,12 @@ url = f"https://dadosabertos.camara.leg.br/api/v2/deputados/{DEPUTADO_ID}/despes
 print(f"Buscando dados da URL: {url}")
 
 try:
-    req = urllib.request.Request(url, headers={'Accept': 'application/json'})
+    # Adicionamos uma "identidade" para a API do governo não bloquear o robô
+    headers = {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+    }
+    req = urllib.request.Request(url, headers=headers)
     response = urllib.request.urlopen(req)
     dados_brutos = json.loads(response.read().decode('utf-8'))
     despesas = dados_brutos.get('dados', [])
@@ -40,8 +45,8 @@ try:
     with open('public/dados.json', 'w', encoding='utf-8') as f:
         json.dump(dados_processados, f, ensure_ascii=False, indent=4)
         
-    print(f"Sucesso! {len(despesas)} registros processados. Arquivo public/dados.json atualizado.")
+    print(f"Sucesso! {len(despesas)} registros processados.")
 
 except Exception as e:
     print(f"Erro ao buscar os dados: {e}")
-        
+    
