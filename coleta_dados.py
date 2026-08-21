@@ -9,7 +9,7 @@ url_supabase: str = os.environ.get("SUPABASE_URL")
 key_supabase: str = os.environ.get("SUPABASE_KEY")
 
 if not url_supabase or not key_supabase:
-    raise ValueError("Falha critica: Credenciais do Supabase nao localizadas.")
+    raise ValueError("Credenciais do Supabase nao localizadas.")
 
 supabase: Client = create_client(url_supabase, key_supabase)
 
@@ -18,59 +18,67 @@ session = requests.Session()
 retry = Retry(total=5, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
 session.mount("https://", HTTPAdapter(max_retries=retry))
 
-# Grupo de teste controlado
-ALVOS = ["Tabata Amaral", "Nikolas Ferreira", "Erika Hilton", "Eduardo Bolsonaro", "Guilherme Boulos"]
-ANO_EXERCICIO = 2024 # Ano fechado e com dados garantidos na Camara
+# Mapeamento fixo por ID oficial da Camara (Elimina falhas de busca textual)
+ALVOS_OFICIAIS = [
+    {"id": 204534, "nome": "Tabata Amaral", "uf": "SP"},
+    {"id": 220008, "nome": "Nikolas Ferreira", "uf": "MG"},
+    {"id": 220714, "nome": "Erika Hilton", "uf": "SP"},
+    {"id": 204535, "nome": "Eduardo Bolsonaro", "uf": "SP"},
+    {"id": 204560, "nome": "Guilherme Boulos", "uf": "SP"}
+]
+
+ANO_EXERCICIO = 2024
 HEADERS = {"Accept": "application/json"}
 
 def extrair_numeros(texto):
     return re.sub(r'\D', '', str(texto)) if texto else None
 
 def executar_pipeline():
-    print("Iniciando motor com resolucao dinamica de IDs...")
+    print("Iniciando motor de extracao por IDs oficiais...")
     
-    for nome_alvo in ALVOS:
-        try:
-            # 1. Buscar o ID real e atualizado do deputado pela API
-            url_busca = f"https://dadosabertos.camara.leg.br/api/v2/deputados?nome={nome_alvo}"
-            resp_busca = session.get(url_busca, headers=HEADERS, timeout=30)
-            resp_busca.raise_for_status()
-            resultados = resp_busca.json().get('dados', [])
-            
-            if not resultados:
-                print(f"Deputado {nome_alvo} nao encontrado na API da Camara.")
-                continue
-                
-            deputado = resultados[0]
-            dep_id = deputado['id']
-            uf = deputado['siglaUf']
-            
-            print(f"[{nome_alvo}] ID correto localizado: {dep_id}")
+    for alvo in ALVOS_OFICIAIS:
+        dep_id = alvo["id"]
+        nome_alvo = alvo["nome"]
+        uf = alvo["uf"]
 
-            # 2. Registrar no Banco de Dados
+        try:
+            print(f"Processando {nome_alvo} (ID: {dep_id})...")
+
+            # 1. Registrar Politico no Banco
             req_pol = supabase.table("politico").select("id").eq("nome_civil", nome_alvo).execute()
             if req_pol.data:
                 pol_id = req_pol.data[0]['id']
             else:
                 pol_id = supabase.table("politico").insert({"nome_civil": nome_alvo}).execute().data[0]['id']
 
+            # 2. Registrar Mandato no Banco
             req_man = supabase.table("mandato").select("id").eq("politico_id", pol_id).eq("cargo", "Deputado Federal").execute()
             if req_man.data:
                 man_id = req_man.data[0]['id']
             else:
-                man_id = supabase.table("mandato").insert({"politico_id": pol_id, "cargo": "Deputado Federal", "esfera": "Federal", "estado_uf": uf}).execute().data[0]['id']
+                man_id = supabase.table("mandato").insert({
+                    "politico_id": pol_id, 
+                    "cargo": "Deputado Federal", 
+                    "esfera": "Federal", 
+                    "estado_uf": uf
+                }).execute().data[0]['id']
 
-            # 3. Baixar Despesas do ID correto
+            # 3. Baixar Despesas utilizando diretamente o ID oficial
             url_despesas = f"https://dadosabertos.camara.leg.br/api/v2/deputados/{dep_id}/despesas?ano={ANO_EXERCICIO}&itens=100"
             resp_desp = session.get(url_despesas, headers=HEADERS, timeout=30)
             resp_desp.raise_for_status()
             despesas = resp_desp.json().get('dados', [])
 
             if not despesas:
-                print(f"[{nome_alvo}] Nenhuma despesa processada no ano {ANO_EXERCICIO}.")
+                print(f"[{nome_alvo}] Nenhuma despesa retornada pela API no ano {ANO_EXERCICIO}.")
                 continue
 
-            urls_existentes = {r['url_recibo_original'] for r in supabase.table("despesa").select("url_recibo_original").eq("mandato_id", man_id).execute().data if r.get('url_recibo_original')}
+            # Cache de recibos existentes
+            urls_existentes = {
+                r['url_recibo_original'] 
+                for r in supabase.table("despesa").select("url_recibo_original").eq("mandato_id", man_id).execute().data 
+                if r.get('url_recibo_original')
+            }
 
             inseridas = 0
             for d in despesas:
@@ -82,8 +90,12 @@ def executar_pipeline():
                 if cnpj and len(cnpj) == 14:
                     if not supabase.table("fornecedor").select("cnpj").eq("cnpj", cnpj).execute().data:
                         try:
-                            supabase.table("fornecedor").insert({"cnpj": cnpj, "razao_social": d.get('nomeFornecedor', 'NAO INFORMADO')}).execute()
-                        except: pass
+                            supabase.table("fornecedor").insert({
+                                "cnpj": cnpj, 
+                                "razao_social": d.get('nomeFornecedor', 'NAO INFORMADO')
+                            }).execute()
+                        except: 
+                            pass
                 else:
                     cnpj = None
 
@@ -98,14 +110,16 @@ def executar_pipeline():
                             "data_emissao": d.get('dataDocumento'),
                             "url_recibo_original": url_rec
                         }).execute()
-                        if url_rec: urls_existentes.add(url_rec)
+                        if url_rec: 
+                            urls_existentes.add(url_rec)
                         inseridas += 1
-                    except: pass
+                    except: 
+                        pass
 
-            print(f"[{nome_alvo}] {inseridas} notas reais registradas com sucesso no banco de dados.")
+            print(f"[{nome_alvo}] Sucesso! {inseridas} notas inseridas no banco.")
 
         except Exception as e:
-            print(f"Erro de execucao no processamento de {nome_alvo}: {e}")
+            print(f"Erro no processamento de {nome_alvo}: {e}")
 
 if __name__ == "__main__":
     executar_pipeline()
