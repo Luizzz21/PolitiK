@@ -2,37 +2,30 @@ name: Atualizar Dados e Publicar Site
 
 on:
   schedule:
-      # Executa todos os dias as 02:00 UTC
-          - cron: '0 2 * * *'
-            # Gatilho manual para testes via interface do GitHub
-              workflow_dispatch:
+      - cron: "0 2 * * *"
+        workflow_dispatch:
 
-              permissions:
-                contents: write
+        permissions:
+          contents: write
 
-                jobs:
-                  build-and-deploy:
-                      runs-on: ubuntu-latest
+          jobs:
+            build-and-deploy:
+                runs-on: ubuntu-latest
+                    steps:
+                          - name: Checkout do codigo
+                                  uses: actions/checkout@v4
 
-                          steps:
-                                # Etapa 1: Baixa o codigo do repositorio para a maquina virtual
-                                      - name: Checkout do codigo
-                                              uses: actions/checkout@v3
+                                        - name: Configurar Python
+                                                uses: actions/setup-python@v5
+                                                        with:
+                                                                  python-version: "3.10"
 
-                                                    # Etapa 2: Prepara o ambiente Python
-                                                          - name: Configurar Python
-                                                                  uses: actions/setup-python@v4
-                                                                          with:
-                                                                                    python-version: '3.10'
+                                                                        - name: Executar Coleta de Dados
+                                                                                run: python coleta_dados.py
 
-                                                                                          # Etapa 3: Executa o script de coleta de dados da API
-                                                                                                - name: Executar Coleta de Dados
-                                                                                                        run: python coleta_dados.py
-
-                                                                                                              # Etapa 4: Realiza o deploy da pasta public no branch gh-pages
-                                                                                                                    - name: Deploy para GitHub Pages
-                                                                                                                            uses: peaceiris/actions-gh-pages@v3
-                                                                                                                                    with:
-                                                                                                                                              github_token: ${{ secrets.GITHUB_TOKEN }}
-                                                                                                                                                        publish_dir: ./public
-                                                                                                                                                        
+                                                                                      - name: Deploy para GitHub Pages
+                                                                                              uses: peaceiris/actions-gh-pages@v3
+                                                                                                      with:
+                                                                                                                github_token: ${{ secrets.GITHUB_TOKEN }}
+                                                                                                                          publish_dir: ./public
+                                                                                                                          
