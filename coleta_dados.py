@@ -17,8 +17,8 @@ try:
     }
     req = urllib.request.Request(url, headers=headers)
     
-    # Adicionando timeout de 15 segundos para o script não travar
-    response = urllib.request.urlopen(req, timeout=15)
+    # Adicionando timeout de 45 segundos para o script não travar
+    response = urllib.request.urlopen(req, timeout=45)
     dados_brutos = json.loads(response.read().decode('utf-8'))
     despesas = dados_brutos.get('dados', [])
     
