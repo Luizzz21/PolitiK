@@ -28,7 +28,9 @@
 
                                                                                                 <script>
                                                                                                     // Requisita o arquivo JSON gerado pelo script Python
-                                                                                                        fetch('dados.json')
+                                                                                                        // Adiciona um timestamp na URL para enganar o cache do navegador
+                                                                                                        fetch('dados.json?v=' + new Date().getTime())
+
                                                                                                                 .then(response => response.json())
                                                                                                                         .then(data => {
                                                                                                                                     // Atualiza os elementos de texto no DOM
