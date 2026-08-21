@@ -1,8 +1,6 @@
 import os
 import requests
 import re
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 from supabase import create_client, Client
 
 url_supabase: str = os.environ.get("SUPABASE_URL")
@@ -13,113 +11,66 @@ if not url_supabase or not key_supabase:
 
 supabase: Client = create_client(url_supabase, key_supabase)
 
-# Sessao resiliente
-session = requests.Session()
-retry = Retry(total=5, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
-session.mount("https://", HTTPAdapter(max_retries=retry))
-
-# Mapeamento fixo por ID oficial da Camara (Elimina falhas de busca textual)
-ALVOS_OFICIAIS = [
-    {"id": 204534, "nome": "Tabata Amaral", "uf": "SP"},
-    {"id": 220008, "nome": "Nikolas Ferreira", "uf": "MG"},
-    {"id": 220714, "nome": "Erika Hilton", "uf": "SP"},
-    {"id": 204535, "nome": "Eduardo Bolsonaro", "uf": "SP"},
-    {"id": 204560, "nome": "Guilherme Boulos", "uf": "SP"}
-]
-
-ANO_EXERCICIO = 2024
-HEADERS = {"Accept": "application/json"}
-
-def extrair_numeros(texto):
-    return re.sub(r'\D', '', str(texto)) if texto else None
+# Usaremos um único ID garantido (Nikolas Ferreira) para validar a carga limpa
+ALVO_TESTE = {"id": 220008, "nome": "Nikolas Ferreira", "uf": "MG"}
 
 def executar_pipeline():
-    print("Iniciando motor de extracao por IDs oficiais...")
+    print("Iniciando motor de teste focado e transparente...")
     
-    for alvo in ALVOS_OFICIAIS:
-        dep_id = alvo["id"]
-        nome_alvo = alvo["nome"]
-        uf = alvo["uf"]
+    dep_id = ALVO_TESTE["id"]
+    nome_alvo = ALVO_TESTE["nome"]
+    uf = ALVO_TESTE["uf"]
 
-        try:
-            print(f"Processando {nome_alvo} (ID: {dep_id})...")
+    try:
+        # 1. Inserir Politico
+        res_pol = supabase.table("politico").insert({"nome_civil": nome_alvo}).execute()
+        pol_id = res_pol.data[0]['id']
+        print(f"Politico inserido com ID: {pol_id}")
 
-            # 1. Registrar Politico no Banco
-            req_pol = supabase.table("politico").select("id").eq("nome_civil", nome_alvo).execute()
-            if req_pol.data:
-                pol_id = req_pol.data[0]['id']
-            else:
-                pol_id = supabase.table("politico").insert({"nome_civil": nome_alvo}).execute().data[0]['id']
+        # 2. Inserir Mandato
+        res_man = supabase.table("mandato").insert({
+            "politico_id": pol_id, 
+            "cargo": "Deputado Federal", 
+            "esfera": "Federal", 
+            "estado_uf": uf
+        }).execute()
+        man_id = res_man.data[0]['id']
+        print(f"Mandato inserido com ID: {man_id}")
 
-            # 2. Registrar Mandato no Banco
-            req_man = supabase.table("mandato").select("id").eq("politico_id", pol_id).eq("cargo", "Deputado Federal").execute()
-            if req_man.data:
-                man_id = req_man.data[0]['id']
-            else:
-                man_id = supabase.table("mandato").insert({
-                    "politico_id": pol_id, 
-                    "cargo": "Deputado Federal", 
-                    "esfera": "Federal", 
-                    "estado_uf": uf
-                }).execute().data[0]['id']
+        # 3. Buscar despesas na API da Câmara
+        url_despesas = f"https://dadosabertos.camara.leg.br/api/v2/deputados/{dep_id}/despesas?itens=10"
+        resp = requests.get(url_despesas, timeout=30)
+        dados = resp.json().get('dados', [])
+        
+        print(f"Total de despesas retornadas pela API: {len(dados)}")
 
-            # 3. Baixar Despesas utilizando diretamente o ID oficial
-            url_despesas = f"https://dadosabertos.camara.leg.br/api/v2/deputados/{dep_id}/despesas?ano={ANO_EXERCICIO}&itens=100"
-            resp_desp = session.get(url_despesas, headers=HEADERS, timeout=30)
-            resp_desp.raise_for_status()
-            despesas = resp_desp.json().get('dados', [])
+        if not dados:
+            print("A API retornou vazio.")
+            return
 
-            if not despesas:
-                print(f"[{nome_alvo}] Nenhuma despesa retornada pela API no ano {ANO_EXERCICIO}.")
-                continue
+        # 4. Inserir as despesas uma a uma imprimindo erros caso ocorram
+        for i, d in enumerate(dados):
+            val = float(d.get('valorLiquido') or d.get('valorDocumento') or 0.0)
+            data_em = d.get('dataDocumento')
+            tipo = d.get('tipoDespesa', 'Outros')
+            url_rec = d.get('urlDocumento')
 
-            # Cache de recibos existentes
-            urls_existentes = {
-                r['url_recibo_original'] 
-                for r in supabase.table("despesa").select("url_recibo_original").eq("mandato_id", man_id).execute().data 
-                if r.get('url_recibo_original')
+            payload = {
+                "mandato_id": man_id,
+                "tipo_verba": tipo,
+                "valor_pago": val,
+                "data_emissao": data_em,
+                "url_recibo_original": url_rec
             }
 
-            inseridas = 0
-            for d in despesas:
-                url_rec = d.get('urlDocumento')
-                if url_rec and url_rec in urls_existentes: 
-                    continue
+            try:
+                supabase.table("despesa").insert(payload).execute()
+                print(f"[{i+1}] Despesa de R$ {val} inserida com sucesso!")
+            except Exception as err_db:
+                print(f"ERRO AO INSERIR NO BANCO na linha {i+1}: {err_db}")
 
-                cnpj = extrair_numeros(d.get('cnpjCpfFornecedor'))
-                if cnpj and len(cnpj) == 14:
-                    if not supabase.table("fornecedor").select("cnpj").eq("cnpj", cnpj).execute().data:
-                        try:
-                            supabase.table("fornecedor").insert({
-                                "cnpj": cnpj, 
-                                "razao_social": d.get('nomeFornecedor', 'NAO INFORMADO')
-                            }).execute()
-                        except: 
-                            pass
-                else:
-                    cnpj = None
-
-                val = float(d.get('valorLiquido') or d.get('valorDocumento') or 0.0)
-                if val > 0 and d.get('dataDocumento'):
-                    try:
-                        supabase.table("despesa").insert({
-                            "mandato_id": man_id,
-                            "fornecedor_cnpj": cnpj,
-                            "tipo_verba": d.get('tipoDespesa', 'Outros'),
-                            "valor_pago": val,
-                            "data_emissao": d.get('dataDocumento'),
-                            "url_recibo_original": url_rec
-                        }).execute()
-                        if url_rec: 
-                            urls_existentes.add(url_rec)
-                        inseridas += 1
-                    except: 
-                        pass
-
-            print(f"[{nome_alvo}] Sucesso! {inseridas} notas inseridas no banco.")
-
-        except Exception as e:
-            print(f"Erro no processamento de {nome_alvo}: {e}")
+    except Exception as e:
+        print(f"Erro geral no pipeline: {e}")
 
 if __name__ == "__main__":
     executar_pipeline()
