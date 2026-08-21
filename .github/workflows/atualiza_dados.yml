@@ -1,17 +1,18 @@
 name: Atualizar
 on: [workflow_dispatch]
-permissions:
-  contents: write
+permissions: contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
+      - run: pip install requests
       - run: python coleta_dados.py
-      - uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./public
+      - name: Commit e Push
+        run: |
+          git config user.name "Bot"
+          git config user.email "bot@bot.com"
+          git add dados.json
+          git commit -m "Atualiza dados" || exit 0
+          git push
+          
