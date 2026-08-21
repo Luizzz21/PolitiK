@@ -1,25 +1,28 @@
-import urllib.request
+import requests
 import json
 import os
 from datetime import datetime
 
-DEPUTADO_ID = "204374"
-ANO = "2023"
-url = f"https://dadosabertos.camara.leg.br/api/v2/deputados/{DEPUTADO_ID}/despesas?ano={ANO}&itens=100"
+# Usando o ID da Tabata Amaral (ou pode colocar o que preferir)
+DEPUTADO_ID = "204534"
+ANO = "Recentes"
+
+# URL SEM o filtro de ano. Puxa as 100 despesas mais recentes do histórico.
+url = f"https://dadosabertos.camara.leg.br/api/v2/deputados/{DEPUTADO_ID}/despesas?itens=100"
 
 print(f"Buscando dados da URL: {url}")
 
 try:
-    # Identidade transparente para não ser bloqueado pelo firewall do governo
+    # Cabeçalho simulando um navegador real para evitar bloqueios
     headers = {
         'Accept': 'application/json',
-        'User-Agent': 'PolitiK-Bot/1.0'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
-    req = urllib.request.Request(url, headers=headers)
     
-    # Adicionando timeout de 45 segundos para o script não travar
-    response = urllib.request.urlopen(req, timeout=45)
-    dados_brutos = json.loads(response.read().decode('utf-8'))
+    response = requests.get(url, headers=headers, timeout=(5, 10))
+    response.raise_for_status()
+    
+    dados_brutos = response.json()
     despesas = dados_brutos.get('dados', [])
     
     gastos_agrupados = {}
@@ -51,3 +54,4 @@ try:
 
 except Exception as e:
     print(f"Erro ao buscar os dados: {e}")
+    
