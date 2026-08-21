@@ -1,9 +1,8 @@
 import os
 import requests
 import re
-from time import sleep
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+import csv
+from io import StringIO
 from supabase import create_client, Client
 
 url_supabase: str = os.environ.get("SUPABASE_URL")
@@ -14,46 +13,76 @@ if not url_supabase or not key_supabase:
 
 supabase: Client = create_client(url_supabase, key_supabase)
 
-def log(mensagem):
-    print(mensagem, flush=True)
+ALVOS = [
+    {"id": "204534", "nome": "Tabata Amaral", "uf": "SP"},
+    {"id": "220008", "nome": "Nikolas Ferreira", "uf": "MG"},
+    {"id": 220714, "nome": "Erika Hilton", "uf": "SP"},
+    {"id": "204535", "nome": "Eduardo Bolsonaro", "uf": "SP"},
+    {"id": "204560", "nome": "Guilherme Boulos", "uf": "SP"}
+]
 
 def extrair_numeros(texto):
     return re.sub(r'\D', '', str(texto)) if texto else None
 
 def executar_pipeline():
-    log("Iniciando motor com PAGINACAO OFICIAL baseada na documentacao da Camara...")
-    
-    session = requests.Session()
-    retries = Retry(total=5, backoff_factor=1, status_forcelist=[403, 429, 500, 502, 503, 504])
-    session.mount("https://", HTTPAdapter(max_retries=retries))
-    
-    headers = {"Accept": "application/json"}
+    print("Iniciando motor DEFINITIVO - Ingestao em Lote (Bulk) via Arquivo Estatico...", flush=True)
+    print("Isolando a aplicacao contra o bloqueio da API REST do Governo...", flush=True)
 
+    # URL oficial do arquivo de lote da Camara dos Deputados (Livre de bloqueios de IP)
+    url_csv = "https://dadosabertos.camara.leg.br/arquivos/despesasPublicas/csv/Ano-2024.csv"
+    
     try:
-        log("Buscando deputados ativos na API...")
-        resp_dep = session.get("https://dadosabertos.camara.leg.br/api/v2/deputados?itens=5", headers=headers, timeout=30)
-        resp_dep.raise_for_status()
-        deputados = resp_dep.json().get('dados', [])
+        print("Fazendo download do banco de dados completo da Camara (Isso levara alguns segundos)...", flush=True)
+        resp = requests.get(url_csv, timeout=120)
+        resp.raise_for_status()
+        
+        # O padrao do governo eh utf-8 com delimitador ponto e virgula
+        resp.encoding = 'utf-8' 
+        
+        print("Download concluido. Processando e cruzando o arquivo na memoria...", flush=True)
+        arquivo_csv = StringIO(resp.text)
+        leitor = csv.DictReader(arquivo_csv, delimiter=';')
+        
+        despesas_alvos = []
+        ids_alvos = [str(a["id"]) for a in ALVOS]
+        
+        # Varredura ultra-rapida na memoria
+        for linha in leitor:
+            if linha.get('ideCadastro') in ids_alvos:
+                despesas_alvos.append(linha)
+                
+        print(f"Foram filtradas {len(despesas_alvos)} despesas exatas para os deputados alvo.", flush=True)
+        
     except Exception as e:
-        log(f"Falha ao buscar lista inicial: {e}")
+        print(f"Erro critico ao baixar o arquivo CSV em lote: {e}", flush=True)
         return
 
-    for deputado in deputados:
-        dep_id = deputado["id"]
-        nome_alvo = deputado["nome"]
-        uf = deputado["siglaUf"]
+    if not despesas_alvos:
+        print("Nenhuma despesa encontrada no arquivo CSV.", flush=True)
+        return
 
-        log(f"\n--- Processando {nome_alvo} (ID: {dep_id}) ---")
+    # Insercao no banco de dados Supabase
+    for alvo in ALVOS:
+        dep_id = str(alvo["id"])
+        nome_alvo = alvo["nome"]
+        uf = alvo["uf"]
 
+        print(f"\n--- Inserindo dados de {nome_alvo} ---", flush=True)
+        
+        notas_deputado = [d for d in despesas_alvos if d.get('ideCadastro') == dep_id]
+        
+        if not notas_deputado:
+            print(f"Sem gastos registrados para {nome_alvo} no lote de 2024.", flush=True)
+            continue
+            
         try:
-            # 1. Banco de Dados: Politico
+            # 1 e 2. Valida Politico e Mandato
             req_pol = supabase.table("politico").select("id").eq("nome_civil", nome_alvo).execute()
             if req_pol.data:
                 pol_id = req_pol.data[0]['id']
             else:
                 pol_id = supabase.table("politico").insert({"nome_civil": nome_alvo}).execute().data[0]['id']
 
-            # 2. Banco de Dados: Mandato
             req_man = supabase.table("mandato").select("id").eq("politico_id", pol_id).execute()
             if req_man.data:
                 man_id = req_man.data[0]['id']
@@ -65,76 +94,59 @@ def executar_pipeline():
                     "estado_uf": uf
                 }).execute().data[0]['id']
 
-            # 3. Extracao com Paginacao (Seguindo a estrutura enviada na documentacao)
-            # Utilizando 2024 para garantir o espelho de um ano fiscal ja consolidado na Camara
-            url_paginada = f"https://dadosabertos.camara.leg.br/api/v2/deputados/{dep_id}/despesas?ano=2024&itens=100&pagina=1"
-            
             inseridas = 0
-            recibos_banco = supabase.table("despesa").select("url_recibo_original").eq("mandato_id", man_id).execute()
-            urls_existentes = {r['url_recibo_original'] for r in recibos_banco.data if r.get('url_recibo_original')}
+            urls_vistas = set() 
+            
+            # 3. Insere Despesas e Fornecedores
+            for nota in notas_deputado:
+                url_rec = nota.get('urlDocumento')
+                if url_rec and url_rec in urls_vistas:
+                    continue
 
-            while url_paginada:
-                log(f"Acessando pagina: {url_paginada}")
-                resp = session.get(url_paginada, headers=headers, timeout=30)
-                resp.raise_for_status()
-                
-                pacote = resp.json()
-                dados = pacote.get('dados', [])
-                links = pacote.get('links', [])
-                
-                if not dados:
-                    log("Fim das despesas (Pagina vazia).")
-                    break
-
-                for d in dados:
-                    url_rec = d.get('urlDocumento')
-                    if url_rec and url_rec in urls_existentes: 
-                        continue
-
-                    cnpj = extrair_numeros(d.get('cnpjCpfFornecedor'))
-                    if cnpj and len(cnpj) == 14:
-                        if not supabase.table("fornecedor").select("cnpj").eq("cnpj", cnpj).execute().data:
-                            try:
-                                supabase.table("fornecedor").insert({"cnpj": cnpj, "razao_social": d.get('nomeFornecedor', 'NAO INFORMADO')}).execute()
-                            except: 
-                                pass
-                    else:
-                        cnpj = None
-
-                    val = float(d.get('valorLiquido') or d.get('valorDocumento') or 0.0)
-                    data_em = d.get('dataDocumento')
-
-                    if val > 0 and data_em:
-                        payload = {
-                            "mandato_id": man_id,
-                            "fornecedor_cnpj": cnpj,
-                            "tipo_verba": d.get('tipoDespesa', 'Outros'),
-                            "valor_pago": val,
-                            "data_emissao": data_em,
-                            "url_recibo_original": url_rec
-                        }
+                cnpj = extrair_numeros(nota.get('txtCNPJCPF'))
+                if cnpj and len(cnpj) == 14:
+                    if not supabase.table("fornecedor").select("cnpj").eq("cnpj", cnpj).execute().data:
                         try:
-                            supabase.table("despesa").insert(payload).execute()
-                            urls_existentes.add(url_rec)
-                            inseridas += 1
-                        except Exception:
+                            # Limite de caracteres para garantir compatibilidade com o banco
+                            razao = str(nota.get('txtFornecedor', 'NAO INFORMADO'))[:250]
+                            supabase.table("fornecedor").insert({"cnpj": cnpj, "razao_social": razao}).execute()
+                        except:
                             pass
-                
-                # Logica de Paginacao HATEOAS: Busca o link com rel="next"
-                proxima_url = None
-                for link in links:
-                    if link.get('rel') == 'next':
-                        proxima_url = link.get('href')
-                        break
-                
-                url_paginada = proxima_url
-                if url_paginada:
-                    sleep(0.5) # Pausa rapida entre paginas para estabilidade da API
+                else:
+                    cnpj = None
 
-            log(f"Sucesso: {inseridas} novas notas gravadas para {nome_alvo}.")
+                # Conversao segura de valores brasileiros (virgula para ponto)
+                val_str = str(nota.get('vlrLiquido', '0')).replace(',', '.')
+                try:
+                    val = float(val_str)
+                except ValueError:
+                    val = 0.0
+
+                data_em = nota.get('datEmissao')
+                if data_em and "T" in data_em:
+                    data_em = data_em.split("T")[0] 
+
+                if val > 0 and data_em:
+                    payload = {
+                        "mandato_id": man_id,
+                        "fornecedor_cnpj": cnpj,
+                        "tipo_verba": str(nota.get('txtDescricao', 'Outros'))[:250],
+                        "valor_pago": val,
+                        "data_emissao": data_em,
+                        "url_recibo_original": url_rec
+                    }
+                    try:
+                        supabase.table("despesa").insert(payload).execute()
+                        if url_rec:
+                            urls_vistas.add(url_rec)
+                        inseridas += 1
+                    except Exception:
+                        pass 
+                        
+            print(f"Sucesso: {inseridas} notas inseridas no Supabase para {nome_alvo}.", flush=True)
 
         except Exception as e:
-            log(f"ERRO EM {nome_alvo}: {e}")
+            print(f"Erro estrutural ao processar {nome_alvo}: {e}", flush=True)
 
 if __name__ == "__main__":
     executar_pipeline()
