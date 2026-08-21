@@ -1,18 +1,28 @@
 name: Atualizar
-on: [workflow_dispatch]
-permissions: contents: write
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: pip install requests
-      - run: python coleta_dados.py
-      - name: Commit e Push
+
+      - name: Instalar Dependencias
+        run: pip install requests
+
+      - name: Executar Script
+        run: python coleta_dados.py
+
+      - name: Salvar Dados
         run: |
-          git config user.name "Bot"
-          git config user.email "bot@bot.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add dados.json
-          git commit -m "Atualiza dados" || exit 0
+          git commit -m "Atualiza dados [skip ci]" || exit 0
           git push
           
