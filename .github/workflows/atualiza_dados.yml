@@ -1,28 +1,26 @@
-name: Atualizar
+name: Pipeline de Ingestao de Dados
 
 on:
   workflow_dispatch:
-
-permissions:
-  contents: write
+  schedule:
+    - cron: '0 3 * * *'
 
 jobs:
-  build:
+  ingestao_supabase:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
-      - name: Instalar Dependencias
-        run: pip install requests
+      - name: Configurar Ambiente Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-      - name: Executar Script
+      - name: Instalar Dependencias do Projeto
+        run: pip install requests supabase
+
+      - name: Executar Motor de Extracao e Insercao
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python coleta_dados.py
-
-      - name: Salvar Dados
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add dados.json
-          git commit -m "Atualiza dados [skip ci]" || exit 0
-          git push
-          
