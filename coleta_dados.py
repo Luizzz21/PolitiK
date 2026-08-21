@@ -1,8 +1,7 @@
 import os
 import requests
 import re
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+from time import sleep
 from supabase import create_client, Client
 
 url_supabase: str = os.environ.get("SUPABASE_URL")
@@ -13,42 +12,35 @@ if not url_supabase or not key_supabase:
 
 supabase: Client = create_client(url_supabase, key_supabase)
 
-def log(mensagem):
-    print(mensagem, flush=True)
+# Os 5 deputados de teste fixos (Garante que não buscaremos políticos sem despesas)
+ALVOS = [
+    {"id": 204534, "nome": "Tabata Amaral", "uf": "SP"},
+    {"id": 220008, "nome": "Nikolas Ferreira", "uf": "MG"},
+    {"id": 220714, "nome": "Erika Hilton", "uf": "SP"},
+    {"id": 204535, "nome": "Eduardo Bolsonaro", "uf": "SP"},
+    {"id": 204560, "nome": "Guilherme Boulos", "uf": "SP"}
+]
 
 def extrair_numeros(texto):
     return re.sub(r'\D', '', str(texto)) if texto else None
 
 def executar_pipeline():
-    log("Iniciando motor definitivo - Resgatando arquitetura da primeira tentativa funcional...")
+    print("Iniciando motor DEFINITIVO - Resgatando a rede exata da primeira tentativa funcional...", flush=True)
     
-    # Rede blindada contra quedas da Camara
-    session = requests.Session()
-    retries = Retry(total=5, backoff_factor=1, status_forcelist=[403, 429, 500, 502, 503, 504])
-    session.mount("https://", HTTPAdapter(max_retries=retries))
-    
+    # O cabeçalho simples e honesto que funcionou na tentativa #16 (Sem acionar o firewall do governo)
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
-        "Accept": "application/json"
+        "Accept": "application/json",
+        "User-Agent": "PolitiK-Backend-Ingestion/1.0"
     }
 
-    try:
-        log("Buscando 5 deputados ativos dinamicamente (garantia de ID valido)...")
-        resp_dep = session.get("https://dadosabertos.camara.leg.br/api/v2/deputados?itens=5", headers=headers, timeout=30)
-        resp_dep.raise_for_status()
-        deputados = resp_dep.json().get('dados', [])
-    except Exception as e:
-        log(f"Falha ao buscar lista de deputados: {e}")
-        return
+    for alvo in ALVOS:
+        dep_id = alvo["id"]
+        nome_alvo = alvo["nome"]
+        uf = alvo["uf"]
 
-    for deputado in deputados:
-        dep_id = deputado["id"]
-        nome_alvo = deputado["nome"]
-        uf = deputado["siglaUf"]
+        print(f"\n--- Processando {nome_alvo} (ID: {dep_id}) ---", flush=True)
 
         try:
-            log(f"\n--- Processando {nome_alvo} (ID: {dep_id}) ---")
-
             # 1. Registrar Politico
             req_pol = supabase.table("politico").select("id").eq("nome_civil", nome_alvo).execute()
             if req_pol.data:
@@ -68,12 +60,29 @@ def executar_pipeline():
                     "estado_uf": uf
                 }).execute().data[0]['id']
 
-            # 3. Buscar despesas (URL LIMPA - Apenas Ano 2024 para evitar bug da API)
-            url_despesas = f"https://dadosabertos.camara.leg.br/api/v2/deputados/{dep_id}/despesas?ano=2024&itens=100"
-            resp = session.get(url_despesas, headers=headers, timeout=30)
-            dados = resp.json().get('dados', [])
+            # 3. Buscar despesas EXATAMENTE como na tentativa #16, utilizando o ano atual (2026)
+            url_despesas = f"https://dadosabertos.camara.leg.br/api/v2/deputados/{dep_id}/despesas?ano=2026&itens=100"
             
-            log(f"Total de notas em 2024: {len(dados)}")
+            sucesso_api = False
+            dados = []
+            
+            # Loop simples de tentativa. Se der erro, ele VAI imprimir o motivo exato.
+            for tentativa in range(3):
+                try:
+                    resp = requests.get(url_despesas, headers=headers, timeout=20)
+                    resp.raise_for_status() 
+                    dados = resp.json().get('dados', [])
+                    sucesso_api = True
+                    break
+                except Exception as erro_rede:
+                    print(f"Tentativa {tentativa+1} falhou na API: {erro_rede}", flush=True)
+                    sleep(2)
+                    
+            if not sucesso_api:
+                print(f"Falha definitiva ao baixar notas de {nome_alvo}.", flush=True)
+                continue
+
+            print(f"Total de notas encontradas em 2026: {len(dados)}", flush=True)
 
             if not dados:
                 continue
@@ -113,13 +122,13 @@ def executar_pipeline():
                         supabase.table("despesa").insert(payload).execute()
                         urls_existentes.add(url_rec)
                         inseridas += 1
-                    except Exception:
-                        pass
+                    except Exception as e_bd:
+                        print(f"Erro ao salvar nota no banco: {e_bd}", flush=True)
 
-            log(f"Sucesso: {inseridas} novas notas gravadas para {nome_alvo}.")
+            print(f"Sucesso: {inseridas} novas notas gravadas para {nome_alvo}.", flush=True)
 
         except Exception as e:
-            log(f"ERRO EM {nome_alvo}: {e}")
+            print(f"ERRO GERAL EM {nome_alvo}: {e}", flush=True)
 
 if __name__ == "__main__":
     executar_pipeline()
