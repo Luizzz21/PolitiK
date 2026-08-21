@@ -9,121 +9,103 @@ url_supabase: str = os.environ.get("SUPABASE_URL")
 key_supabase: str = os.environ.get("SUPABASE_KEY")
 
 if not url_supabase or not key_supabase:
-    raise ValueError("Falha critica: Credenciais do Supabase nao localizadas no ambiente.")
+    raise ValueError("Falha critica: Credenciais do Supabase nao localizadas.")
 
 supabase: Client = create_client(url_supabase, key_supabase)
 
+# Sessao resiliente
 session = requests.Session()
-retry_strategy = Retry(total=5, backoff_factor=2, status_forcelist=[429, 500, 502, 503, 504])
-session.mount("https://", HTTPAdapter(max_retries=retry_strategy))
+retry = Retry(total=5, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
+session.mount("https://", HTTPAdapter(max_retries=retry))
 
-HEADERS = {"Accept": "application/json", "User-Agent": "PolitiK-Backend-Ingestion/5.0"}
+# Grupo de teste controlado
+ALVOS = ["Tabata Amaral", "Nikolas Ferreira", "Erika Hilton", "Eduardo Bolsonaro", "Guilherme Boulos"]
+ANO_EXERCICIO = 2024 # Ano fechado e com dados garantidos na Camara
+HEADERS = {"Accept": "application/json"}
 
 def extrair_numeros(texto):
-    if not texto: return None
-    numeros = re.sub(r'\D', '', str(texto))
-    return numeros if numeros else None
+    return re.sub(r'\D', '', str(texto)) if texto else None
 
 def executar_pipeline():
-    print("Iniciando extracao absoluta. Buscando lista de deputados...")
-    try:
-        resp = session.get("https://dadosabertos.camara.leg.br/api/v2/deputados", headers=HEADERS, timeout=60)
-        resp.raise_for_status()
-        todos_deputados = resp.json().get('dados', [])
-    except Exception as e:
-        print(f"Falha ao acessar API da Camara: {e}")
-        return
-
-    deputados_teste = todos_deputados[:5]
-    print(f"Alvos definidos: {[d['nome'] for d in deputados_teste]}")
-
-    for deputado in deputados_teste:
-        nome = deputado["nome"]
-        uf = deputado["siglaUf"]
-        dep_id = deputado["id"]
-
+    print("Iniciando motor com resolucao dinamica de IDs...")
+    
+    for nome_alvo in ALVOS:
         try:
-            req_pol = supabase.table("politico").select("id").eq("nome_civil", nome).execute()
+            # 1. Buscar o ID real e atualizado do deputado pela API
+            url_busca = f"https://dadosabertos.camara.leg.br/api/v2/deputados?nome={nome_alvo}"
+            resp_busca = session.get(url_busca, headers=HEADERS, timeout=30)
+            resp_busca.raise_for_status()
+            resultados = resp_busca.json().get('dados', [])
+            
+            if not resultados:
+                print(f"Deputado {nome_alvo} nao encontrado na API da Camara.")
+                continue
+                
+            deputado = resultados[0]
+            dep_id = deputado['id']
+            uf = deputado['siglaUf']
+            
+            print(f"[{nome_alvo}] ID correto localizado: {dep_id}")
+
+            # 2. Registrar no Banco de Dados
+            req_pol = supabase.table("politico").select("id").eq("nome_civil", nome_alvo).execute()
             if req_pol.data:
                 pol_id = req_pol.data[0]['id']
             else:
-                ins_pol = supabase.table("politico").insert({"nome_civil": nome}).execute()
-                pol_id = ins_pol.data[0]['id']
+                pol_id = supabase.table("politico").insert({"nome_civil": nome_alvo}).execute().data[0]['id']
 
             req_man = supabase.table("mandato").select("id").eq("politico_id", pol_id).eq("cargo", "Deputado Federal").execute()
             if req_man.data:
                 man_id = req_man.data[0]['id']
             else:
-                ins_man = supabase.table("mandato").insert({
-                    "politico_id": pol_id, "cargo": "Deputado Federal", "esfera": "Federal", "estado_uf": uf
-                }).execute()
-                man_id = ins_man.data[0]['id']
+                man_id = supabase.table("mandato").insert({"politico_id": pol_id, "cargo": "Deputado Federal", "esfera": "Federal", "estado_uf": uf}).execute().data[0]['id']
+
+            # 3. Baixar Despesas do ID correto
+            url_despesas = f"https://dadosabertos.camara.leg.br/api/v2/deputados/{dep_id}/despesas?ano={ANO_EXERCICIO}&itens=100"
+            resp_desp = session.get(url_despesas, headers=HEADERS, timeout=30)
+            resp_desp.raise_for_status()
+            despesas = resp_desp.json().get('dados', [])
+
+            if not despesas:
+                print(f"[{nome_alvo}] Nenhuma despesa processada no ano {ANO_EXERCICIO}.")
+                continue
+
+            urls_existentes = {r['url_recibo_original'] for r in supabase.table("despesa").select("url_recibo_original").eq("mandato_id", man_id).execute().data if r.get('url_recibo_original')}
+
+            inseridas = 0
+            for d in despesas:
+                url_rec = d.get('urlDocumento')
+                if url_rec and url_rec in urls_existentes: 
+                    continue
+
+                cnpj = extrair_numeros(d.get('cnpjCpfFornecedor'))
+                if cnpj and len(cnpj) == 14:
+                    if not supabase.table("fornecedor").select("cnpj").eq("cnpj", cnpj).execute().data:
+                        try:
+                            supabase.table("fornecedor").insert({"cnpj": cnpj, "razao_social": d.get('nomeFornecedor', 'NAO INFORMADO')}).execute()
+                        except: pass
+                else:
+                    cnpj = None
+
+                val = float(d.get('valorLiquido') or d.get('valorDocumento') or 0.0)
+                if val > 0 and d.get('dataDocumento'):
+                    try:
+                        supabase.table("despesa").insert({
+                            "mandato_id": man_id,
+                            "fornecedor_cnpj": cnpj,
+                            "tipo_verba": d.get('tipoDespesa', 'Outros'),
+                            "valor_pago": val,
+                            "data_emissao": d.get('dataDocumento'),
+                            "url_recibo_original": url_rec
+                        }).execute()
+                        if url_rec: urls_existentes.add(url_rec)
+                        inseridas += 1
+                    except: pass
+
+            print(f"[{nome_alvo}] {inseridas} notas reais registradas com sucesso no banco de dados.")
+
         except Exception as e:
-            print(f"Erro ao registrar {nome} no banco: {e}")
-            continue
-
-        contador_insercoes = 0
-        
-        # Correcao absoluta: Remoção do parâmetro 'ano'. Força as 100 notas mais recentes existentes.
-        url_api = f"https://dadosabertos.camara.leg.br/api/v2/deputados/{dep_id}/despesas?ordem=DESC&ordenarPor=dataDocumento&itens=100"
-        
-        try:
-            res_desp = session.get(url_api, headers=HEADERS, timeout=60)
-            res_desp.raise_for_status()
-            brutas = res_desp.json().get('dados', [])
-        except Exception as e:
-            print(f"Falha ao baixar notas de {nome}: {e}")
-            continue
-
-        if not brutas:
-            print(f"Nenhuma despesa historica retornada para {nome}.")
-            continue
-
-        try:
-            req_ex = supabase.table("despesa").select("url_recibo_original").eq("mandato_id", man_id).execute()
-            urls_reg = {r['url_recibo_original'] for r in req_ex.data if r.get('url_recibo_original')}
-        except Exception:
-            urls_reg = set()
-
-        for d in brutas:
-            url_rec = d.get('urlDocumento')
-            if url_rec and url_rec in urls_reg: continue
-
-            cnpj = extrair_numeros(d.get('cnpjCpfFornecedor'))
-            nome_f = d.get('nomeFornecedor', 'NAO INFORMADO')
-            
-            if cnpj and len(cnpj) == 14:
-                try:
-                    req_f = supabase.table("fornecedor").select("cnpj").eq("cnpj", cnpj).execute()
-                    if not req_f.data:
-                        supabase.table("fornecedor").insert({"cnpj": cnpj, "razao_social": nome_f}).execute()
-                except Exception:
-                    cnpj = None 
-            else:
-                cnpj = None 
-
-            val = float(d.get('valorLiquido') or d.get('valorDocumento') or 0.0)
-            data_em = d.get('dataDocumento')
-
-            if val > 0 and data_em:
-                try:
-                    supabase.table("despesa").insert({
-                        "mandato_id": man_id,
-                        "fornecedor_cnpj": cnpj,
-                        "tipo_verba": d.get('tipoDespesa', 'Outros'),
-                        "valor_pago": val,
-                        "data_emissao": data_em,
-                        "url_recibo_original": url_rec
-                    }).execute()
-                    
-                    if url_rec: urls_reg.add(url_rec)
-                    contador_insercoes += 1
-                except Exception as e:
-                    print(f"Falha na insercao SQL para {nome}: {e}")
-
-        print(f"[{nome}] {contador_insercoes} notas reais gravadas no banco de dados.")
-
-    print("Pipeline executado.")
+            print(f"Erro de execucao no processamento de {nome_alvo}: {e}")
 
 if __name__ == "__main__":
     executar_pipeline()
