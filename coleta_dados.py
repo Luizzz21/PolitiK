@@ -34,19 +34,19 @@ def executar_pipeline():
         dep_id_camara = deputado["id"]
         
         # 1. Resolver entidade: Politico
-        req_politico = supabase.table("Politico").select("id").eq("nome_civil", nome_parlamentar).execute()
+        req_politico = supabase.table("politico").select("id").eq("nome_civil", nome_parlamentar).execute()
         if len(req_politico.data) > 0:
             politico_id = req_politico.data[0]['id']
         else:
-            ins_politico = supabase.table("Politico").insert({"nome_civil": nome_parlamentar}).execute()
+            ins_politico = supabase.table("politico").insert({"nome_civil": nome_parlamentar}).execute()
             politico_id = ins_politico.data[0]['id']
 
         # 2. Resolver entidade: Mandato
-        req_mandato = supabase.table("Mandato").select("id").eq("politico_id", politico_id).eq("cargo", "Deputado Federal").execute()
+        req_mandato = supabase.table("mandato").select("id").eq("politico_id", politico_id).eq("cargo", "Deputado Federal").execute()
         if len(req_mandato.data) > 0:
             mandato_id = req_mandato.data[0]['id']
         else:
-            ins_mandato = supabase.table("Mandato").insert({
+            ins_mandato = supabase.table("mandato").insert({
                 "politico_id": politico_id,
                 "cargo": "Deputado Federal",
                 "esfera": "Federal",
@@ -65,7 +65,7 @@ def executar_pipeline():
             continue
 
         # Cache de URLs ja inseridas para evitar duplicidade de notas
-        req_existentes = supabase.table("Despesa").select("url_recibo_original").eq("mandato_id", mandato_id).execute()
+        req_existentes = supabase.table("despesa").select("url_recibo_original").eq("mandato_id", mandato_id).execute()
         urls_registradas = {reg['url_recibo_original'] for reg in req_existentes.data if reg.get('url_recibo_original')}
 
         contador_insercoes = 0
@@ -80,7 +80,7 @@ def executar_pipeline():
             
             # 4. Resolver entidade: Fornecedor (Apenas CNPJs para analise corporativa)
             if cnpj_limpo and len(cnpj_limpo) == 14:
-                supabase.table("Fornecedor").upsert({
+                supabase.table("fornecedor").upsert({
                     "cnpj": cnpj_limpo,
                     "razao_social": nome_forn
                 }, on_conflict="cnpj").execute()
@@ -92,7 +92,7 @@ def executar_pipeline():
 
             # 5. Inserir Despesa consolidada
             if valor > 0 and data_emissao:
-                supabase.table("Despesa").insert({
+                supabase.table("despesa").insert({
                     "mandato_id": mandato_id,
                     "fornecedor_cnpj": cnpj_limpo,
                     "tipo_verba": desp.get('tipoDespesa', 'Outros'),
