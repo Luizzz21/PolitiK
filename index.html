@@ -16,7 +16,6 @@
 <body>
 
 <div class="container">
-    <!-- O titulo agora tem um ID para ser alterado pelo Javascript -->
     <h1 id="titulo">Carregando painel...</h1>
     <div class="total" id="valorTotal">Buscando dados da API...</div>
     
@@ -26,13 +25,10 @@
 </div>
 
 <script>
-    // Burlador de cache garantindo que o celular pegue o arquivo novo
     fetch('dados.json?v=' + new Date().getTime())
         .then(response => response.json())
         .then(data => {
-            // Atualiza o titulo com o ANO exato do arquivo
             document.getElementById('titulo').innerText = `Gastos da Cota Parlamentar (${data.ano})`;
-            
             document.getElementById('valorTotal').innerText = `Total Gasto: R$ ${data.total.toLocaleString('pt-BR')}`;
             
             const dataData = new Date(data.atualizado_em);
@@ -60,24 +56,10 @@
         })
         .catch(error => {
             console.error('Erro:', error);
-            document.getElementById('valorTotal').innerText = "Erro ao processar dados.";
+            document.getElementById('valorTotal').innerText = "Erro ao carregar o grafico.";
         });
 </script>
 
 </body>
 </html>
-plugins: {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    legend: { display: false }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            })
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    .catch(error => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                console.error('Erro ao carregar o arquivo JSON:', error);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            document.getElementById('valorTotal').innerText = "Erro ao carregar os dados. Verifique o console.";
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    </script>
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    </body>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    </html>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
