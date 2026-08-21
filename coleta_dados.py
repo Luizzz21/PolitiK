@@ -3,8 +3,8 @@ import json
 import os
 from datetime import datetime
 
-DEPUTADO_ID = "204534"
-ANO = "2023"
+DEPUTADO_ID = "204374"
+ANO = "2026"
 url = f"https://dadosabertos.camara.leg.br/api/v2/deputados/{DEPUTADO_ID}/despesas?ano={ANO}&itens=100"
 
 print(f"Buscando dados da URL: {url}")
