@@ -1,6 +1,8 @@
 import os
 import requests
 import re
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from supabase import create_client, Client
 
 url_supabase: str = os.environ.get("SUPABASE_URL")
@@ -11,8 +13,17 @@ if not url_supabase or not key_supabase:
 
 supabase: Client = create_client(url_supabase, key_supabase)
 
-ANO_EXERCICIO = 2026 # Atualizado para o ano atual, garantindo dados recentes
-HEADERS = {"Accept": "application/json", "User-Agent": "PolitiK-Backend-Ingestion/3.0"}
+# Configuração de Sessão Resiliente contra quedas do Governo
+session = requests.Session()
+retry_strategy = Retry(
+    total=5, # Tenta conectar até 5 vezes antes de desistir
+    backoff_factor=2, # Espera progressiva: 2s, 4s, 8s...
+    status_forcelist=[429, 500, 502, 503, 504], # Códigos de erro do servidor
+)
+session.mount("https://", HTTPAdapter(max_retries=retry_strategy))
+
+ANO_EXERCICIO = 2026
+HEADERS = {"Accept": "application/json", "User-Agent": "PolitiK-Backend-Ingestion/4.0"}
 
 def extrair_numeros(texto):
     if not texto: return None
@@ -23,16 +34,15 @@ def executar_pipeline():
     print("Buscando a lista oficial de deputados ativos no governo...")
     
     try:
-        resp = requests.get("https://dadosabertos.camara.leg.br/api/v2/deputados", headers=HEADERS, timeout=15)
+        # Aumentamos o timeout de 15 para 60 segundos
+        resp = session.get("https://dadosabertos.camara.leg.br/api/v2/deputados", headers=HEADERS, timeout=60)
         resp.raise_for_status()
         todos_deputados = resp.json().get('dados', [])
     except Exception as e:
-        print(f"Falha ao acessar API da Camara: {e}")
+        print(f"Falha ao acessar API da Camara apos varias tentativas: {e}")
         return
         
-    # Pega dinamicamente os 5 primeiros deputados reais e ativos para o teste (PoC)
     deputados_teste = todos_deputados[:5]
-    
     print(f"Iniciando teste com os deputados: {[d['nome'] for d in deputados_teste]}")
 
     for deputado in deputados_teste:
@@ -66,10 +76,10 @@ def executar_pipeline():
             continue 
 
         contador_insercoes = 0
-
         url_api = f"https://dadosabertos.camara.leg.br/api/v2/deputados/{dep_id_camara}/despesas?ano={ANO_EXERCICIO}&itens=100"
+        
         try:
-            resposta = requests.get(url_api, headers=HEADERS, timeout=15)
+            resposta = session.get(url_api, headers=HEADERS, timeout=60)
             resposta.raise_for_status()
             despesas_brutas = resposta.json().get('dados', [])
         except Exception as e:
@@ -80,7 +90,6 @@ def executar_pipeline():
             print(f"Nenhuma despesa retornada para {nome_parlamentar} no ano {ANO_EXERCICIO}.")
             continue
 
-        # Cache local
         try:
             req_existentes = supabase.table("despesa").select("url_recibo_original").eq("mandato_id", mandato_id).execute()
             urls_registradas = {reg['url_recibo_original'] for reg in req_existentes.data if reg.get('url_recibo_original')}
@@ -97,7 +106,6 @@ def executar_pipeline():
             nome_forn = desp.get('nomeFornecedor', 'NAO INFORMADO')
             
             try:
-                # 3. Fornecedor
                 if cnpj_limpo and len(cnpj_limpo) == 14:
                     req_forn = supabase.table("fornecedor").select("cnpj").eq("cnpj", cnpj_limpo).execute()
                     if len(req_forn.data) == 0:
@@ -112,7 +120,6 @@ def executar_pipeline():
 
             if valor > 0 and data_emissao:
                 try:
-                    # 4. Despesa
                     supabase.table("despesa").insert({
                         "mandato_id": mandato_id,
                         "fornecedor_cnpj": cnpj_limpo,
