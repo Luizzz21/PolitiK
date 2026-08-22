@@ -5,6 +5,8 @@ import io
 import zipfile
 import requests
 import gc
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from supabase import create_client, Client
 
 url_supabase: str = os.environ.get("SUPABASE_URL")
@@ -24,7 +26,18 @@ def extrair_numeros(texto):
 def baixar_e_extrair_csv(ano):
     url_zip = f"https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip"
     print(f"Baixando Lote de {ano}: {url_zip} ...", flush=True)
-    resp = requests.get(url_zip, timeout=120)
+    
+    # Sessao blindada com identificacao honesta para evitar tarpitting do WAF
+    session = requests.Session()
+    retries = Retry(total=5, backoff_factor=2, status_forcelist=[403, 429, 500, 502, 503, 504])
+    session.mount("https://", HTTPAdapter(max_retries=retries))
+    
+    headers = {
+        "Accept": "application/zip",
+        "User-Agent": "PolitiK-Backend-Ingestion/1.0"
+    }
+
+    resp = session.get(url_zip, headers=headers, timeout=120)
     resp.raise_for_status() 
 
     with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
@@ -34,7 +47,7 @@ def baixar_e_extrair_csv(ano):
         bruto = z.read(nomes_csv[0])
 
     try:
-        # A MUDANCA ESTA AQUI: utf-8-sig remove o caractere invisivel (\ufeff) do inicio do CSV
+        # utf-8-sig remove o caractere invisivel (\ufeff) do inicio do CSV
         return bruto.decode('utf-8-sig')
     except UnicodeDecodeError:
         return bruto.decode('ISO-8859-1')
@@ -59,13 +72,10 @@ def executar_pipeline():
             for linha in leitor:
                 ide = str(linha.get('ideCadastro', '')).strip()
                 
-                # Ignora despesas institucionais/liderancas que nao possuem ID de deputado
                 if not ide:
                     continue
                 
-                # Mapeia o deputado dinamicamente lendo as colunas do proprio CSV
                 if ide not in deputados_mapeados:
-                    # Agora a chave 'txNomeParlamentar' sera lida perfeitamente sem o \ufeff
                     nome = str(linha.get('txNomeParlamentar', 'Nao Informado')).strip()
                     uf = str(linha.get('sgUF', 'NA')).strip()
                     deputados_mapeados[ide] = {"nome": nome, "uf": uf}
@@ -74,7 +84,6 @@ def executar_pipeline():
                     dados_agrupados[ide] = []
                 dados_agrupados[ide].append(linha)
             
-            # Forca a destruicao da string gigante (texto_csv) na memoria RAM
             del texto_csv 
             gc.collect()
             
@@ -186,13 +195,11 @@ def executar_pipeline():
                     except Exception as e_desp:
                         print(f"  [ERRO GRAVE] Bulk de despesas falhou: {e_desp}", flush=True)
                 
-                # Liberacao fragmentada de memoria RAM a cada laco concluido
                 del dados_agrupados[dep_id]
 
             except Exception as e:
                 print(f"Erro estrutural ao processar {nome_alvo}: {e}", flush=True)
                 
-        # Limpa o ano fiscal inteiro da memoria antes de iniciar o loop do proximo ano
         dados_agrupados.clear()
         deputados_mapeados.clear()
         gc.collect()
