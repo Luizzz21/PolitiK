@@ -1,26 +1,19 @@
-name: Pipeline de Ingestao de Dados
-
+name: Atualiza dados
 on:
-  workflow_dispatch:
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '0 3 * * *'   # todo dia às 03:00 UTC
+  workflow_dispatch: {}     # permite rodar manualmente
 
 jobs:
-  ingestao_supabase:
+  atualizar:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Configurar Ambiente Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-
-      - name: Instalar Dependencias do Projeto
-        run: pip install requests supabase
-
-      - name: Executar Motor de Extracao e Insercao
+          python-version: '3.12'
+      - run: pip install requests supabase
+      - run: python coleta_dados.py
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python coleta_dados.py
