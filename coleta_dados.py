@@ -21,30 +21,6 @@ ANOS_FISCAIS = [2024, 2025, 2026]
 def extrair_numeros(texto):
     return re.sub(r'\D', '', str(texto)) if texto else None
 
-def buscar_deputados_ativos():
-    print("Mapeando lista integral de Deputados Federais ativos...", flush=True)
-    deputados = []
-    url = "https://dadosabertos.camara.leg.br/api/v2/deputados?itens=100"
-    
-    headers = {"Accept": "application/json"}
-    
-    while url:
-        resp = requests.get(url, headers=headers, timeout=30)
-        resp.raise_for_status()
-        pacote = resp.json()
-        
-        deputados.extend(pacote.get('dados', []))
-        
-        proxima_url = None
-        for link in pacote.get('links', []):
-            if link.get('rel') == 'next':
-                proxima_url = link.get('href')
-                break
-        url = proxima_url
-
-    print(f"Mapeamento concluido. Total de parlamentares localizados: {len(deputados)}", flush=True)
-    return deputados
-
 def baixar_e_extrair_csv(ano):
     url_zip = f"https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip"
     print(f"Baixando Lote de {ano}: {url_zip} ...", flush=True)
@@ -64,15 +40,7 @@ def baixar_e_extrair_csv(ano):
 
 def executar_pipeline():
     print("Iniciando motor DEFINITIVO DE ESCALA - Ingestao em Lote (BULK INSERT)...", flush=True)
-
-    try:
-        lista_deputados = buscar_deputados_ativos()
-    except Exception as e:
-        print(f"Falha critica ao buscar a relacao de deputados: {e}", flush=True)
-        return
-
-    # Lookup list de IDs validos na Camara
-    ids_validos = {str(d['id']) for d in lista_deputados}
+    print("ISOLAMENTO TOTAL: Nenhuma requisicao sera feita a API REST bloqueada.", flush=True)
 
     for ano in ANOS_FISCAIS:
         print(f"\n=======================================================", flush=True)
@@ -81,39 +49,49 @@ def executar_pipeline():
 
         try:
             texto_csv = baixar_e_extrair_csv(ano)
-            print("Download concluido. Agrupando matriz de dados na memoria RAM...", flush=True)
+            print("Download concluido. Mapeando deputados e agrupando dados na memoria RAM...", flush=True)
 
             dados_agrupados = {}
+            deputados_mapeados = {}
+            
             leitor = csv.DictReader(io.StringIO(texto_csv), delimiter=';')
 
             for linha in leitor:
-                ide = linha.get('ideCadastro')
-                if ide in ids_validos:
-                    if ide not in dados_agrupados:
-                        dados_agrupados[ide] = []
-                    dados_agrupados[ide].append(linha)
+                ide = str(linha.get('ideCadastro', '')).strip()
+                
+                # Ignora despesas institucionais/liderancas que nao possuem ID de deputado
+                if not ide:
+                    continue
+                
+                # Mapeia o deputado dinamicamente lendo as colunas do proprio CSV
+                if ide not in deputados_mapeados:
+                    nome = str(linha.get('txNomeParlamentar', 'Nao Informado')).strip()
+                    uf = str(linha.get('sgUF', 'NA')).strip()
+                    deputados_mapeados[ide] = {"nome": nome, "uf": uf}
+
+                if ide not in dados_agrupados:
+                    dados_agrupados[ide] = []
+                dados_agrupados[ide].append(linha)
             
             # Forca a destruicao da string gigante (texto_csv) na memoria RAM
             del texto_csv 
             gc.collect()
             
-            print("Matriz consolidada. Iniciando fluxo de insercao no Banco de Dados...", flush=True)
+            total_deps = len(deputados_mapeados)
+            print(f"Matriz consolidada. {total_deps} parlamentares localizados no ano {ano}.", flush=True)
 
         except Exception as e:
             print(f"Erro critico ao processar o arquivo de lote de {ano}: {e}", flush=True)
             continue
 
-        for deputado in lista_deputados:
-            dep_id = str(deputado["id"])
-            nome_alvo = deputado["nome"]
-            uf = deputado["siglaUf"]
-
-            if dep_id not in dados_agrupados:
-                continue
-
+        contador = 1
+        for dep_id, dep_info in deputados_mapeados.items():
+            nome_alvo = dep_info["nome"]
+            uf = dep_info["uf"]
             notas_deputado = dados_agrupados[dep_id]
 
-            print(f"--- Inserindo {nome_alvo} ({len(notas_deputado)} notas base) ---", flush=True)
+            print(f"[{contador}/{total_deps}] Inserindo {nome_alvo} ({len(notas_deputado)} notas base)...", flush=True)
+            contador += 1
 
             try:
                 # 1. Valida Politico
@@ -135,7 +113,7 @@ def executar_pipeline():
                         "estado_uf": uf
                     }).execute().data[0]['id']
 
-                # 3. Mapeamento de recibos existentes
+                # 3. Mapeamento de recibos existentes (Anti-duplicidade)
                 recibos_existentes = supabase.table("despesa").select("url_recibo_original").eq("mandato_id", man_id).execute()
                 urls_vistas = {r['url_recibo_original'] for r in recibos_existentes.data if r.get('url_recibo_original')}
 
@@ -200,28 +178,25 @@ def executar_pipeline():
 
                 # 6. Insercao Lote: Despesas
                 if novas_despesas:
-                    falhas = 0
                     try:
                         for i in range(0, len(novas_despesas), 1000):
                             lote = novas_despesas[i:i+1000]
                             supabase.table("despesa").insert(lote).execute()
-                        print(f"  > Sucesso: {len(novas_despesas)} despesas ineditas consolidadas.", flush=True)
                     except Exception as e_desp:
                         print(f"  [ERRO GRAVE] Bulk de despesas falhou: {e_desp}", flush=True)
-                else:
-                    pass 
                 
-                # Liberacao fragmentada de memoria
+                # Liberacao fragmentada de memoria RAM a cada laco concluido
                 del dados_agrupados[dep_id]
 
             except Exception as e:
                 print(f"Erro estrutural ao processar {nome_alvo}: {e}", flush=True)
                 
-        # Coleta de lixo e liberacao integral de RAM ao final do ano fiscal
+        # Limpa o ano fiscal inteiro da memoria antes de iniciar o loop do proximo ano
         dados_agrupados.clear()
+        deputados_mapeados.clear()
         gc.collect()
 
-    print("\nMotor de Escala Finalizado. Todos os exercicios fiscais processados com sucesso.", flush=True)
+    print("\nMotor de Escala Finalizado. Todos os exercicios fiscais processados.", flush=True)
 
 if __name__ == "__main__":
     executar_pipeline()
