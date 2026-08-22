@@ -37,13 +37,45 @@ def extrair_numeros(texto):
 
 def baixar_e_extrair_csv(ano):
     """Baixa https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip e devolve
-    o texto do CSV que esta' dentro do zip."""
+    o texto do CSV que esta' dentro do zip.
+
+    Baixa em pedacos (stream=True) e vai logando o progresso -- assim,
+    se ficar lento de novo, da' pra ver no log do Actions se ainda esta'
+    recebendo dados ou se parou de vez, em vez de ficar adivinhando.
+    """
     url_zip = f"https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip"
     print(f"Baixando {url_zip} ...", flush=True)
-    resp = requests.get(url_zip, timeout=120)
-    resp.raise_for_status()
 
-    with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
+    # timeout=(conectar, ler): se ficar 30s sem receber NENHUM byte novo,
+    # desiste com erro em vez de ficar preso pra sempre
+    with requests.get(url_zip, timeout=(10, 30), stream=True) as resp:
+        resp.raise_for_status()
+
+        tamanho_total = int(resp.headers.get('Content-Length', 0))
+        if tamanho_total:
+            print(f"Tamanho do arquivo: {tamanho_total / 1_000_000:.1f} MB", flush=True)
+        else:
+            print("Servidor nao informou o tamanho do arquivo.", flush=True)
+
+        pedacos = []
+        baixado = 0
+        proximo_log_mb = 5
+        for pedaco in resp.iter_content(chunk_size=256 * 1024):
+            pedacos.append(pedaco)
+            baixado += len(pedaco)
+            baixado_mb = baixado / 1_000_000
+            if baixado_mb >= proximo_log_mb:
+                if tamanho_total:
+                    print(f"  baixado: {baixado_mb:.1f} / {tamanho_total / 1_000_000:.1f} MB", flush=True)
+                else:
+                    print(f"  baixado: {baixado_mb:.1f} MB", flush=True)
+                proximo_log_mb += 5
+
+        conteudo = b"".join(pedacos)
+
+    print(f"Download concluido: {len(conteudo) / 1_000_000:.1f} MB.", flush=True)
+
+    with zipfile.ZipFile(io.BytesIO(conteudo)) as z:
         nomes_csv = [n for n in z.namelist() if n.lower().endswith('.csv')]
         if not nomes_csv:
             raise ValueError(f"Nenhum .csv dentro do zip. Conteudo: {z.namelist()}")
