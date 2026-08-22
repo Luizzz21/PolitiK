@@ -24,64 +24,35 @@ ALVOS = [
     {"id": "204560", "nome": "Guilherme Boulos", "uf": "SP"}
 ]
 
-
 def extrair_numeros(texto):
     return re.sub(r'\D', '', str(texto)) if texto else None
 
-
 def baixar_e_extrair_csv(ano):
-    """
-    Baixa o arquivo oficial da CEAP e devolve o texto do CSV que esta dentro dele.
-
-    URL CORRETA (confirmada em ago/2026 direto na documentacao oficial da
-    Camara, secao "Arquivos" -> "Despesas pela Cota para Exercicio da
-    Atividade Parlamentar"):
-
-        https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip
-
-    Isso e' diferente do que o script original usava
-    (https://dadosabertos.camara.leg.br/arquivos/despesasPublicas/csv/Ano-2024.csv),
-    que retorna 404 -- dominio errado (www.camara.leg.br, e nao
-    dadosabertos.camara.leg.br), caminho errado (/cotas/, e nao
-    /arquivos/despesasPublicas/csv/) e, alem disso, o arquivo real e' um
-    .zip, nao um .csv "cru".
-    """
     url_zip = f"https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip"
-
     print(f"Baixando {url_zip} ...", flush=True)
     resp = requests.get(url_zip, timeout=120)
-    resp.raise_for_status()  # era exatamente aqui que a URL antiga estourava 404
+    resp.raise_for_status() 
 
     with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
         nomes_csv = [n for n in z.namelist() if n.lower().endswith('.csv')]
         if not nomes_csv:
-            raise ValueError(f"Nenhum .csv dentro do zip. Conteudo do zip: {z.namelist()}")
+            raise ValueError(f"Nenhum .csv dentro do zip.")
         bruto = z.read(nomes_csv[0])
 
-    # a Camara documenta o padrao como utf-8, mas alguns anos vem em
-    # latin-1/ISO-8859-1 -- por isso o fallback abaixo em vez de assumir cego
     try:
         return bruto.decode('utf-8')
     except UnicodeDecodeError:
-        print("utf-8 falhou ao decodificar, tentando ISO-8859-1...", flush=True)
         return bruto.decode('ISO-8859-1')
 
-
 def executar_pipeline():
-    print("Iniciando motor DEFINITIVO - Ingestao em Lote (Bulk) via Arquivo Estatico...", flush=True)
-    print("Isolando a aplicacao contra o bloqueio da API REST do Governo...", flush=True)
+    print("Iniciando motor DEFINITIVO - Ingestao em Lote (BULK INSERT) Otimizada...", flush=True)
 
     try:
         texto_csv = baixar_e_extrair_csv(ANO)
         print("Download e descompactacao concluidos. Processando o arquivo na memoria...", flush=True)
 
         leitor = csv.DictReader(io.StringIO(texto_csv), delimiter=';')
-
-        # diagnostico: confirma visualmente os nomes reais das colunas.
-        # Se 'ideCadastro' nao aparecer aqui com esse nome exato, e' por isso
-        # que o filtro abaixo não vai casar com nada.
-        print(f"Colunas encontradas no CSV: {leitor.fieldnames}", flush=True)
-
+        
         despesas_alvos = []
         ids_alvos = [str(a["id"]) for a in ALVOS]
 
@@ -89,17 +60,16 @@ def executar_pipeline():
             if linha.get('ideCadastro') in ids_alvos:
                 despesas_alvos.append(linha)
 
-        print(f"Foram filtradas {len(despesas_alvos)} despesas exatas para os deputados alvo.", flush=True)
+        print(f"Foram filtradas {len(despesas_alvos)} despesas exatas.", flush=True)
 
     except Exception as e:
-        print(f"Erro critico ao baixar/processar o arquivo CSV em lote: {e}", flush=True)
+        print(f"Erro critico ao baixar/processar o arquivo CSV: {e}", flush=True)
         return
 
     if not despesas_alvos:
-        print("Nenhuma despesa encontrada no arquivo CSV para os IDs configurados em ALVOS.", flush=True)
         return
 
-    # Insercao no banco de dados Supabase
+    # Pipeline de processamento por deputado
     for alvo in ALVOS:
         dep_id = str(alvo["id"])
         nome_alvo = alvo["nome"]
@@ -114,13 +84,14 @@ def executar_pipeline():
             continue
 
         try:
-            # 1 e 2. Valida Politico e Mandato
+            # 1. Valida Politico
             req_pol = supabase.table("politico").select("id").eq("nome_civil", nome_alvo).execute()
             if req_pol.data:
                 pol_id = req_pol.data[0]['id']
             else:
                 pol_id = supabase.table("politico").insert({"nome_civil": nome_alvo}).execute().data[0]['id']
 
+            # 2. Valida Mandato
             req_man = supabase.table("mandato").select("id").eq("politico_id", pol_id).execute()
             if req_man.data:
                 man_id = req_man.data[0]['id']
@@ -132,11 +103,14 @@ def executar_pipeline():
                     "estado_uf": uf
                 }).execute().data[0]['id']
 
-            inseridas = 0
-            falhas = 0
-            urls_vistas = set()
+            # 3. Mapeamento de dados existentes para evitar duplicidade
+            recibos_existentes = supabase.table("despesa").select("url_recibo_original").eq("mandato_id", man_id).execute()
+            urls_vistas = {r['url_recibo_original'] for r in recibos_existentes.data if r.get('url_recibo_original')}
 
-            # 3. Insere Despesas e Fornecedores
+            novos_fornecedores = {}
+            novas_despesas = []
+
+            # 4. Construcao dos Lotes (Payloads)
             for nota in notas_deputado:
                 url_rec = nota.get('urlDocumento')
                 if url_rec and url_rec in urls_vistas:
@@ -144,14 +118,8 @@ def executar_pipeline():
 
                 cnpj = extrair_numeros(nota.get('txtCNPJCPF'))
                 if cnpj and len(cnpj) == 14:
-                    if not supabase.table("fornecedor").select("cnpj").eq("cnpj", cnpj).execute().data:
-                        try:
-                            razao = str(nota.get('txtFornecedor', 'NAO INFORMADO'))[:250]
-                            supabase.table("fornecedor").insert({"cnpj": cnpj, "razao_social": razao}).execute()
-                        except Exception as e_forn:
-                            # antes era "except: pass" -- escondia qualquer erro
-                            # (RLS, coluna obrigatoria, etc.) sem deixar rastro
-                            print(f"  [fornecedor] falhou p/ CNPJ {cnpj}: {e_forn}", flush=True)
+                    razao = str(nota.get('txtFornecedor', 'NAO INFORMADO'))[:250]
+                    novos_fornecedores[cnpj] = {"cnpj": cnpj, "razao_social": razao}
                 else:
                     cnpj = None
 
@@ -166,34 +134,53 @@ def executar_pipeline():
                     data_em = data_em.split("T")[0]
 
                 if val > 0 and data_em:
-                    payload = {
+                    novas_despesas.append({
                         "mandato_id": man_id,
                         "fornecedor_cnpj": cnpj,
                         "tipo_verba": str(nota.get('txtDescricao', 'Outros'))[:250],
                         "valor_pago": val,
                         "data_emissao": data_em,
                         "url_recibo_original": url_rec
-                    }
-                    try:
-                        supabase.table("despesa").insert(payload).execute()
-                        if url_rec:
-                            urls_vistas.add(url_rec)
-                        inseridas += 1
-                    except Exception as e_desp:
-                        # este era o "except Exception: pass" original -- era
-                        # exatamente aqui que o erro real da tabela "despesa"
-                        # (RLS do Supabase, FK pra fornecedor, tipo de coluna,
-                        # NOT NULL etc.) desaparecia sem avisar ninguem
-                        falhas += 1
-                        if falhas <= 3:
-                            print(f"  [despesa] insercao falhou: {e_desp}", flush=True)
-                            print(f"  [despesa] payload: {payload}", flush=True)
+                    })
+                    if url_rec:
+                        urls_vistas.add(url_rec)
 
-            print(f"Sucesso: {inseridas} notas inseridas / {falhas} falharam no Supabase para {nome_alvo}.", flush=True)
+            # 5. Insercao Lote: Fornecedores
+            if novos_fornecedores:
+                cnpjs_lote = list(novos_fornecedores.keys())
+                existentes = []
+                # Consulta CNPJs em blocos para validar existencia rapidamente
+                for i in range(0, len(cnpjs_lote), 200):
+                    chunk = cnpjs_lote[i:i+200]
+                    req_forn = supabase.table("fornecedor").select("cnpj").in_("cnpj", chunk).execute()
+                    existentes.extend([f['cnpj'] for f in req_forn.data])
+                
+                cnpjs_existentes_set = set(existentes)
+                fornecedores_para_inserir = [f for cnpj, f in novos_fornecedores.items() if cnpj not in cnpjs_existentes_set]
+
+                if fornecedores_para_inserir:
+                    try:
+                        for i in range(0, len(fornecedores_para_inserir), 1000):
+                            lote = fornecedores_para_inserir[i:i+1000]
+                            supabase.table("fornecedor").insert(lote).execute()
+                    except Exception as e_forn:
+                        print(f"Erro no bulk de fornecedores: {e_forn}", flush=True)
+
+            # 6. Insercao Lote: Despesas
+            if novas_despesas:
+                try:
+                    # Insere as despesas consolidadas em blocos de 1000 linhas por vez
+                    for i in range(0, len(novas_despesas), 1000):
+                        lote = novas_despesas[i:i+1000]
+                        supabase.table("despesa").insert(lote).execute()
+                    print(f"Sucesso: {len(novas_despesas)} despesas gravadas em lote.", flush=True)
+                except Exception as e_desp:
+                    print(f"Erro no bulk de despesas: {e_desp}", flush=True)
+            else:
+                print("Nenhuma despesa nova para inserir.", flush=True)
 
         except Exception as e:
             print(f"Erro estrutural ao processar {nome_alvo}: {e}", flush=True)
-
 
 if __name__ == "__main__":
     executar_pipeline()
