@@ -4,207 +4,185 @@ import csv
 import io
 import zipfile
 import requests
-import gc
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 from supabase import create_client, Client
 
 url_supabase: str = os.environ.get("SUPABASE_URL")
-key_supabase: str = os.environ.get("SUPABASE_KEY")
+key_supabase: str = os.environ.get("SUPABASE_KEY")  # precisa ser a service_role
 
 if not url_supabase or not key_supabase:
     raise ValueError("Credenciais do Supabase nao localizadas.")
 
 supabase: Client = create_client(url_supabase, key_supabase)
 
-# Escala de Producao: Multiplos exercicios fiscais
-ANOS_FISCAIS = [2024, 2025, 2026]
+ANO = 2024
+
+ALVOS = [
+    {"id": "204534", "nome": "Tabata Amaral", "uf": "SP"},
+    {"id": "220008", "nome": "Nikolas Ferreira", "uf": "MG"},
+    {"id": "220714", "nome": "Erika Hilton", "uf": "SP"},
+    {"id": "204535", "nome": "Eduardo Bolsonaro", "uf": "SP"},
+    {"id": "204560", "nome": "Guilherme Boulos", "uf": "SP"}
+]
+# Pra ingerir TODOS os deputados em vez de so' esses 5: da' pra montar
+# essa lista a partir do proprio CSV (campos ideCadastro/txNomeParlamentar
+# de cada linha), sem nenhuma chamada extra a' API. Fica pra quando
+# quiserem escalar -- por enquanto mantem o escopo de teste.
+
+CATEGORIA_FIXA = "Cota Parlamentar"  # RF03: esse arquivo inteiro e' dado de CEAP
+
 
 def extrair_numeros(texto):
     return re.sub(r'\D', '', str(texto)) if texto else None
 
-def baixar_e_extrair_csv(ano):
-    url_zip = f"https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip"
-    print(f"Baixando Lote de {ano}: {url_zip} ...", flush=True)
-    
-    # Sessao blindada com identificacao honesta para evitar tarpitting do WAF
-    session = requests.Session()
-    retries = Retry(total=5, backoff_factor=2, status_forcelist=[403, 429, 500, 502, 503, 504])
-    session.mount("https://", HTTPAdapter(max_retries=retries))
-    
-    headers = {
-        "Accept": "application/zip",
-        "User-Agent": "PolitiK-Backend-Ingestion/1.0"
-    }
 
-    resp = session.get(url_zip, headers=headers, timeout=120)
-    resp.raise_for_status() 
+def baixar_e_extrair_csv(ano):
+    """Baixa https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip e devolve
+    o texto do CSV que esta' dentro do zip."""
+    url_zip = f"https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip"
+    print(f"Baixando {url_zip} ...", flush=True)
+    resp = requests.get(url_zip, timeout=120)
+    resp.raise_for_status()
 
     with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
         nomes_csv = [n for n in z.namelist() if n.lower().endswith('.csv')]
         if not nomes_csv:
-            raise ValueError(f"Nenhum arquivo .csv localizado dentro do zip do ano {ano}.")
+            raise ValueError(f"Nenhum .csv dentro do zip. Conteudo: {z.namelist()}")
         bruto = z.read(nomes_csv[0])
 
     try:
-        # utf-8-sig remove o caractere invisivel (\ufeff) do inicio do CSV
-        return bruto.decode('utf-8-sig')
+        return bruto.decode('utf-8')
     except UnicodeDecodeError:
+        print("utf-8 falhou ao decodificar, tentando ISO-8859-1...", flush=True)
         return bruto.decode('ISO-8859-1')
 
+
+def get_or_create_politico(nome_civil):
+    r = supabase.table("politico").select("id").eq("nome_civil", nome_civil).execute()
+    if r.data:
+        return r.data[0]["id"]
+    return supabase.table("politico").insert({"nome_civil": nome_civil}).execute().data[0]["id"]
+
+
+def get_or_create_mandato(politico_id, uf):
+    r = supabase.table("mandato").select("id").eq("politico_id", politico_id).execute()
+    if r.data:
+        return r.data[0]["id"]
+    payload = {
+        "politico_id": politico_id,
+        "cargo": "Deputado Federal",
+        "esfera": "Federal",
+        "estado_uf": uf,
+    }
+    return supabase.table("mandato").insert(payload).execute().data[0]["id"]
+
+
+def get_or_create_fornecedor(cnpj, razao_social):
+    ja_existe = supabase.table("fornecedor").select("cnpj").eq("cnpj", cnpj).execute().data
+    if ja_existe:
+        return
+    try:
+        supabase.table("fornecedor").insert({
+            "cnpj": cnpj,
+            "razao_social": str(razao_social)[:250],
+        }).execute()
+    except Exception as e:
+        print(f"  [fornecedor] falhou p/ CNPJ {cnpj}: {e}", flush=True)
+
+
 def executar_pipeline():
-    print("Iniciando motor DEFINITIVO DE ESCALA - Ingestao em Lote (BULK INSERT)...", flush=True)
+    print("Iniciando ingestao CEAP...", flush=True)
 
-    for ano in ANOS_FISCAIS:
-        print(f"\n=======================================================", flush=True)
-        print(f" PROCESSANDO EXERCICIO FISCAL: {ano}", flush=True)
-        print(f"=======================================================\n", flush=True)
+    try:
+        texto_csv = baixar_e_extrair_csv(ANO)
+        leitor = csv.DictReader(io.StringIO(texto_csv), delimiter=';')
+        print(f"Colunas encontradas no CSV: {leitor.fieldnames}", flush=True)
 
-        try:
-            texto_csv = baixar_e_extrair_csv(ano)
-            print("Download concluido. Mapeando deputados e agrupando dados na memoria RAM...", flush=True)
+        despesas_alvos = []
+        ids_alvos = [str(a["id"]) for a in ALVOS]
+        for linha in leitor:
+            if linha.get('ideCadastro') in ids_alvos:
+                despesas_alvos.append(linha)
 
-            dados_agrupados = {}
-            deputados_mapeados = {}
-            
-            leitor = csv.DictReader(io.StringIO(texto_csv), delimiter=';')
+        print(f"Filtradas {len(despesas_alvos)} despesas para os deputados alvo.", flush=True)
 
-            for linha in leitor:
-                ide = str(linha.get('ideCadastro', '')).strip()
-                
-                if not ide:
-                    continue
-                
-                if ide not in deputados_mapeados:
-                    nome = str(linha.get('txNomeParlamentar', 'Nao Informado')).strip()
-                    uf = str(linha.get('sgUF', 'NA')).strip()
-                    deputados_mapeados[ide] = {"nome": nome, "uf": uf}
+    except Exception as e:
+        print(f"Erro critico ao baixar/processar o CSV: {e}", flush=True)
+        return
 
-                if ide not in dados_agrupados:
-                    dados_agrupados[ide] = []
-                dados_agrupados[ide].append(linha)
-            
-            del texto_csv 
-            gc.collect()
-            
-            total_deps = len(deputados_mapeados)
-            print(f"Matriz consolidada. {total_deps} parlamentares localizados no ano {ano}.", flush=True)
+    if not despesas_alvos:
+        print("Nenhuma despesa encontrada para os IDs configurados em ALVOS.", flush=True)
+        return
 
-        except Exception as e:
-            print(f"Erro critico ao processar o arquivo de lote de {ano}: {e}", flush=True)
+    for alvo in ALVOS:
+        dep_id = str(alvo["id"])
+        nome_alvo = alvo["nome"]
+        uf = alvo["uf"]
+
+        notas_deputado = [d for d in despesas_alvos if d.get('ideCadastro') == dep_id]
+        if not notas_deputado:
+            print(f"Sem gastos para {nome_alvo} no lote de {ANO}.", flush=True)
             continue
 
-        contador = 1
-        for dep_id, dep_info in deputados_mapeados.items():
-            nome_alvo = dep_info["nome"]
-            uf = dep_info["uf"]
-            notas_deputado = dados_agrupados[dep_id]
+        print(f"\n--- {nome_alvo} ---", flush=True)
 
-            print(f"[{contador}/{total_deps}] Inserindo {nome_alvo} ({len(notas_deputado)} notas base)...", flush=True)
-            contador += 1
+        try:
+            pol_id = get_or_create_politico(nome_alvo)
+            man_id = get_or_create_mandato(pol_id, uf)
+        except Exception as e:
+            print(f"Erro ao gravar politico/mandato de {nome_alvo}: {e}", flush=True)
+            continue
 
+        inseridas = 0
+        falhas = 0
+        urls_vistas = set()
+
+        for nota in notas_deputado:
+            url_rec = nota.get('urlDocumento')
+            if url_rec and url_rec in urls_vistas:
+                continue
+
+            cnpj = extrair_numeros(nota.get('txtCNPJCPF'))
+            if cnpj and len(cnpj) == 14:
+                get_or_create_fornecedor(cnpj, nota.get('txtFornecedor', 'NAO INFORMADO'))
+            else:
+                cnpj = None
+
+            val_str = str(nota.get('vlrLiquido', '0')).replace(',', '.')
             try:
-                # 1. Valida Politico
-                req_pol = supabase.table("politico").select("id").eq("nome_civil", nome_alvo).execute()
-                if req_pol.data:
-                    pol_id = req_pol.data[0]['id']
-                else:
-                    pol_id = supabase.table("politico").insert({"nome_civil": nome_alvo}).execute().data[0]['id']
+                val = float(val_str)
+            except ValueError:
+                val = 0.0
 
-                # 2. Valida Mandato
-                req_man = supabase.table("mandato").select("id").eq("politico_id", pol_id).execute()
-                if req_man.data:
-                    man_id = req_man.data[0]['id']
-                else:
-                    man_id = supabase.table("mandato").insert({
-                        "politico_id": pol_id,
-                        "cargo": "Deputado Federal",
-                        "esfera": "Federal",
-                        "estado_uf": uf
-                    }).execute().data[0]['id']
+            data_em = nota.get('datEmissao')
+            if data_em and "T" in data_em:
+                data_em = data_em.split("T")[0]
 
-                # 3. Mapeamento de recibos existentes (Anti-duplicidade)
-                recibos_existentes = supabase.table("despesa").select("url_recibo_original").eq("mandato_id", man_id).execute()
-                urls_vistas = {r['url_recibo_original'] for r in recibos_existentes.data if r.get('url_recibo_original')}
+            if val <= 0 or not data_em:
+                continue
 
-                novos_fornecedores = {}
-                novas_despesas = []
-
-                # 4. Construcao dos Lotes (Payloads)
-                for nota in notas_deputado:
-                    url_rec = nota.get('urlDocumento')
-                    if url_rec and url_rec in urls_vistas:
-                        continue
-
-                    cnpj = extrair_numeros(nota.get('txtCNPJCPF'))
-                    if cnpj and len(cnpj) == 14:
-                        razao = str(nota.get('txtFornecedor', 'NAO INFORMADO'))[:250]
-                        novos_fornecedores[cnpj] = {"cnpj": cnpj, "razao_social": razao}
-                    else:
-                        cnpj = None
-
-                    val_str = str(nota.get('vlrLiquido', '0')).replace(',', '.')
-                    try:
-                        val = float(val_str)
-                    except ValueError:
-                        val = 0.0
-
-                    data_em = nota.get('datEmissao')
-                    if data_em and "T" in data_em:
-                        data_em = data_em.split("T")[0]
-
-                    if val > 0 and data_em:
-                        novas_despesas.append({
-                            "mandato_id": man_id,
-                            "fornecedor_cnpj": cnpj,
-                            "tipo_verba": str(nota.get('txtDescricao', 'Outros'))[:250],
-                            "valor_pago": val,
-                            "data_emissao": data_em,
-                            "url_recibo_original": url_rec
-                        })
-                        if url_rec:
-                            urls_vistas.add(url_rec)
-
-                # 5. Insercao Lote: Fornecedores
-                if novos_fornecedores:
-                    cnpjs_lote = list(novos_fornecedores.keys())
-                    existentes = []
-                    
-                    for i in range(0, len(cnpjs_lote), 200):
-                        chunk = cnpjs_lote[i:i+200]
-                        req_forn = supabase.table("fornecedor").select("cnpj").in_("cnpj", chunk).execute()
-                        existentes.extend([f['cnpj'] for f in req_forn.data])
-                    
-                    cnpjs_existentes_set = set(existentes)
-                    fornecedores_para_inserir = [f for cnpj, f in novos_fornecedores.items() if cnpj not in cnpjs_existentes_set]
-
-                    if fornecedores_para_inserir:
-                        try:
-                            for i in range(0, len(fornecedores_para_inserir), 1000):
-                                lote = fornecedores_para_inserir[i:i+1000]
-                                supabase.table("fornecedor").insert(lote).execute()
-                        except Exception as e_forn:
-                            print(f"  [ALERTA] Erro no bulk de fornecedores: {e_forn}", flush=True)
-
-                # 6. Insercao Lote: Despesas
-                if novas_despesas:
-                    try:
-                        for i in range(0, len(novas_despesas), 1000):
-                            lote = novas_despesas[i:i+1000]
-                            supabase.table("despesa").insert(lote).execute()
-                    except Exception as e_desp:
-                        print(f"  [ERRO GRAVE] Bulk de despesas falhou: {e_desp}", flush=True)
-                
-                del dados_agrupados[dep_id]
-
+            payload = {
+                "mandato_id": man_id,
+                "fornecedor_cnpj": cnpj,
+                "categoria": CATEGORIA_FIXA,
+                "tipo_verba": str(nota.get('txtDescricao', 'Outros'))[:250],
+                "valor_pago": val,
+                "data_emissao": data_em,
+                "url_recibo_original": url_rec,
+                "fonte": "camara",
+            }
+            try:
+                supabase.table("despesa").insert(payload).execute()
+                if url_rec:
+                    urls_vistas.add(url_rec)
+                inseridas += 1
             except Exception as e:
-                print(f"Erro estrutural ao processar {nome_alvo}: {e}", flush=True)
-                
-        dados_agrupados.clear()
-        deputados_mapeados.clear()
-        gc.collect()
+                falhas += 1
+                if falhas <= 3:
+                    print(f"  [despesa] falhou: {e}", flush=True)
+                    print(f"  [despesa] payload: {payload}", flush=True)
 
-    print("\nMotor de Escala Finalizado. Todos os exercicios fiscais processados.", flush=True)
+        print(f"{nome_alvo}: {inseridas} inseridas / {falhas} falharam.", flush=True)
+
 
 if __name__ == "__main__":
     executar_pipeline()
