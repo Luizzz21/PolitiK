@@ -10,8 +10,8 @@
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; margin: 0; padding: 16px; }
         .card { max-width: 720px; margin: 0 auto; background: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
         h1 { margin: 0 0 16px 0; font-size: 20px; color: #1a1a1a; text-align: center; }
-        .filtros { display: flex; gap: 10px; margin-bottom: 20px; }
-        select { flex: 1; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px; background: #fff; }
+        .filtros { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        select { flex: 1; min-width: 150px; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px; background: #fff; }
         .total-container { text-align: center; margin-bottom: 20px; }
         .total-label { font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
         .total-valor { font-size: 24px; font-weight: bold; color: #c62828; margin-top: 4px; }
@@ -22,12 +22,23 @@
 <body>
 
 <div class="card">
-    <h1>Cota Parlamentar</h1>
+    <h1>Transparência Pública - PolitiK</h1>
 
     <div class="filtros">
-        <select id="selectDeputado" onchange="renderizarDados()">
+        <select id="selectCargo" onchange="filtrarPoliticos()">
+            <option value="Todos">Todos os Cargos</option>
+            <option value="Presidente">Presidente</option>
+            <option value="Governador">Governador</option>
+            <option value="Senador">Senador</option>
+            <option value="Deputado Federal">Deputado Federal</option>
+            <option value="Deputado Estadual">Deputado Estadual</option>
+            <option value="Prefeito">Prefeito</option>
+        </select>
+
+        <select id="selectPolitico" onchange="renderizarDados()">
             <option>Carregando...</option>
         </select>
+
         <select id="selectAno" onchange="renderizarDados()">
             <option value="2026">2026</option>
             <option value="2025">2025</option>
@@ -49,52 +60,40 @@
 </div>
 
 <script>
-    // Configuração de Conexão com o Banco de Dados
     const SUPABASE_URL = 'https://eqpaebepyoqxfqrxzkct.supabase.co'; 
     const SUPABASE_ANON_KEY = 'sb_publishable_DWU6EdF9nMQqpwSFWzvdkg_UR_ZaF6s'; 
 
-    // Correção: Nome da variável alterado para evitar conflito com a biblioteca global
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     let chartInstance = null;
-    let mapMandatos = {}; 
+    let listaMandatosGeral = []; 
 
     async function inicializar() {
         try {
-            // Busca a lista de políticos cadastrados pelo robô
-            const { data: politicos, error: errPol } = await supabaseClient
-                .from('politico')
-                .select('id, nome_civil')
-                .order('nome_civil');
+            // Realiza um JOIN entre mandato e politico para associar o cargo ao nome
+            const { data: mandatos, error } = await supabaseClient
+                .from('mandato')
+                .select(`
+                    id,
+                    cargo,
+                    politico:politico_id ( id, nome_civil )
+                `)
+                .order('cargo', { ascending: true });
 
-            if (errPol) throw errPol;
+            if (error) throw error;
 
-            const selectDep = document.getElementById('selectDeputado');
-            selectDep.innerHTML = '';
-            
-            if (politicos.length === 0) {
-                selectDep.innerHTML = '<option>Aguardando processamento de dados...</option>';
+            if (!mandatos || mandatos.length === 0) {
+                document.getElementById('selectPolitico').innerHTML = '<option>Nenhum dado encontrado.</option>';
                 return;
             }
 
-            politicos.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p.id;
-                opt.innerText = p.nome_civil;
-                selectDep.appendChild(opt);
+            // Ordena alfabeticamente pelo nome do político
+            listaMandatosGeral = mandatos.sort((a, b) => {
+                const nomeA = a.politico?.nome_civil || '';
+                const nomeB = b.politico?.nome_civil || '';
+                return nomeA.localeCompare(nomeB);
             });
 
-            // Mapeia o ID do político para o ID do mandato ativo dele
-            const { data: mandatos, error: errMan } = await supabaseClient
-                .from('mandato')
-                .select('id, politico_id');
-            
-            if (errMan) throw errMan;
-            
-            mandatos.forEach(m => {
-                mapMandatos[m.politico_id] = m.id;
-            });
-
-            await renderizarDados();
+            filtrarPoliticos();
 
         } catch (error) {
             console.error("Falha de conexão:", error);
@@ -102,10 +101,40 @@
         }
     }
 
+    function filtrarPoliticos() {
+        const cargoSelecionado = document.getElementById('selectCargo').value;
+        const selectPolitico = document.getElementById('selectPolitico');
+        
+        selectPolitico.innerHTML = '';
+
+        const mandatosFiltrados = cargoSelecionado === "Todos" 
+            ? listaMandatosGeral 
+            : listaMandatosGeral.filter(m => m.cargo === cargoSelecionado);
+
+        if (mandatosFiltrados.length === 0) {
+            const opt = document.createElement('option');
+            opt.innerText = "Nenhum político registrado neste cargo.";
+            opt.value = "";
+            selectPolitico.appendChild(opt);
+            atualizarGrafico({}, 0);
+            return;
+        }
+
+        mandatosFiltrados.forEach(m => {
+            if (m.politico) {
+                const opt = document.createElement('option');
+                opt.value = m.id; // O valor agora é o ID do mandato direto
+                opt.innerText = `${m.politico.nome_civil} (${m.cargo})`;
+                selectPolitico.appendChild(opt);
+            }
+        });
+
+        renderizarDados();
+    }
+
     async function renderizarDados() {
-        const politicoId = document.getElementById('selectDeputado').value;
+        const mandatoId = document.getElementById('selectPolitico').value;
         const ano = document.getElementById('selectAno').value;
-        const mandatoId = mapMandatos[politicoId];
 
         if (!mandatoId) {
             atualizarGrafico({}, 0);
@@ -116,7 +145,6 @@
             const dataInicio = `${ano}-01-01`;
             const dataFim = `${ano}-12-31`;
 
-            // Busca as despesas atreladas ao mandato dentro do ano selecionado
             const { data: despesas, error } = await supabaseClient
                 .from('despesa')
                 .select('tipo_verba, valor_pago')
