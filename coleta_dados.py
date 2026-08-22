@@ -34,13 +34,13 @@ def baixar_e_extrair_csv(ano):
         bruto = z.read(nomes_csv[0])
 
     try:
-        return bruto.decode('utf-8')
+        # A MUDANCA ESTA AQUI: utf-8-sig remove o caractere invisivel (\ufeff) do inicio do CSV
+        return bruto.decode('utf-8-sig')
     except UnicodeDecodeError:
         return bruto.decode('ISO-8859-1')
 
 def executar_pipeline():
     print("Iniciando motor DEFINITIVO DE ESCALA - Ingestao em Lote (BULK INSERT)...", flush=True)
-    print("ISOLAMENTO TOTAL: Nenhuma requisicao sera feita a API REST bloqueada.", flush=True)
 
     for ano in ANOS_FISCAIS:
         print(f"\n=======================================================", flush=True)
@@ -65,6 +65,7 @@ def executar_pipeline():
                 
                 # Mapeia o deputado dinamicamente lendo as colunas do proprio CSV
                 if ide not in deputados_mapeados:
+                    # Agora a chave 'txNomeParlamentar' sera lida perfeitamente sem o \ufeff
                     nome = str(linha.get('txNomeParlamentar', 'Nao Informado')).strip()
                     uf = str(linha.get('sgUF', 'NA')).strip()
                     deputados_mapeados[ide] = {"nome": nome, "uf": uf}
