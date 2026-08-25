@@ -1,0 +1,68 @@
+<nav class="bg-white border-b border-surface-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+            <div class="flex items-center space-x-4">
+                <a href="{% url 'index' %}" class="flex-shrink-0">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='currentColor' class='w-8 h-8 text-primary-600'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M12 9v6m3-3H9' /%3E%3C/svg%3E" alt="PolitiK Logo">
+                    <span class="text-xl font-bold text-primary-600">PolitiK</span>
+                </a>
+            </div>
+            <div class="hidden md:flex md:items-center md:space-x-6">
+                <a href="{% url 'index' %}" class="px-3 py-2 rounded-md text-sm font-medium text-surface-600 hover:bg-surface-100 hover:text-surface-900 transition-colors">
+                    Dashboard
+                </a>
+                <a href="#" class="px-3 py-2 rounded-md text-sm font-medium text-surface-600 hover:bg-surface-100 hover:text-surface-900 transition-colors">
+                    Políticos
+                </a>
+                <a href="#" class="px-3 py-2 rounded-md text-sm font-medium text-surface-600 hover:bg-surface-100 hover:text-surface-900 transition-colors">
+                    Gastos
+                </a>
+                <a href="{% url 'alertas' %}" class="px-3 py-2 rounded-md text-sm font-medium text-surface-600 hover:bg-surface-100 hover:text-surface-900 transition-colors">
+                    Alertas
+                </a>
+            </div>
+            <div class="flex items-center space-x-3">
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <svg class="h-5 w-5 text-surface-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 105.636 5.636m12.728 12.728-1.06-1.06" />
+                        </svg>
+                    </div>
+                    <input type="search" id="search-input" placeholder="Buscar políticos, gastos..." class="w-64 pl-10 pr-4 py-2 rounded-md border border-surface-200 bg-surface-50 text-sm font-medium text-surface-900 placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all" />
+                </div>
+                <div class="relative">
+                    {% if user.is_authenticated %}
+                        <div class="flex items-center space-x-2">
+                            <span class="text-surface-500">{{ user.get_full_name|default:user.username }}</span>
+                            <div class="h-8 w-8">
+                                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor' class='w-6 h-6'%3E%3Cpath d='M12 4a5 5 0 015 5v6h-2a2 2 0 00-2 2 2 2 0 01-2 2v2h-2v-2a2 2 0 01-2-2 2 2 0 00-2-2V9a5 5 0 015-5z' /%3E%3C/svg%3E" alt="User avatar">
+                            </div>
+                        </div>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="px-3 py-2 rounded-md text-sm font-medium text-primary-600 hover:bg-primary-50 border border-primary-200 transition-colors">
+                            Entrar
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- Mobile menu -->
+<div class="md:hidden">
+    <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+        <a href="{% url 'index' %}" class="block px-3 py-2 rounded-md text-base font-medium text-surface-700 hover:bg-surface-50">
+            Dashboard
+        </a>
+        <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-surface-700 hover:bg-surface-50">
+            Políticos
+        </a>
+        <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-surface-700 hover:bg-surface-50">
+            Gastos
+        </a>
+        <a href="{% url 'alertas' %}" class="block px-3 py-2 rounded-md text-base font-medium text-surface-700 hover:bg-surface-50">
+            Alertas
+        </a>
+    </div>
+</div>

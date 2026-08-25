@@ -1,220 +1,328 @@
+#!/usr/bin/env python3
+"""
+PolitiK - Motor de Ingestão de Dados em Larga Escala (Histórico e Multiesfera)
+Processa Câmara (Deputados), Senado (Senadores) e Executivo (Presidência/Ministérios).
+"""
+
 import os
+import sys
 import re
 import csv
 import io
 import zipfile
 import requests
-from supabase import create_client, Client
+import logging
+from datetime import datetime
+import time
 
-url_supabase: str = os.environ.get("SUPABASE_URL")
-key_supabase: str = os.environ.get("SUPABASE_KEY")  # precisa ser a service_role
+# Configuração do ambiente Django para rodar scripts externos
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(BASE_DIR, 'politik_django'))
 
-if not url_supabase or not key_supabase:
-    raise ValueError("Credenciais do Supabase nao localizadas.")
+# Use Django project settings from the correct path
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'politik_django.settings')
 
-supabase: Client = create_client(url_supabase, key_supabase)
+import django
+django.setup()
 
-ANO = 2024
+import django
+django.setup()
 
-ALVOS = [
-    {"id": "204534", "nome": "Tabata Amaral", "uf": "SP"},
-    {"id": "220008", "nome": "Nikolas Ferreira", "uf": "MG"},
-    {"id": "220714", "nome": "Erika Hilton", "uf": "SP"},
-    {"id": "204535", "nome": "Eduardo Bolsonaro", "uf": "SP"},
-    {"id": "204560", "nome": "Guilherme Boulos", "uf": "SP"}
-]
-# Pra ingerir TODOS os deputados em vez de so' esses 5: da' pra montar
-# essa lista a partir do proprio CSV (campos ideCadastro/txNomeParlamentar
-# de cada linha), sem nenhuma chamada extra a' API. Fica pra quando
-# quiserem escalar -- por enquanto mantem o escopo de teste.
+# Importação dos modelos
+from politik_django.models import Politico, Mandato, Fornecedor, Despesa, Alerta, NegocioRegras
+from django.db import transaction
 
-CATEGORIA_FIXA = "Cota Parlamentar"  # RF03: esse arquivo inteiro e' dado de CEAP
-
+# Configuração de Logs
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('coleta_dados_macro.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 def extrair_numeros(texto):
     return re.sub(r'\D', '', str(texto)) if texto else None
 
+def get_or_create_politico(nome_civil, partido=None, uf=None):
+    if not nome_civil:
+        raise ValueError("Nome civil é obrigatório.")
+        
+    politico, created = Politico.objects.get_or_create(
+        nome_civil=nome_civil.strip().upper(),
+        defaults={'partido': partido, 'uf': uf}
+    )
+    
+    if not created and (politico.partido != partido or politico.uf != uf):
+        if partido: politico.partido = partido
+        if uf: politico.uf = uf
+        politico.save()
+        
+    return politico
 
-def baixar_e_extrair_csv(ano):
-    """Baixa https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip e devolve
-    o texto do CSV que esta' dentro do zip.
-
-    Baixa em pedacos (stream=True) e vai logando o progresso -- assim,
-    se ficar lento de novo, da' pra ver no log do Actions se ainda esta'
-    recebendo dados ou se parou de vez, em vez de ficar adivinhando.
-    """
-    url_zip = f"https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip"
-    print(f"Baixando {url_zip} ...", flush=True)
-
-    # timeout=(conectar, ler): se ficar 30s sem receber NENHUM byte novo,
-    # desiste com erro em vez de ficar preso pra sempre
-    with requests.get(url_zip, timeout=(10, 30), stream=True) as resp:
-        resp.raise_for_status()
-
-        tamanho_total = int(resp.headers.get('Content-Length', 0))
-        if tamanho_total:
-            print(f"Tamanho do arquivo: {tamanho_total / 1_000_000:.1f} MB", flush=True)
-        else:
-            print("Servidor nao informou o tamanho do arquivo.", flush=True)
-
-        pedacos = []
-        baixado = 0
-        proximo_log_mb = 5
-        for pedaco in resp.iter_content(chunk_size=256 * 1024):
-            pedacos.append(pedaco)
-            baixado += len(pedaco)
-            baixado_mb = baixado / 1_000_000
-            if baixado_mb >= proximo_log_mb:
-                if tamanho_total:
-                    print(f"  baixado: {baixado_mb:.1f} / {tamanho_total / 1_000_000:.1f} MB", flush=True)
-                else:
-                    print(f"  baixado: {baixado_mb:.1f} MB", flush=True)
-                proximo_log_mb += 5
-
-        conteudo = b"".join(pedacos)
-
-    print(f"Download concluido: {len(conteudo) / 1_000_000:.1f} MB.", flush=True)
-
-    with zipfile.ZipFile(io.BytesIO(conteudo)) as z:
-        nomes_csv = [n for n in z.namelist() if n.lower().endswith('.csv')]
-        if not nomes_csv:
-            raise ValueError(f"Nenhum .csv dentro do zip. Conteudo: {z.namelist()}")
-        bruto = z.read(nomes_csv[0])
-
-    try:
-        return bruto.decode('utf-8')
-    except UnicodeDecodeError:
-        print("utf-8 falhou ao decodificar, tentando ISO-8859-1...", flush=True)
-        return bruto.decode('ISO-8859-1')
-
-
-def get_or_create_politico(nome_civil):
-    r = supabase.table("politico").select("id").eq("nome_civil", nome_civil).execute()
-    if r.data:
-        return r.data[0]["id"]
-    return supabase.table("politico").insert({"nome_civil": nome_civil}).execute().data[0]["id"]
-
-
-def get_or_create_mandato(politico_id, uf):
-    r = supabase.table("mandato").select("id").eq("politico_id", politico_id).execute()
-    if r.data:
-        return r.data[0]["id"]
-    payload = {
-        "politico_id": politico_id,
-        "cargo": "Deputado Federal",
-        "esfera": "Federal",
-        "estado_uf": uf,
-    }
-    return supabase.table("mandato").insert(payload).execute().data[0]["id"]
-
+def get_or_create_mandato(politico, cargo, esfera, estado_uf, ano):
+    mandato, created = Mandato.objects.get_or_create(
+        politico=politico,
+        cargo=cargo,
+        ano_inicio=ano,
+        defaults={
+            'esfera': esfera,
+            'estado_uf': estado_uf,
+            'ano_fim': ano
+        }
+    )
+    return mandato
 
 def get_or_create_fornecedor(cnpj, razao_social):
-    ja_existe = supabase.table("fornecedor").select("cnpj").eq("cnpj", cnpj).execute().data
-    if ja_existe:
-        return
+    cnpj_limpo = extrair_numeros(cnpj)
+    
+    if not cnpj_limpo or len(cnpj_limpo) != 14:
+        return None
+
+    fornecedor, created = Fornecedor.objects.get_or_create(
+        cnpj=cnpj_limpo,
+        defaults={
+            'razao_social': str(razao_social)[:250].strip().upper() if razao_social else 'NÃO INFORMADO'
+        }
+    )
+    return fornecedor
+
+@transaction.atomic
+def processar_despesa(mandato, fornecedor, categoria, tipo_verba, descricao,
+                      valor_liquidado, data_emissao, numero_documento, 
+                      url_documento, fonte, ano, mes):
     try:
-        supabase.table("fornecedor").insert({
-            "cnpj": cnpj,
-            "razao_social": str(razao_social)[:250],
-        }).execute()
+        if isinstance(valor_liquidado, str):
+            valor_liquidado = valor_liquidado.replace(',', '.')
+        valor = float(valor_liquidado) if valor_liquidado else 0.0
+        
+        if valor <= 0:
+            return False, "Valor não positivo."
+
+        if not categoria or categoria == 'Outros':
+            categoria = NegocioRegras.obter_categoria_absoluta(tipo_verba or descricao or '')
+
+        trigger_volume, tipo_alerta, mensagem_volume = NegocioRegras.verificar_triggers_volume(
+            categoria=categoria, 
+            valor=valor, 
+            descricao=descricao or tipo_verba or ''
+        )
+
+        data_formatada = str(data_emissao)[:10] if data_emissao and len(str(data_emissao)) >= 10 else f"{ano}-01-01"
+
+        Despesa.objects.create(
+            mandato=mandato,
+            fornecedor=fornecedor,
+            categoria=categoria,
+            tipo_verba=str(tipo_verba)[:250] if tipo_verba else 'Não especificado',
+            descricao_despesa=str(descricao)[:500] if descricao else None,
+            numero_documento=str(numero_documento)[:100] if numero_documento else None,
+            valor_liquidado=valor,
+            data_emissao=data_formatada,
+            url_documento=url_documento,
+            fonte=fonte,
+            ano=ano,
+            mes=mes or 1
+        )
+
+        if trigger_volume:
+            Alerta.objects.create(
+                mandato=mandato,
+                tipo=tipo_alerta,
+                severidade='alta' if 'volume' in tipo_alerta else 'media',
+                titulo=f"Gatilho de Transparência: {tipo_alerta.capitalize()}",
+                descricao=mensagem_volume,
+                valor_real=valor
+            )
+
+        return True, "Processado"
     except Exception as e:
-        print(f"  [fornecedor] falhou p/ CNPJ {cnpj}: {e}", flush=True)
+        return False, str(e)
 
-
-def executar_pipeline():
-    print("Iniciando ingestao CEAP...", flush=True)
+def baixar_e_processar_camara(ano):
+    """Extrai dados da Cota Parlamentar (CEAP) dos Deputados Federais"""
+    url = f"https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip"
+    logger.info(f"Extraindo Câmara dos Deputados: {ano}")
 
     try:
-        texto_csv = baixar_e_extrair_csv(ANO)
-        leitor = csv.DictReader(io.StringIO(texto_csv), delimiter=';')
-        print(f"Colunas encontradas no CSV: {leitor.fieldnames}", flush=True)
+        response = requests.get(url, timeout=30, stream=True)
+        if response.status_code != 200:
+            logger.warning(f"Arquivo da Câmara não disponível para {ano}.")
+            return 0, 0
 
-        despesas_alvos = []
-        ids_alvos = [str(a["id"]) for a in ALVOS]
-        for linha in leitor:
-            if linha.get('ideCadastro') in ids_alvos:
-                despesas_alvos.append(linha)
+        content = b"".join(response.iter_content(chunk_size=8192))
+        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+            csv_file = [f for f in zf.namelist() if f.lower().endswith('.csv')][0]
+            with zf.open(csv_file) as f:
+                try:
+                    text = f.read().decode('utf-8')
+                except UnicodeDecodeError:
+                    text = f.read().decode('ISO-8859-1')
 
-        print(f"Filtradas {len(despesas_alvos)} despesas para os deputados alvo.", flush=True)
+        # Remove BOM if present
+            if text.startswith('﻿'):
+                text = text[1:]
 
-    except Exception as e:
-        print(f"Erro critico ao baixar/processar o CSV: {e}", flush=True)
-        return
+        reader = csv.DictReader(io.StringIO(text), delimiter=';')
+        processados = 0
 
-    if not despesas_alvos:
-        print("Nenhuma despesa encontrada para os IDs configurados em ALVOS.", flush=True)
-        return
+        for linha in reader:
+            if processados >= 1000: break # Limite de amostragem rápida
 
-    for alvo in ALVOS:
-        dep_id = str(alvo["id"])
-        nome_alvo = alvo["nome"]
-        uf = alvo["uf"]
-
-        notas_deputado = [d for d in despesas_alvos if d.get('ideCadastro') == dep_id]
-        if not notas_deputado:
-            print(f"Sem gastos para {nome_alvo} no lote de {ANO}.", flush=True)
-            continue
-
-        print(f"\n--- {nome_alvo} ---", flush=True)
-
-        try:
-            pol_id = get_or_create_politico(nome_alvo)
-            man_id = get_or_create_mandato(pol_id, uf)
-        except Exception as e:
-            print(f"Erro ao gravar politico/mandato de {nome_alvo}: {e}", flush=True)
-            continue
-
-        inseridas = 0
-        falhas = 0
-        urls_vistas = set()
-
-        for nota in notas_deputado:
-            url_rec = nota.get('urlDocumento')
-            if url_rec and url_rec in urls_vistas:
+            # Skip rows without ideCadastro (metadata/header records)
+            if not linha.get('ideCadastro'): continue
+            # Skip rows where nomeParlamentar is actually a record type marker (LID.GOV-CD)
+            nome_parlamentar = linha.get('txNomeParlamentar', '').strip()
+            if not nome_parlamentar or 'LID' in nome_parlamentar[:8]:
                 continue
 
-            cnpj = extrair_numeros(nota.get('txtCNPJCPF'))
-            if cnpj and len(cnpj) == 14:
-                get_or_create_fornecedor(cnpj, nota.get('txtFornecedor', 'NAO INFORMADO'))
+            politico = get_or_create_politico(linha.get('txNomeParlamentar'), linha.get('siglaPartido'), linha.get('siglaUf'))
+            mandato = get_or_create_mandato(politico, 'Deputado Federal', 'Federal', linha.get('siglaUf'), ano)
+            fornecedor = get_or_create_fornecedor(linha.get('txtCNPJCPF'), linha.get('txtFornecedor'))
+
+            mes = int(linha.get('datEmissao')[5:7]) if linha.get('datEmissao') and len(linha.get('datEmissao')) >= 7 else 1
+            
+            sucesso, msg = processar_despesa(
+                mandato, fornecedor, None, linha.get('txtDescricao'), linha.get('txtFornecedor'),
+                linha.get('vlrLiquido'), linha.get('datEmissao'), linha.get('numLote'),
+                linha.get('urlDocumento'), 'camara', ano, mes
+            )
+            if sucesso: processados += 1
+
+        logger.info(f"Câmara {ano}: {processados} registros salvos.")
+        return processados, 0
+    except Exception as e:
+        logger.error(f"Erro na Câmara {ano}: {e}")
+        return 0, 1
+
+def baixar_e_processar_senado(ano):
+    """Extrai dados da Cota Parlamentar (CEAPS) dos Senadores"""
+    url = f"https://www.senado.leg.br/transparencia/CSV/ceaps/despesas_ceaps_{ano}.csv"
+    logger.info(f"Extraindo Senado Federal: {ano}")
+
+    try:
+        response = requests.get(url, timeout=30)
+        if response.status_code != 200:
+            logger.warning(f"Arquivo do Senado não disponível para {ano}.")
+            return 0, 0
+
+        text = response.content.decode('ISO-8859-1')
+        linhas = text.split('\n')
+        if len(linhas) > 1 and "SENADO FEDERAL" in linhas[0]:
+            linhas = linhas[1:]
+            
+        reader = csv.DictReader(io.StringIO('\n'.join(linhas)), delimiter=';')
+        processados = 0
+
+        for linha in reader:
+            if processados >= 1000: break
+            
+            nome_senador = linha.get('SENADOR')
+            if not nome_senador: continue
+
+            politico = get_or_create_politico(nome_senador)
+            mandato = get_or_create_mandato(politico, 'Senador', 'Federal', None, ano)
+            fornecedor = get_or_create_fornecedor(linha.get('CNPJ_CPF'), linha.get('FORNECEDOR'))
+
+            data_despesa = linha.get('DATA')
+            mes = int(data_despesa[3:5]) if data_despesa and len(data_despesa) >= 10 else 1
+            
+            if data_despesa and len(data_despesa) >= 10:
+                data_emissao = f"{data_despesa[6:10]}-{data_despesa[3:5]}-{data_despesa[0:2]}"
             else:
-                cnpj = None
+                data_emissao = f"{ano}-01-01"
 
-            val_str = str(nota.get('vlrLiquido', '0')).replace(',', '.')
-            try:
-                val = float(val_str)
-            except ValueError:
-                val = 0.0
+            sucesso, msg = processar_despesa(
+                mandato, fornecedor, None, linha.get('TIPO_DESPESA'), linha.get('DETALHAMENTO'),
+                linha.get('VALOR_REEMBOLSADO'), data_emissao, linha.get('DOCUMENTO'),
+                None, 'senado', ano, mes
+            )
+            if sucesso: processados += 1
 
-            data_em = nota.get('datEmissao')
-            if data_em and "T" in data_em:
-                data_em = data_em.split("T")[0]
+        logger.info(f"Senado {ano}: {processados} registros salvos.")
+        return processados, 0
+    except Exception as e:
+        logger.error(f"Erro no Senado {ano}: {e}")
+        return 0, 1
 
-            if val <= 0 or not data_em:
-                continue
+def baixar_e_processar_executivo(ano, mes="01"):
+    """Extrai dados de Cartão Corporativo do Governo Federal (Presidência/Ministérios)"""
+    url = f"https://portaldatransparencia.gov.br/download-de-dados/cpgf/{ano}{mes}"
+    logger.info(f"Extraindo Cartões Corporativos do Executivo: {ano}/{mes}")
 
-            payload = {
-                "mandato_id": man_id,
-                "fornecedor_cnpj": cnpj,
-                "categoria": CATEGORIA_FIXA,
-                "tipo_verba": str(nota.get('txtDescricao', 'Outros'))[:250],
-                "valor_pago": val,
-                "data_emissao": data_em,
-                "url_recibo_original": url_rec,
-                "fonte": "camara",
-            }
-            try:
-                supabase.table("despesa").insert(payload).execute()
-                if url_rec:
-                    urls_vistas.add(url_rec)
-                inseridas += 1
-            except Exception as e:
-                falhas += 1
-                if falhas <= 3:
-                    print(f"  [despesa] falhou: {e}", flush=True)
-                    print(f"  [despesa] payload: {payload}", flush=True)
+    try:
+        response = requests.get(url, timeout=30, stream=True)
+        if response.status_code != 200:
+            logger.warning(f"Arquivo CPGF não disponível para {ano}/{mes}.")
+            return 0, 0
 
-        print(f"{nome_alvo}: {inseridas} inseridas / {falhas} falharam.", flush=True)
+        content = b"".join(response.iter_content(chunk_size=8192))
+        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+            csv_file = [f for f in zf.namelist() if f.lower().endswith('.csv')][0]
+            with zf.open(csv_file) as f:
+                text = f.read().decode('ISO-8859-1')
 
+        reader = csv.DictReader(io.StringIO(text), delimiter=';')
+        processados = 0
+
+        for linha in reader:
+            if processados >= 1000: break
+            
+            nome_portador = linha.get('NOME PORTADOR')
+            if not nome_portador or nome_portador == 'NÃO SE APLICA': continue
+
+            orgao = linha.get('NOME ÓRGÃO', 'EXECUTIVO')
+            cargo_atribuido = 'Presidente/Ministro' if 'PRESIDENCIA' in orgao else 'Servidor Federal'
+
+            politico = get_or_create_politico(nome_portador)
+            mandato = get_or_create_mandato(politico, cargo_atribuido, 'Federal', None, ano)
+            fornecedor = get_or_create_fornecedor(linha.get('CNPJ OU CPF FAVORECIDO'), linha.get('NOME FAVORECIDO'))
+
+            data_transacao = linha.get('DATA TRANSAÇÃO')
+            if data_transacao and len(data_transacao) >= 10:
+                data_emissao = f"{data_transacao[6:10]}-{data_transacao[3:5]}-{data_transacao[0:2]}"
+            else:
+                data_emissao = f"{ano}-{mes}-01"
+
+            sucesso, msg = processar_despesa(
+                mandato, fornecedor, 'Cartão Corporativo (CPGF)', 'Despesa Cartão Pagamento', None,
+                linha.get('VALOR TRANSAÇÃO'), data_emissao, None,
+                None, 'transparencia', ano, int(mes)
+            )
+            if sucesso: processados += 1
+
+        logger.info(f"Executivo (CPGF) {ano}/{mes}: {processados} registros salvos.")
+        return processados, 0
+    except Exception as e:
+        logger.error(f"Erro no Executivo {ano}/{mes}: {e}")
+        return 0, 1
+
+def main():
+    logger.info("=" * 60)
+    logger.info("PolitiK - Motor de Ingestão de Dados Multiesfera")
+    logger.info("=" * 60)
+    
+    anos_historico = [2024, 2025, 2026] 
+    
+    total_geral = 0
+    try:
+        for ano in anos_historico:
+            logger.info(f"\n--- Iniciando Extração do Ano: {ano} ---")
+            
+            p_camara, _ = baixar_e_processar_camara(ano)
+            p_senado, _ = baixar_e_processar_senado(ano)
+            p_executivo, _ = baixar_e_processar_executivo(ano, "01")
+            
+            total_geral += (p_camara + p_senado + p_executivo)
+            time.sleep(2)
+
+        logger.info("=" * 60)
+        logger.info(f"Coleta de {total_geral} registros finalizada. O banco de dados histórico está pronto.")
+    except Exception as e:
+        logger.error(f"Falha fatal na orquestração: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    executar_pipeline()
+    main()

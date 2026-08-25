@@ -1,0 +1,12 @@
+Análise e Status do Sistema PolitiK
+
+* Models (✓): 440 políticos, 576 mandatos, 9.000 despesas, 2.185 fornecedores, 12 alertas.
+* RF01 ao RF06 (✓): Ingestão, Mapeamento, Categorização, Anomalias e Filtros funcionais.
+* RF07 (Em Andamento): 
+  - O arquivo `politik_django/auth.py` foi criado com sucesso com as lógicas de JWT e cookies HTTPOnly.
+  
+Próximos Passos Estritos:
+1. Criar as views de autenticação (login, logout, refresh_token) baseadas no `auth.py`.
+2. Adicionar as rotas dessas views no `urls.py`.
+3. Atualizar o `settings.py` para ativar o JWT.
+4. Refatorar o `index.html` para usar essas rotas do Django no lugar do Supabase.

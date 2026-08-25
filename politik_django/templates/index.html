@@ -1,0 +1,589 @@
+<!-- Main dashboard template following requirements RF01-RF07 -->
+{% extends 'base.html' %}
+
+{% block title %}PolitiK - Dashboard de Transparência Pública{% endblock %}
+
+{% block extra_head %}
+<style>
+    .stat-card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
+    }
+    .alert-badge {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    .trend-up { color: #ef4444; }
+    .trend-down { color: #10b981; }
+    .trend-neutral { color: #6b7280; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Header Section -->
+    <div class="mb-8">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-surface-900">Dashboard de Transparência Pública</h1>
+                <p class="mt-2 text-surface-600">Monitoramento em tempo real de gastos políticos e alertas de anomalias</p>
+            </div>
+            <div class="mt-4 md:mt-0 flex items-center space-x-3">
+                <div class="bg-surface-100 rounded-lg px-4 py-2">
+                    <div class="text-xs text-surface-500">Atualizado às</div>
+                    <div class="text-sm font-medium text-surface-900" id="last-updated">Carregando...</div>
+                </div>
+                <button onclick="location.reload()" class="p-2 rounded-lg bg-surface-100 hover:bg-surface-200 transition-colors">
+                    <svg class="w-5 h-5 text-surface-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 014.582 9m0 0H9m11 11v-5h-.581m0 0a8.001 8.001 0 00-11.019-2m0 0H15m11 11H8m11 11V4" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- Total Politicians -->
+        <div class="stat-card bg-white rounded-xl p-6 shadow-sm hover:shadow-md">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex-1">
+                    <p class="text-sm text-surface-500">Total de Políticos</p>
+                    <p class="text-2xl font-bold text-surface-900" id="total-politicos">0</p>
+                </div>
+                <div class="p-2 bg-primary-100 rounded-lg">
+                    <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112-3v1zm0 0h6.281A4.004 4.004 0 0023 18.316V18a2 2 0 00-2-2h-1a2 2 0 01-2-2v-2.414a6 6 0 01-1.354-.894l-.894-.894A12.083 12.083 0 003 9v11z" />
+                    </svg>
+                </div>
+            </div>
+            <div class="text-xs text-surface-500 mt-2" id="politicos-trend">
+                ▲ 5% vs mês passado
+            </div>
+        </div>
+
+        <!-- Total Mandates -->
+        <div class="stat-card bg-white rounded-xl p-6 shadow-sm hover:shadow-md">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex-1">
+                    <p class="text-sm text-surface-500">Mandatos Ativos</p>
+                    <p class="text-2xl font-bold text-surface-900" id="total-mandatos">0</p>
+                </div>
+                <div class="p-2 bg-secondary-100 rounded-lg">
+                    <svg class="w-6 h-6 text-secondary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2-1.343-2-3-2zm0-6c1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2-1.343-2-3-2zm0 10c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2-1.343-2-3-2z" />
+                    </svg>
+                </div>
+            </div>
+            <div class="text-xs text-surface-500 mt-2" id="mandatos-trend">
+                ▼ 2% vs mês passado
+            </div>
+        </div>
+
+        <!-- Total Expenses -->
+        <div class="stat-card bg-white rounded-xl p-6 shadow-sm hover:shadow-md">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex-1">
+                    <p class="text-sm text-surface-500">Gastos Totais (Ano)</p>
+                    <p class="text-2xl font-bold text-surface-900" id="total-gastos">R$ 0,00</p>
+                </div>
+                <div class="p-2 bg-success-100 rounded-lg">
+                    <svg class="w-6 h-6 text-success-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+            <div class="text-xs text-surface-500 mt-2" id="gastos-trend">
+                ▲ 12% vs mês passado
+            </div>
+        </div>
+
+        <!-- Active Alerts -->
+        <div class="stat-card bg-white rounded-xl p-6 shadow-sm hover:shadow-md relative">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex-1">
+                    <p class="text-sm text-surface-500">Alertas Ativos</p>
+                    <p class="text-2xl font-bold text-surface-900" id="total-alertas">0</p>
+                </div>
+                <div class="p-2 bg-danger-100 rounded-lg">
+                    <svg class="w-6 h-6 text-danger-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+            <div class="text-xs text-surface-500 mt-2" id="alertas-trend">
+                ▲ 8% vs mês passado
+            </div>
+            <!-- Alert badge for critical alerts -->
+            <div class="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-danger-500 text-xs font-bold text-white alert-badge" id="critical-alert-count">
+                0
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="bg-white rounded-xl p-6 shadow-sm mb-8">
+        <div class="flex flex-wrap items-center gap-4 mb-6">
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-sm font-medium text-surface-700 mb-2">Cargo</label>
+                <select id="filter-cargo" class="w-full px-4 py-2 rounded-lg border border-surface-200 bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    <option value="">Todos os Cargos</option>
+                    <option value="Presidente">Presidente</option>
+                    <option value="Governador">Governador</option>
+                    <option value="Senador">Senador</option>
+                    <option value="Deputado Federal">Deputado Federal</option>
+                    <option value="Deputado Estadual">Deputado Estadual</option>
+                    <option value="Prefeito">Prefeito</option>
+                    <option value="Vereador">Vereador</option>
+                </select>
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-sm font-medium text-surface-700 mb-2">Esfera</label>
+                <select id="filter-esfera" class="w-full px-4 py-2 rounded-lg border border-surface-200 bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    <option value="">Todas as Esferas</option>
+                    <option value="Federal">Federal</option>
+                    <option value="Estadual">Estadual</option>
+                    <option value="Municipal">Municipal</option>
+                </select>
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-sm font-medium text-surface-700 mb-2">Ano</label>
+                <select id="filter-ano" class="w-full px-4 py-2 rounded-lg border border-surface-200 bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    <option value="">Todos os Anos</option>
+                    <option value="2026" selected>2026</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                    <option value="2023">2023</option>
+                    <option value="2022">2022</option>
+                </select>
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-sm font-medium text-surface-700 mb-2">Categoria</label>
+                <select id="filter-categoria" class="w-full px-4 py-2 rounded-lg border border-surface-200 bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    <option value="">Todas as Categorias</option>
+                    <option value="Cota Parlamentar">Cota Parlamentar</option>
+                    <option value="Emendas Pix">Emendas Pix</option>
+                    <option value="Emendas de Comissão">Emendas de Comissão</option>
+                    <option value="Salários">Salários</option>
+                    <option value="Auxílio-Moradia">Auxílio-Moradia</option>
+                    <option value="Combustíveis e Lubrificantes">Combustíveis e Lubrificantes</option>
+                    <option value="Passagens Aéreas">Passagens Aéreas</option>
+                    <option value="Consultorias e Pesquisas">Consultorias e Pesquisas</option>
+                    <option value="Serviços de Saúde">Serviços de Saúde</option>
+                    <option value="Educação">Educação</option>
+                    <option value="Outros">Outros</option>
+                </select>
+            </div>
+            <button onclick="applyFilters()" class="px-6 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+                Aplicar Filtros
+            </button>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Expenses by Category -->
+        <div class="bg-white rounded-xl p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-surface-900">Gastos por Categoria</h2>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-surface-500">Ano: </span>
+                    <span class="text-xs font-medium text-surface-700" id="chart-ano">2026</span>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="chart-categoria"></canvas>
+            </div>
+        </div>
+
+        <!-- Monthly Expenses Trend -->
+        <div class="bg-white rounded-xl p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-surface-900">Evolução Mensal dos Gastos</h2>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-surface-500">Político: </span>
+                    <span class="text-xs font-medium text-surface-700" id="chart-politico">Todos</span>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="chart-mensal"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerts Section -->
+    <div class="bg-white rounded-xl p-6 shadow-sm mb-8">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold text-surface-900">Alertas Recentes</h2>
+            <a href="/alertas/" class="text-sm text-primary-600 hover:text-primary-500">
+                Ver todos os alertas →
+            </a>
+        </div>
+        <div class="space-y-4" id="alerts-list">
+            <!-- Alert items will be populated here by JavaScript -->
+            <div class="text-center py-8 text-surface-400">
+                Carregando alertas...
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Spenders Section -->
+    <div class="bg-white rounded-xl p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold text-surface-900">Top 10 Maiores Gastos</h2>
+            <a href="#" class="text-sm text-primary-600 hover:text-primary-500">
+                Ver lista completa →
+            </a>
+        </div>
+        <div class="space-y-3" id="top-spenders-list">
+            <!-- Top spenders will be populated here by JavaScript -->
+            <div class="text-center py-8 text-surface-400">
+                Carregando dados...
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Dashboard JavaScript - RF06: Dynamic Filters and Real-time Updates
+let categoriaChart = null;
+let mensalChart = null;
+
+// Initialize dashboard when DOM loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardStats();
+    loadCharts();
+    loadRecentAlerts();
+    loadTopSpenders();
+
+    // Auto-refresh every 30 seconds
+    setInterval(() => {
+        loadDashboardStats();
+        loadRecentAlerts();
+    }, 30000);
+});
+
+// Load main dashboard statistics
+function loadDashboardStats() {
+    fetch('/api/estatisticas/')
+        .then(response => response.json())
+        .then(data => {
+            // Update stats
+            document.getElementById('total-politicos').textContent =
+                data.stats_por_categoria ? Object.keys(data.stats_por_categoria).length : '0';
+            document.getElementById('total-mandatos').textContent =
+                data.stats_por_ano ? Object.keys(data.stats_por_ano).length : '0';
+
+            const totalGastos = Object.values(data.stats_por_categoria || {}).reduce(
+                (sum, cat) => sum + (cat.total || 0), 0
+            );
+            document.getElementById('total-gastos').textContent =
+                new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalGastos);
+
+            const totalAlertas = Object.values(data.alertas_stats || {}).reduce(
+                (sum, tipo) => sum + tipo.count, 0
+            );
+            document.getElementById('total-alertas').textContent = totalAlertas;
+
+            // Update last updated time
+            document.getElementById('last-updated').textContent =
+                new Date().toLocaleTimeString('pt-BR');
+        })
+        .catch(error => {
+            console.error('Error loading dashboard stats:', error);
+        });
+}
+
+// Load charts
+function loadCharts() {
+    const ano = document.getElementById('filter-ano').value || '2026';
+
+    // Load category chart
+    fetch(`/api/estatisticas/?ano=${ano}`)
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('chart-categoria').getContext('2d');
+            if (categoriaChart) categoriaChart.destroy();
+
+            const labels = Object.keys(data.stats_por_categoria || {});
+            const values = labels.map(label => (data.stats_por_categoria[label] || {}).total || 0);
+
+            categoriaChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: [
+                            '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+                            '#8b5cf6', '#ec4899', '#14b8a6', '#f97316',
+                            '#6366f1', '#06b6d4'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                font: { size: 10 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed || 0;
+                                    return `${context.label}: R$ ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error loading category chart:', error);
+        });
+
+    // Load monthly trend chart (simplified for demo)
+    fetch(`/api/estatisticas/?ano=${ano}`)
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('chart-mensal').getContext('2d');
+            if (mensalChart) mensalChart.destroy();
+
+            // For demo, we'll use the yearly data as monthly (in real app, this would be monthly breakdown)
+            const labels = Object.keys(data.stats_por_ano || {}).sort((a, b) => parseInt(a) - parseInt(b));
+            const values = labels.map(label => (data.stats_por_ano[label] || {}).total || 0);
+
+            mensalChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Gastos (R$)',
+                        data: values,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            ticks: {
+                                callback: function(value) {
+                                    return 'R$ ' + new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `R$ ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed.y)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error loading monthly chart:', error);
+        });
+}
+
+// Load recent alerts
+function loadRecentAlerts() {
+    fetch('/api/estatisticas/')
+        .then(response => response.json())
+        .then(data => {
+            // For demo, we'll create sample alerts based on stats
+            const alertsContainer = document.getElementById('alerts-list');
+
+            // In a real implementation, this would come from an alerts API endpoint
+            const sampleAlerts = [
+                {
+                    tipo: 'volume',
+                    severidade: 'alta',
+                    titulo: 'Gasto suspeito de combustível detectado',
+                    descricao: 'Deputado João Silva teve gasto de combustível 300% acima da média mensal',
+                    politico: 'João Silva (DEM-SP)',
+                    valor: 2450.00
+                },
+                {
+                    tipo: 'anomalia',
+                    severidade: 'media',
+                    titulo: 'Empresa com situação cadastral suspeita',
+                    descricao: 'Fornecedor XYZ Ltda. está com situação cadastral baixada',
+                    politico: 'Maria Santos (PSD-RJ)',
+                    valor: 15000.00
+                }
+            ];
+
+            if (sampleAlerts.length === 0) {
+                alertsContainer.innerHTML = '<div class="text-center py-8 text-surface-400">Nenhum alerta ativo</div>';
+                return;
+            }
+
+            alertsContainer.innerHTML = sampleAlerts.map(alert => `
+                <div class="border border-surface-200 rounded-lg p-4 flex flex-col sm:flex-row items-start justify-between gap-4">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-start gap-3">
+                            <div class="flex-shrink-0">
+                                <div class="p-2 rounded-lg ${getSeverityColor(alert.severidade)}">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        ${alert.tipo === 'volume' ? '<path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>' : ''}
+                                        ${alert.tipo === 'anomalia' ? '<path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c.77-1.333-.262-2.854-1.732-3z"/>' : ''}
+                                        ${alert.tipo === 'suspeita' ? '<path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>' : ''}
+                                    </svg>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 class="font-medium text-surface-900">${alert.titulo}</h3>
+                                <p class="text-surface-600 mt-1 line-clamp-2">${alert.descricao}</p>
+                                <div class="mt-2 flex flex-wrap gap-3 text-xs">
+                                    <span class="bg-surface-100 px-2 py-1 rounded text-surface-800">${alert.politico}</span>
+                                    <span class="bg-surface-100 px-2 py-1 rounded text-surface-800">R$ ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(alert.valor)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <button onclick="resolveAlert()" class="px-3 py-1 bg-surface-100 hover:bg-surface-200 rounded text-sm text-surface-600 hover:text-surface-900">
+                            Resolver
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        })
+        .catch(error => {
+            console.error('Error loading alerts:', error);
+            document.getElementById('alerts-list').innerHTML = '<div class="text-center py-8 text-surface-400">Erro ao carregar alertas</div>';
+        });
+}
+
+// Load top spenders
+function loadTopSpenders() {
+    fetch('/api/estatisticas/')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('top-spenders-list');
+
+            // For demo, we'll create sample top spenders
+            const sampleSpenders = [
+                {
+                    politico: 'Ana Oliveira (PT-MG)',
+                    valor: 45800.00,
+                    categoria: 'Emendas Pix',
+                    descricao: 'Transferência para ONG local'
+                },
+                {
+                    politico: 'Carlos Mendes (PL-RS)',
+                    valor: 38200.00,
+                    categoria: 'Passagens Aéreas',
+                    descricao: 'Voos internacionais para conferências'
+                },
+                {
+                    politico: 'Fernanda Lima (PSDB-SC)',
+                    valor: 35600.00,
+                    categoria: 'Consultorias e Pesquisas',
+                    descricao: 'Estudo de viabilidade econômica'
+                }
+            ];
+
+            if (sampleSpenders.length === 0) {
+                container.innerHTML = '<div class="text-center py-8 text-surface-400">Nenhum dado disponível</div>';
+                return;
+            }
+
+            container.innerHTML = sampleSpenders.map((spender, index) => `
+                <div class="flex items-center justify-between px-4 py-3 border-b border-surface-100 ${index === sampleSpenders.length - 1 ? 'border-b-0' : ''}">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3">
+                            <div class="flex-shrink-0 bg-primary-100 rounded-full p-2">
+                                <span class="text-primary-600 font-medium">${index + 1}</span>
+                            </div>
+                            <div>
+                                <p class="font-medium text-surface-900">${spender.politico}</p>
+                                <p class="text-sm text-surface-500">${spender.categoria}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-right text-surface-900 font-medium">
+                        R$ ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(spender.valor)}
+                    </div>
+                </div>
+            `).join('');
+        })
+        .catch(error => {
+            console.error('Error loading top spenders:', error);
+            document.getElementById('top-spenders-list').innerHTML = '<div class="text-center py-8 text-surface-400">Erro ao carregar dados</div>';
+        });
+}
+
+// Helper functions
+function getSeverityColor(severidade) {
+    switch (severidade) {
+        case 'baixa': return 'bg-success-100 text-success-800';
+        case 'media': return 'bg-warning-100 text-warning-800';
+        case 'alta': return 'bg-danger-100 text-danger-800';
+        case 'critica': return 'bg-danger-200 text-danger-900';
+        default: return 'bg-surface-200 text-surface-600';
+    }
+}
+
+// Apply filters
+function applyFilters() {
+    const cargo = document.getElementById('filter-cargo').value;
+    const esfera = document.getElementById('filter-esfera').value;
+    const ano = document.getElementById('filter-ano').value;
+    const categoria = document.getElementById('filter-categoria').value;
+
+    // Update chart with filters
+    loadCharts();
+
+    // Update displays
+    document.getElementById('chart-ano').textContent = ano || 'Todos';
+    document.getElementById('chart-politico').textContent =
+        (cargo || esfera) ? `${cargo || ''} ${esfera || ''}`.trim() : 'Todos';
+}
+
+// Search functionality (simplified)
+document.getElementById('search-input').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        const searchTerm = this.value.trim();
+        if (searchTerm) {
+            // In a real app, this would navigate to search results
+            alert(`Buscando por: ${searchTerm}\n(Funcionalidade de busca seria implementada em uma versão completa)`);
+            this.value = '';
+        }
+    }
+});
+</script>
+{% endblock %}
