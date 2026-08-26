@@ -1,12 +1,32 @@
-Análise e Status do Sistema PolitiK
+Aqui está um prompt estruturado, direto e com o contexto técnico exato do que construímos até agora. Ele guiará o Claude para focar na lógica pesada que falta, sem quebrar a nossa arquitetura atual.
 
-* Models (✓): 440 políticos, 576 mandatos, 9.000 despesas, 2.185 fornecedores, 12 alertas.
-* RF01 ao RF06 (✓): Ingestão, Mapeamento, Categorização, Anomalias e Filtros funcionais.
-* RF07 (Em Andamento): 
-  - O arquivo `politik_django/auth.py` foi criado com sucesso com as lógicas de JWT e cookies HTTPOnly.
-  
-Próximos Passos Estritos:
-1. Criar as views de autenticação (login, logout, refresh_token) baseadas no `auth.py`.
-2. Adicionar as rotas dessas views no `urls.py`.
-3. Atualizar o `settings.py` para ativar o JWT.
-4. Refatorar o `index.html` para usar essas rotas do Django no lugar do Supabase.
+Copie e cole o texto abaixo para ele:
+
+Contexto do Projeto (PolitiK):
+Até o momento, consolidamos a arquitetura base do sistema de transparência. Temos:
+
+Ingestão de Dados: Módulos de raspagem para TCEs (Factory pattern) e CGU (Emendas Parlamentares via REST API com rate limit handler, fallback de perfis e bulk_create).
+
+Dashboard Analytics: Front-end em Dark Slate theme com Chart.js. Otimizamos as views do Django para fazer agregações matemáticas no banco de dados (Sum, Count via annotate) em vez de serializar milhares de registros.
+
+Autenticação: Implementamos "Lazy Registration" (cadastro expresso via modal) gerando JWT via HTTPOnly cookies (RF07).
+
+Regras de Negócio: Temos o arquivo business_rules.py contendo a categorização absoluta (RF03), motor de anomalias de CNPJ (RF04) e gatilhos de volume matemático (RF05).
+
+Requisitos Faltantes e Próximas Implementações (Foco Atual):
+
+Atue nas seguintes frentes, fornecendo os códigos completos e refatorados:
+
+Frente 1: Integração do Motor de Anomalias (Background Jobs)
+Nossos scripts de ingestão (cgu_emendas.py e TCEs) estão salvando os dados perfeitamente usando bulk_create, mas não estão disparando o motor de anomalias (NegocioRegras.processar_despesa_com_validacao).
+Tarefa: Crie uma rotina assíncrona (Celery task ou um novo management command focado em processamento em lote) que varra as despesas recém-inseridas, rode as regras de negócio (RF04 e RF05) e gere os objetos do modelo Alerta. Considere a performance para não estrangular o banco.
+
+Frente 2: A Central de Alertas (UI/UX)
+Temos a view pagina_alertas e a API api_atualizar_alerta, mas falta o template.
+Tarefa: Desenvolva o template alertas.html. Ele deve seguir o mesmo padrão "Dark Slate" do dashboard. Precisa listar as anomalias (destacando a severidade), mostrar o CNPJ/Gasto suspeito, e ter um botão via AJAX para marcar o alerta como "Resolvido" (consumindo nossa API existente).
+
+Frente 3: Perfil Detalhado do Político (Dossiê)
+A rota /politico/<id>/ está mapeada na view pagina_politico, mas o template está vazio.
+Tarefa: Desenvolva o politico_detail.html. Precisa ser um dossiê focado: informações do agente, linha do tempo de mandatos, e um mini-dashboard específico filtrado apenas para as despesas daquele CPF, reutilizando a lógica de gráficos que já aplicamos no index.
+
+Por favor, forneça os códigos completos com foco em segurança, sem alterar a estrutura do bulk_create que já otimizamos.

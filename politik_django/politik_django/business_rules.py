@@ -15,6 +15,9 @@ class NegocioRegras:
     Following requirements in order: RF03, RF04, RF05
     """
 
+    # --- Batch-processing cache (primed by anomaly_engine) ---
+    _CACHE_LIMITES: Dict[str, Any] = None
+
     # RF03 - Categorização de Gastos: Categorias Absolutas Obrigatórias
     CATEGORIAS_ABSOLUTAS = {
         'Cota Parlamentar': [
@@ -215,6 +218,11 @@ class NegocioRegras:
         """
         limites = NegocioRegras.LIMITES_PADRAO.copy()
 
+        # Cache de lote: se o motor de processamento em lote já carregou os
+        # limites, reutiliza para evitar N+1 queries dentro do loop.
+        if NegocioRegras._CACHE_LIMITES is not None:
+            return NegocioRegras._CACHE_LIMITES.copy()
+
         try:
             configs = Configuracao.objects.all()
             for config in configs:
@@ -233,6 +241,17 @@ class NegocioRegras:
             pass  # Usa padrões se houver erro
 
         return limites
+
+    # --- Cache helpers for batch processing ---
+    @classmethod
+    def definir_cache_limites(cls, limites: Dict[str, Any]) -> None:
+        """Prime the limits cache for a batch run (avoids per-record DB queries)."""
+        cls._CACHE_LIMITES = limites
+
+    @classmethod
+    def limpar_cache_limites(cls) -> None:
+        """Clear the limits cache after a batch run."""
+        cls._CACHE_LIMITES = None
 
     @staticmethod
     def processar_despesa_com_validacao(despesa: Despesa) -> Tuple[bool, list]:
@@ -258,7 +277,7 @@ class NegocioRegras:
             )
             if is_anomalous:
                 alerta = Alerta.objects.create(
-                    mandado=despesa.mandato,
+                    mandato=despesa.mandato,
                     tipo='anomalia',
                     severidade='media',
                     titulo=f'Anomalia detectada no CNPJ do fornecedor',
@@ -277,7 +296,7 @@ class NegocioRegras:
         )
         if is_triggered:
             alerta = Alerta.objects.create(
-                mandado=despesa.mandato,
+                mandato=despesa.mandato,
                 tipo=tipo_alerta,
                 severidade='alta' if tipo_alerta == 'volume' else 'media',
                 titulo=f'Alerta de {tipo_alerta} detectado',
@@ -335,7 +354,7 @@ class NegocioRegras:
         # Alertas ativos
         alertas_queryset = Alerta.objects.filter(resolvido=False)
         if mandato_id:
-            alertas_queryset = alertas_queryset.filter(mandado_id=mandato_id)
+            alertas_queryset = alertas_queryset.filter(mandato_id=mandato_id)
 
         alertas = alertas_queryset.values('tipo', 'severidade').annotate(
             count=Count('id')

@@ -3,8 +3,7 @@ PolitiK - Django Views for Political Transparency Platform
 APIs following RF01-RF07 requirements
 """
 
-from django.contrib.auth import authenticate
-from .auth import create_access_token, create_refresh_token, set_jwt_cookies, clear_jwt_cookies
+from django.contrib.auth.models import User
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -13,6 +12,9 @@ from django.db.models import Sum, Count, Q, Avg
 from django.utils import timezone
 from datetime import datetime, timedelta
 import json
+
+from django.contrib.auth import authenticate
+from .auth import create_access_token, create_refresh_token, set_jwt_cookies, clear_jwt_cookies, jwt_required
 
 from .models import (
     Politico, Mandato, Fornecedor, Despesa, Alerta, Usuario, Assinatura,
@@ -52,25 +54,39 @@ def index(request):
     cargos = set(Mandato.objects.values_list('cargo', flat=True))
     esferas = set(Mandato.objects.values_list('esfera', flat=True))
     anos = set(Despesa.objects.values_list('ano', flat=True).order_by('-ano'))
+    
+    # Resgate das categorias absolutas para popular o filtro do front-end
+    categorias = list(NegocioRegras.CATEGORIAS_ABSOLUTAS.keys()) + ['Outros']
 
     context = {
         'stats': stats,
         'cargos': sorted(cargos),
         'esferas': sorted(esferas),
         'anos': sorted(anos),
+        'categorias': sorted(categorias),
         'ano_atual': ano_atual,
     }
 
     return render(request, 'index.html', context)
 
 def pagina_politico(request, politico_id):
-    """Detailed view for a specific politician"""
+    """Detailed view for a specific politician (Dossiê)"""
     politico = get_object_or_404(Politico, id=politico_id)
-    mandatos = politico.mandatos.all()
+    # Forma blindada de buscar os mandatos sem depender do 'related_name'
+    mandatos = Mandato.objects.filter(politico=politico)
+
+    # Mini-dashboard: despesas do político, filtradas apenas por seus mandatos
+    despesas_politico = (
+        Despesa.objects
+        .select_related('fornecedor')
+        .filter(mandato__in=mandatos)
+        .order_by('-data_emissao')
+    )
 
     context = {
         'politico': politico,
         'mandatos': mandatos,
+        'despesas_politico': despesas_politico,
     }
 
     return render(request, 'politico_detail.html', context)
@@ -87,6 +103,7 @@ def pagina_alertas(request):
     return render(request, 'alertas.html', context)
 
 # API Endpoints (JSON responses)
+@jwt_required
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def api_buscar_politicos(request):
@@ -144,10 +161,14 @@ def api_buscar_politicos(request):
         'total': len(politicos)
     })
 
+@jwt_required
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+@jwt_required
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def api_buscar_despesas(request):
-    """RF06 - Dynamic Filters: Buscar despesas com filtros dinâmicos"""
+    """RF06 - Dynamic Filters: Buscar despesas com filtros dinâmicos integrados"""
     mandato_id = request.GET.get('mandato_id')
     ano = request.GET.get('ano')
     mes = request.GET.get('mes')
@@ -156,10 +177,12 @@ def api_buscar_despesas(request):
     fonte = request.GET.get('fonte')
     min_valor = request.GET.get('min_valor')
     max_valor = request.GET.get('max_valor')
+    cargo = request.GET.get('cargo')
+    esfera = request.GET.get('esfera')
 
     queryset = Despesa.objects.select_related('mandato', 'mandato__politico', 'fornecedor')
 
-    # Aplicar filtros
+    # Aplicar filtros (Incluindo os novos filtros do Dashboard)
     if mandato_id:
         queryset = queryset.filter(mandato_id=mandato_id)
     if ano:
@@ -169,13 +192,17 @@ def api_buscar_despesas(request):
     if categoria:
         queryset = queryset.filter(categoria=categoria)
     if fornecedor_cnpj:
-        queryset = queryset.filter(fornecedor_cnpj=fornecedor_cnpj)
+        queryset = queryset.filter(fornecedor__cnpj=fornecedor_cnpj)
     if fonte:
         queryset = queryset.filter(fonte=fonte)
     if min_valor:
         queryset = queryset.filter(valor_liquidado__gte=min_valor)
     if max_valor:
         queryset = queryset.filter(valor_liquidado__lte=max_valor)
+    if cargo:
+        queryset = queryset.filter(mandato__cargo=cargo)
+    if esfera:
+        queryset = queryset.filter(mandato__esfera=esfera)
 
     # Paginação simples
     page = int(request.GET.get('page', 1))
@@ -184,29 +211,29 @@ def api_buscar_despesas(request):
 
     despesas = queryset[offset:offset + limit]
 
-    # Converter para JSON
+    # Converter para JSON com validações de segurança (Evita Erro 500)
     despesas_json = []
     for despesa in despesas:
         despesas_json.append({
             'id': despesa.id,
             'mandato_id': despesa.mandato_id,
-            'politico_nome': despesa.mandato.politico.nome_civil,
-            'cargo': despesa.mandato.cargo,
-            'esfera': despesa.mandato.esfera,
+            'politico_nome': despesa.mandato.politico.nome_civil if despesa.mandato and hasattr(despesa.mandato, 'politico') else 'N/A',
+            'cargo': despesa.mandato.cargo if despesa.mandato else 'N/A',
+            'esfera': despesa.mandato.esfera if despesa.mandato else 'N/A',
             'categoria': despesa.categoria,
             'tipo_verba': despesa.tipo_verba,
             'descricao_despesa': despesa.descricao_despesa,
             'fornecedor': {
-                'cnpj': despesa.fornecedor_cnpj,
-                'razao_social': despesa.fornecedor.razao_social if despesa.fornecedor else None,
+                'cnpj': despesa.fornecedor.cnpj if hasattr(despesa.fornecedor, 'cnpj') else None,
+                'razao_social': despesa.fornecedor.razao_social if hasattr(despesa.fornecedor, 'razao_social') else None,
             } if despesa.fornecedor else None,
-            'valor_liquidado': float(despesa.valor_liquidado),
+            'valor_liquidado': float(despesa.valor_liquidado) if despesa.valor_liquidado else 0.0,
             'valor_pago': float(despesa.valor_pago) if despesa.valor_pago else None,
-            'data_emissao': despesa.data_emissao.strftime('%Y-%m-%d'),
+            'data_emissao': despesa.data_emissao.strftime('%Y-%m-%d') if despesa.data_emissao else None,
             'fonte': despesa.fonte,
             'ano': despesa.ano,
             'mes': despesa.mes,
-            'criado_em': despesa.criado_em.isoformat(),
+            'criado_em': despesa.criado_em.isoformat() if despesa.criado_em else None,
         })
 
     total = queryset.count()
@@ -221,66 +248,61 @@ def api_buscar_despesas(request):
         }
     })
 
+@jwt_required
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+@jwt_required
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def api_estatisticas(request):
-    """RF06 - Dynamic Filters: Estatísticas para gráficos"""
+    """RF06 - Dynamic Filters: Estatísticas dinâmicas e protegidas para gráficos"""
     ano = request.GET.get('ano')
     categoria = request.GET.get('categoria')
     fonte = request.GET.get('fonte')
+    cargo = request.GET.get('cargo')
+    esfera = request.GET.get('esfera')
+    politico_id = request.GET.get('politico_id')  # Novo filtro para páginas de dossiê
 
     queryset = Despesa.objects.all()
 
-    if ano:
-        queryset = queryset.filter(ano=ano)
-    if categoria:
-        queryset = queryset.filter(categoria=categoria)
-    if fonte:
-        queryset = queryset.filter(fonte=fonte)
+    if ano: queryset = queryset.filter(ano=ano)
+    if categoria: queryset = queryset.filter(categoria=categoria)
+    if fonte: queryset = queryset.filter(fonte=fonte)
+    if cargo: queryset = queryset.filter(mandato__cargo=cargo)
+    if esfera: queryset = queryset.filter(mandato__esfera=esfera)
+    if politico_id: queryset = queryset.filter(mandato__politico_id=politico_id)
 
-    # Estatísticas por categoria
+    # 1. Agrupamento de Categorias via Banco de Dados
+    categorias_existentes = queryset.values('categoria').annotate(
+        total=Sum('valor_liquidado')
+    ).order_by('-total')
+
     stats = {}
-    for cat in Despesa.CATEGORIA_ABSOLUTA_CHOICES:
-        categoria_nome = cat[0]
-        dados = queryset.filter(categoria=categoria_nome)
-        stats[categoria_nome] = {
-            'total': float(dados.aggregate(total=Sum('valor_liquidado'))['total'] or 0),
-            'count': dados.count(),
-            'media': float(dados.aggregate(media=Avg('valor_liquidado'))['media'] or 0),
-        }
+    for cat in categorias_existentes:
+        nome = cat['categoria'] or 'Outros'
+        total = float(cat['total'] or 0)
+        if total > 0:
+            stats[nome] = {'total': total}
 
-    # Estatísticas por ano
-    anos = queryset.values_list('ano', flat=True).distinct().order_by('-ano')
-    stats_por_ano = {}
-    for ano in anos:
-        dados_ano = queryset.filter(ano=ano)
-        stats_por_ano[ano] = {
-            'total': float(dados_ano.aggregate(total=Sum('valor_liquidado'))['total'] or 0),
-            'count': dados_ano.count(),
-        }
+    # 2. NOVA OTIMIZAÇÃO: Agrupamento Mensal via Banco de Dados
+    meses_existentes = queryset.values('mes').annotate(
+        total=Sum('valor_liquidado')
+    ).order_by('mes')
+    
+    # Cria um dicionário rápido: {'1': 1500.00, '2': 3200.00, ...}
+    stats_mensal = {str(m['mes']): float(m['total'] or 0) for m in meses_existentes if m['mes']}
 
-    # Alertas por severidade
-    alertas_stats = {}
-    for alerta in Alerta.objects.filter(resolvido=False):
-        if alerta.tipo not in alertas_stats:
-            alertas_stats[alerta.tipo] = {'count': 0, 'por_severidade': {}}
-        alertas_stats[alerta.tipo]['count'] += 1
+    total_geral = float(queryset.aggregate(total=Sum('valor_liquidado'))['total'] or 0)
 
-        if alerta.severidade not in alertas_stats[alerta.tipo]['por_severidade']:
-            alertas_stats[alerta.tipo]['por_severidade'][alerta.severidade] = 0
-            alertas_stats[alerta.tipo]['por_severidade'][alerta.severidade] += 1
-
+    # Enviamos um pacote leve e consolidado para o Front-end
     return JsonResponse({
         'stats_por_categoria': stats,
-        'stats_por_ano': stats_por_ano,
-        'alertas_stats': alertas_stats,
-        'filtros': {
-            'ano': ano,
-            'categoria': categoria,
-            'fonte': fonte,
-        }
+        'stats_por_mes': stats_mensal,  # Dados injetados aqui
+        'total_geral': total_geral,
+        'success': True
     })
 
+@jwt_required
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_atualizar_alerta(request):
@@ -308,6 +330,7 @@ def api_atualizar_alerta(request):
         }, status=400)
 
 # Utility API endpoints
+@jwt_required
 def api_categorias(request):
     """Get all expense categories"""
     categorias = Despesa.CATEGORIA_ABSOLUTA_CHOICES
@@ -316,6 +339,7 @@ def api_categorias(request):
         'categorias_completas': categorias,
     })
 
+@jwt_required
 def api_fontes(request):
     """Get all data sources (fontes)"""
     fontes = Despesa.objects.values_list('fonte', flat=True).distinct()
@@ -323,6 +347,7 @@ def api_fontes(request):
         'fontes': sorted(list(fontes)),
     })
 
+@jwt_required
 def api_anos(request):
     """Get all years with data"""
     anos = Despesa.objects.values_list('ano', flat=True).distinct().order_by('-ano')
@@ -380,3 +405,56 @@ def api_logout(request):
     response = JsonResponse({'success': True, 'message': 'Logout realizado com sucesso'})
     clear_jwt_cookies(response)
     return response
+
+from django.contrib.auth.models import User
+
+# ... (Mantenha todas as suas outras funções intactas) ...
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_express_auth(request):
+    """
+    RF07 - Lazy Registration: Cria a conta e loga o usuário simultaneamente.
+    Garante acesso sem atrito para novos usuários.
+    """
+    try:
+        data = json.loads(request.body)
+        nome = data.get('nome', '').strip()
+        email = data.get('email', '').strip()
+        password = data.get('password', '')
+
+        if not email or not password:
+            return JsonResponse({'success': False, 'message': 'Email e senha são obrigatórios.'}, status=400)
+
+        # Utiliza o email como username para simplificar o cadastro
+        user, created = User.objects.get_or_create(
+            username=email,
+            defaults={'email': email, 'first_name': nome}
+        )
+
+        if created:
+            # Novo usuário: define a senha e salva
+            user.set_password(password)
+            user.save()
+        else:
+            # Usuário existente: valida a senha para permitir o fluxo contínuo
+            user = authenticate(username=email, password=password)
+            if not user:
+                return JsonResponse({'success': False, 'message': 'Este email já está cadastrado com outra senha.'}, status=401)
+
+        # Geração dos tokens JWT
+        access_token = create_access_token(user)
+        refresh_token = create_refresh_token(user)
+
+        response = JsonResponse({
+            'success': True,
+            'message': 'Acesso liberado com sucesso',
+            'user': {'username': user.first_name or user.username, 'email': user.email}
+        })
+        
+        # Injeta os cookies HTTPOnly para manter a segurança do token
+        set_jwt_cookies(response, access_token, refresh_token)
+        return response
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)

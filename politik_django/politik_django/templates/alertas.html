@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+
+{% block title %}PolitiK - Central de Alertas{% endblock %}
+
+{% block extra_head %}
+<style>
+    :root {
+        --color-grafite: #333a3f;
+        --color-turquesa: #1e9b95;
+    }
+    body { background-color: var(--color-grafite); }
+
+    /* Table styles for alerts */
+    .alert-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .alert-table th, .alert-table td {
+        padding: 12px 8px;
+        text-align: left;
+        border-bottom: 1px solid #4a5568;
+    }
+    .alert-table th {
+        background-color:#2d3748;
+        color:#fff;
+        font-size:0.85rem;
+        text-transform:uppercase;
+        letter-spacing:0.05em;
+    }
+    .alert-table tbody tr:hover {
+        background-color:#4a5568;
+    }
+    .severidade-badge {
+        padding: 3px 8px;
+        border-radius: 10px;
+        font-size:0.75rem;
+        font-weight:bold;
+        text-transform:uppercase;
+    }
+    .severidade-baixa { background:#edf2f7; color:#4a5568; }
+    .severidade-media { background:#f6e05e; color:#744210; }
+    .severidade-alta { background:#f56565; color:#fff; }
+    .severidade-critica { background:#c53030; color:#fff; }
+
+    /* Action buttons */
+    .btn-resolver {
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size:0.8rem;
+        font-weight:600;
+        border:none;
+        cursor:pointer;
+        transition:opacity 0.2s;
+    }
+    .btn-resolver:hover { opacity:0.9; }
+    .btn-resolver.sucesso {
+        background:#38a169;
+        color:#fff;
+    }
+    .btn-resolver.perigo {
+        background:#e53e3e;
+        color:#fff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Header -->
+    <header class="mb-6">
+        <h1 class="text-2xl font-black text-white tracking-tight uppercase">
+            Central de Alertas
+            <span class="text-[#1e9b95] font-light ml-2">| Investigações</span>
+        </h1>
+        <p class="text-sm text-gray-400 mt-1">Total de alertas ativos: <strong class="text-red-400">{{ alertas_nao_resolvidos.count }}</strong></p>
+    </header>
+
+    <!-- Empty state -->
+    {% if alertas_nao_resolvidos|length == 0 %}
+    <div class="bg-white rounded-md p-8 text-center text-gray-600">
+        <svg class="w-12 h-12 mx-auto mb-4 fill-current" viewBox="0 0 24 24">
+            <path d="M10 18h4a2 2 0 002-2V8a2 2 0 00-2-2H8a2 2 0 00-2-2V5l5 5v3a2 2 0 002 2zM4 6a2 2 0 00-2 2v3a2 2 0 002 2h4a2 2 0 002-2v-3a2 2 0 00-2-2H4V6zm0 12a2 2 0 00-2 2v3a2 2 0 002 2h4a2 2 0 002-2v-3a2 2 0 00-2-2H4v-3zm16-4h-4a2 2 0 00-2 2v3a2 2 0 002 2h4a2 2 0 002-2v-3a2 2 0 00-2-2h-4v3zM4 18a2 2 0 00-2 2v3a2 2 0 002 2h12a2 2 0 002-2v-3a2 2 0 00-2-2H4v-3zm0-8a2 2 0 00-2 2v3a2 2 0 002 2H4a2 2 0 00-2-2v-3a2 2 0 00-2-2H4z"/>
+        </svg>
+        <p class="mt-3">Nenhum alerta ativo</p>
+        <p class="text-xs">Não há anomalias não resolvidas no momento.</p>
+    </div>
+    {% else %}
+
+    <!-- Alert Table -->
+    <div class="overflow-x-auto bg-white rounded-md shadow-lg">
+        <table class="alert-table">
+            <thead>
+                <tr>
+                    <th>Severidade</th>
+                    <th>Título</th>
+                    <th>CNPJ/Gasto</th>
+                    <th>Mandato</th>
+                    <th>Data</th>
+                    <th>Ação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alerta in alertas %}
+                <tr class="border-y border-gray-700">
+                    <td>
+                        <span class="severidade-badge {{ alerta.get_severidade_display|lower }}">
+                            {{ alerta.get_severidade_display }}
+                        </span>
+                    </td>
+                    <td class="font-medium">{{ alerta.titulo }}</td>
+                    <td>
+                        {% if alerta.referencia_cnpj %}
+                            <code>{{ alerta.referencia_cnpj }}</code>
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ alerta.mandado.politico.nome_civil }} -
+                        {{ alerta.mandado.cargo }}
+                    </td>
+                    <td>{{ alerta.criado_em|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        <button
+                            class="btn-resolver sucesso"
+                            data-alerta-id="{{ alerta.id }}"
+                            data-resolvido="true"
+                            onclick="resolverAlerta(this)">
+                            Marcar como Resolvido
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% endif %}
+</div>
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+/* Resolver alerta via AJAX POST para a API existente */
+function resolverAlerta(btn) {
+    const alertaId = btn.dataset.alertaId;
+    const resolvido = btn.dataset.resolvido === 'true';
+
+    fetch('/api/alerta/atualizar/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({ alerta_id: alertaId, resolvido: resolvido })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Remover linha da tabela
+            btn.closest('tr').remove();
+            // Se a tabela ficou vazia, mostrar estado vazio
+            const tbody = btn.closest('table').querySelector('tbody');
+            if (!tbody || tbody.children.length === 0) {
+                showEmptyState();
+            }
+        } else {
+            alert('Erro ao atualizar alerta: ' + (data.error || 'Tente novamente.'));
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        alert('Erro de conexão com o servidor.');
+    });
+}
+
+/* Helper: obter CSRF token do cookie */
+function getCSRFToken() {
+    const name = 'csrftoken';
+    const cookieValue = document.cookie.replace(/(?:(?:^|.*\\s*)' + name + ')\\s*\\=\\s*([^;]).*$/, '$1');
+    return cookieValue;
+}
+
+/* Mostrar estado vazio se todas as linhas foram removidas */
+function showEmptyState() {
+    const container = document.querySelector('.overflow-x-auto');
+    if (container) {
+        container.innerHTML = `
+            <div class="bg-white rounded-md p-8 text-center text-gray-600">
+                <svg class="w-12 h-12 mx-auto mb-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M10 18h4a2 2 0 002-2V8a2 2 0 00-2-2H8a2 2 0 00-2-2V5l5 5v3a2 2 0 002 2zM4 6a2 2 0 00-2 2v3a2 2 0 002 2h4a2 2 0 002-2v-3a2 2 0 00-2-2H4V6zm0 12a2 2 0 00-2 2v3a2 2 0 002 2h4a2 2 0 002-2v-3a2 2 0 00-2-2H4v-3zm16-4h-4a2 2 0 00-2 2v3a2 2 0 002 2h4a2 2 0 002-2v-3a2 2 0 00-2-2h-4v3zM4 18a2 2 0 00-2 2v3a2 2 0 002 2h12a2 2 0 002-2v-3a2 2 0 00-2-2H4v-3zm0-8a2 2 0 00-2 2v3a2 2 0 002 2H4a2 2 0 00-2-2v-3a2 2 0 00-2-2H4z"/>
+                </svg>
+                <p class="mt-3">Nenhum alerta ativo</p>
+                <p class="text-xs">Não há anomalias não resolvidas no momento.</p>
+            </div>
+        `;
+    }
+}
+</script>
+{% endblock %}

@@ -1,418 +1,491 @@
 {% extends 'base.html' %}
 
-{% block title %}PolitiK - Dashboard de Transparência Pública{% endblock %}
+{% block title %}PolitiK - Transparência Nacional{% endblock %}
 
 {% block extra_head %}
 <style>
+    :root {
+        --color-grafite: #333a3f;
+        --color-turquesa: #1e9b95;
+    }
+    
+    body {
+        background-color: var(--color-grafite);
+    }
+
     .stat-card {
-        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 4px;
     }
     .stat-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     }
     .chart-container {
         position: relative;
         height: 300px;
         width: 100%;
     }
-    .alert-badge {
-        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    }
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.7; }
-    }
-    .trend-up { color: #ef4444; }
-    .trend-down { color: #10b981; }
-    .trend-neutral { color: #6b7280; }
     
-    /* Modal Styles */
-    #login-modal {
+    .modal-overlay {
         display: none;
         position: fixed;
         inset: 0;
-        background-color: rgba(0, 0, 0, 0.5);
-        z-index: 50;
+        background-color: rgba(15, 23, 42, 0.85);
+        backdrop-filter: blur(5px);
+        z-index: 100;
         align-items: center;
         justify-content: center;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+    .modal-overlay.active {
+        display: flex;
+        opacity: 1;
+    }
+    .chart-loader {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.9);
+        z-index: 10;
+    }
+    .spinner {
+        border: 3px solid #f3f4f6;
+        border-top: 3px solid var(--color-turquesa);
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    select {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 0.5rem center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+        appearance: none;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
-    <!-- Header Section -->
-    <div class="mb-8">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between">
-            <div>
-                <h1 class="text-3xl font-bold text-surface-900">Dashboard de Transparência Pública</h1>
-                <p class="mt-2 text-surface-600">Monitoramento em tempo real de gastos políticos e alertas de anomalias</p>
-            </div>
-            <div class="mt-4 md:mt-0 flex items-center space-x-3">
-                <div class="bg-surface-100 rounded-lg px-4 py-2">
-                    <div class="text-xs text-surface-500">Atualizado às</div>
-                    <div class="text-sm font-medium text-surface-900" id="last-updated">Carregando...</div>
-                </div>
-                
-                <!-- RF07: Authentication Controls -->
-                <div id="auth-container">
-                    <!-- Será preenchido via JavaScript dependendo do estado -->
-                </div>
-
-                <button onclick="location.reload()" class="p-2 rounded-lg bg-surface-100 hover:bg-surface-200 transition-colors">
-                    <svg class="w-5 h-5 text-surface-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 014.582 9m0 0H9m11 11v-5h-.581m0 0a8.001 8.001 0 00-11.019-2m0 0H15m11 11H8m11 11V4" />
-                    </svg>
+    <header class="mb-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 border-b border-gray-600 pb-4">
+        <div class="flex items-center gap-3">
+            <h1 class="text-2xl font-black text-white tracking-tight uppercase">PolitiK <span class="text-[#1e9b95] font-light">| Analytics</span></h1>
+        </div>
+        
+        <div class="flex items-center gap-4 w-full lg:w-auto">
+            <div class="flex gap-2 bg-white p-1.5 rounded flex-wrap sm:flex-nowrap">
+                <select id="filter-esfera" class="px-3 py-1.5 text-sm font-bold text-gray-700 bg-transparent outline-none border-r border-gray-200 min-w-[120px]">
+                    <option value="">Nacional</option>
+                    {% for esfera in esferas %}<option value="{{ esfera }}">{{ esfera }}</option>{% endfor %}
+                </select>
+                <select id="filter-cargo" class="px-3 py-1.5 text-sm font-bold text-gray-700 bg-transparent outline-none border-r border-gray-200 min-w-[120px]">
+                    <option value="">Cargos</option>
+                    {% for cargo in cargos %}<option value="{{ cargo }}">{{ cargo }}</option>{% endfor %}
+                </select>
+                <select id="filter-categoria" class="px-3 py-1.5 text-sm font-bold text-gray-700 bg-transparent outline-none border-r border-gray-200 min-w-[120px]">
+                    <option value="">Categorias</option>
+                    {% for cat in categorias %}<option value="{{ cat }}">{{ cat }}</option>{% endfor %}
+                </select>
+                <select id="filter-ano" class="px-3 py-1.5 text-sm font-bold text-gray-700 bg-transparent outline-none min-w-[80px]">
+                    {% for ano in anos %}<option value="{{ ano }}" {% if ano == ano_atual %}selected{% endif %}>{{ ano }}</option>{% endfor %}
+                </select>
+                <button onclick="DashboardApp.applyFilters()" class="px-4 py-1.5 bg-[#1e9b95] text-white rounded font-bold hover:bg-[#15807d] transition-colors text-sm ml-1">
+                    Filtrar
                 </button>
             </div>
+            
+            <div id="dash-auth-container" class="shrink-0"></div>
         </div>
-    </div>
+    </header>
 
-    <!-- Stats Overview -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="stat-card bg-white rounded-xl p-6 shadow-sm hover:shadow-md">
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex-1">
-                    <p class="text-sm text-surface-500">Total de Políticos</p>
-                    <p class="text-2xl font-bold text-surface-900" id="total-politicos">0</p>
-                </div>
-                <div class="p-2 bg-primary-100 rounded-lg">
-                    <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112-3v1zm0 0h6.281A4.004 4.004 0 0023 18.316V18a2 2 0 00-2-2h-1a2 2 0 01-2-2v-2.414a6 6 0 01-1.354-.894l-.894-.894A12.083 12.083 0 003 9v11z" />
-                    </svg>
-                </div>
-            </div>
-            <div class="text-xs text-surface-500 mt-2" id="politicos-trend">
-                Atualizado via Base de Dados
-            </div>
-        </div>
-
-        <div class="stat-card bg-white rounded-xl p-6 shadow-sm hover:shadow-md">
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex-1">
-                    <p class="text-sm text-surface-500">Mandatos Ativos</p>
-                    <p class="text-2xl font-bold text-surface-900" id="total-mandatos">0</p>
-                </div>
-                <div class="p-2 bg-secondary-100 rounded-lg">
-                    <svg class="w-6 h-6 text-secondary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2-1.343-2-3-2zm0-6c1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2-1.343-2-3-2zm0 10c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2-1.343-2-3-2z" />
-                    </svg>
-                </div>
-            </div>
-            <div class="text-xs text-surface-500 mt-2" id="mandatos-trend">
-                Atualizado via Base de Dados
-            </div>
-        </div>
-
-        <div class="stat-card bg-white rounded-xl p-6 shadow-sm hover:shadow-md">
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex-1">
-                    <p class="text-sm text-surface-500">Gastos Totais (Ano)</p>
-                    <p class="text-2xl font-bold text-surface-900" id="total-gastos">R$ 0,00</p>
-                </div>
-                <div class="p-2 bg-success-100 rounded-lg">
-                    <svg class="w-6 h-6 text-success-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </div>
-            </div>
-            <div class="text-xs text-surface-500 mt-2" id="gastos-trend">
-                Soma Consolidada
-            </div>
-        </div>
-
-        <div class="stat-card bg-white rounded-xl p-6 shadow-sm hover:shadow-md relative">
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex-1">
-                    <p class="text-sm text-surface-500">Alertas Ativos</p>
-                    <p class="text-2xl font-bold text-surface-900" id="total-alertas">0</p>
-                </div>
-                <div class="p-2 bg-danger-100 rounded-lg">
-                    <svg class="w-6 h-6 text-danger-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </div>
-            </div>
-            <div class="text-xs text-surface-500 mt-2" id="alertas-trend">
-                Motor de Anomalias Ativo
-            </div>
-        </div>
-    </div>
-
-    <!-- Filters Section -->
-    <div class="bg-white rounded-xl p-6 shadow-sm mb-8">
-        <div class="flex flex-wrap items-center gap-4 mb-6">
-            <div class="flex-1 min-w-[200px]">
-                <label class="block text-sm font-medium text-surface-700 mb-2">Cargo</label>
-                <select id="filter-cargo" class="w-full px-4 py-2 rounded-lg border border-surface-200 bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
-                    <option value="">Todos os Cargos</option>
-                    <option value="Presidente">Presidente</option>
-                    <option value="Governador">Governador</option>
-                    <option value="Senador">Senador</option>
-                    <option value="Deputado Federal">Deputado Federal</option>
-                    <option value="Deputado Estadual">Deputado Estadual</option>
-                    <option value="Prefeito">Prefeito</option>
-                    <option value="Vereador">Vereador</option>
-                </select>
-            </div>
-            <div class="flex-1 min-w-[200px]">
-                <label class="block text-sm font-medium text-surface-700 mb-2">Esfera</label>
-                <select id="filter-esfera" class="w-full px-4 py-2 rounded-lg border border-surface-200 bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
-                    <option value="">Todas as Esferas</option>
-                    <option value="Federal">Federal</option>
-                    <option value="Estadual">Estadual</option>
-                    <option value="Municipal">Municipal</option>
-                </select>
-            </div>
-            <div class="flex-1 min-w-[200px]">
-                <label class="block text-sm font-medium text-surface-700 mb-2">Ano</label>
-                <select id="filter-ano" class="w-full px-4 py-2 rounded-lg border border-surface-200 bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
-                    <option value="">Todos os Anos</option>
-                    <option value="2026" selected>2026</option>
-                    <option value="2025">2025</option>
-                    <option value="2024">2024</option>
-                    <option value="2023">2023</option>
-                    <option value="2022">2022</option>
-                </select>
-            </div>
-            <button onclick="applyFilters()" class="px-6 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors flex items-center gap-2 mt-7">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-                Aplicar Filtros
-            </button>
-        </div>
-    </div>
-
-    <!-- Charts Section -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div class="bg-white rounded-xl p-6 shadow-sm">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-bold text-surface-900">Gastos por Categoria</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        
+        <div class="stat-card bg-white p-5 shadow-lg flex items-center justify-between">
+            <div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total de Registros</p>
                 <div class="flex items-center gap-2">
-                    <span class="text-xs text-surface-500">Ano: </span>
-                    <span class="text-xs font-medium text-surface-700" id="chart-ano">2026</span>
+                    <svg class="w-5 h-5 text-[#1e9b95]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                    <p class="text-3xl font-black text-[#333a3f]">{{ stats.total_politicos }}</p>
                 </div>
-            </div>
-            <div class="chart-container">
-                <canvas id="chart-categoria"></canvas>
             </div>
         </div>
 
-        <div class="bg-white rounded-xl p-6 shadow-sm">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-bold text-surface-900">Evolução de Gastos</h2>
+        <div class="stat-card bg-white p-5 shadow-lg flex items-center justify-between">
+            <div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Mandatos Ativos</p>
                 <div class="flex items-center gap-2">
-                    <span class="text-xs text-surface-500">Filtro: </span>
-                    <span class="text-xs font-medium text-surface-700" id="chart-politico">Todos</span>
+                    <svg class="w-5 h-5 text-[#1e9b95]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                    <p class="text-3xl font-black text-[#333a3f]">{{ stats.total_mandatos }}</p>
                 </div>
             </div>
-            <div class="chart-container">
+        </div>
+
+        <div class="stat-card bg-white p-5 shadow-lg flex items-center justify-between cursor-pointer group" onclick="DashboardApp.showFullValueModal()">
+            <div class="min-w-0">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Montante Liquidado ({{ ano_atual }})</p>
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-[#1e9b95]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2-1.343-2-3-2zm0-6c1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2-1.343-2-3-2zm0 10c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2-1.343-2-3-2z" /></svg>
+                    <p class="text-2xl font-black text-[#333a3f] truncate group-hover:text-[#1e9b95] transition-colors" id="kpi-volume" data-raw="{{ stats.total_despesas_ano.total|default:'0'|stringformat:'f' }}">Carregando...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card bg-[#fff5f5] p-5 shadow-lg flex items-center justify-between border-l-4 border-red-500">
+            <div>
+                <p class="text-xs font-bold text-red-500 uppercase tracking-wider mb-1">Alertas / Investigações</p>
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c.77-1.333-.262-2.854-1.732-3z" /></svg>
+                    <p class="text-3xl font-black text-red-600">{{ stats.alertas_ativos }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+        
+        <div class="lg:col-span-2 bg-white rounded-md p-6 shadow-xl">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
+                <h2 class="text-sm font-bold text-gray-600 uppercase tracking-widest">Execução Histórica</h2>
+            </div>
+            <div class="chart-container" id="container-linha">
+                <div class="chart-loader hidden" id="loader-linha"><div class="spinner"></div></div>
                 <canvas id="chart-mensal"></canvas>
             </div>
         </div>
-    </div>
 
-    <!-- RF07: Login Modal -->
-    <div id="login-modal">
-        <div class="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl relative">
-            <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-surface-400 hover:text-surface-600">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-            
-            <h2 class="text-2xl font-bold text-surface-900 mb-6 text-center">Acesso ao Sistema</h2>
-            <div id="login-error" class="hidden mb-4 p-3 bg-danger-100 text-danger-700 rounded-lg text-sm"></div>
-            
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-surface-700 mb-1">Usuário</label>
-                    <input type="text" id="username" class="w-full px-4 py-2 rounded-lg border border-surface-200 focus:ring-2 focus:ring-primary-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-surface-700 mb-1">Senha</label>
-                    <input type="password" id="password" class="w-full px-4 py-2 rounded-lg border border-surface-200 focus:ring-2 focus:ring-primary-500">
-                </div>
-                <button onclick="submitLogin()" class="w-full py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors mt-4">
-                    Entrar
-                </button>
+        <div class="lg:col-span-1 bg-white rounded-md p-6 shadow-xl">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
+                <h2 class="text-sm font-bold text-gray-600 uppercase tracking-widest">Alocação</h2>
+            </div>
+            <div class="chart-container" id="container-pizza">
+                <div class="chart-loader hidden" id="loader-pizza"><div class="spinner"></div></div>
+                <canvas id="chart-categoria"></canvas>
             </div>
         </div>
     </div>
+
+    <!-- Modal de Registro Expresso (Linguagem Natural e Simplificada) -->
+    <div id="dash-express-modal" class="modal-overlay z-[120]">
+        <div class="bg-white rounded-md p-8 max-w-md w-full shadow-2xl relative" id="dash-express-card">
+            <button onclick="DashboardApp.closeExpressModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <div class="text-center mb-6">
+                <div class="w-12 h-12 bg-[#e0f2f1] text-[#1e9b95] rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                </div>
+                <h2 class="text-xl font-black text-[#333a3f] uppercase">Acesso à Plataforma</h2>
+                <p class="text-sm text-gray-500 mt-2">Crie sua conta rapidamente ou faça login para liberar os filtros.</p>
+            </div>
+            <div id="dash-express-error" class="hidden mb-4 p-3 bg-red-50 text-red-600 rounded text-sm text-center font-medium"></div>
+            <form onsubmit="event.preventDefault(); DashboardApp.submitExpressAuth();" class="space-y-4">
+                <input type="text" id="express-nome" placeholder="Seu nome" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded text-sm outline-none focus:border-[#1e9b95]" required>
+                <input type="email" id="express-email" placeholder="Seu e-mail" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded text-sm outline-none focus:border-[#1e9b95]" required>
+                <input type="password" id="express-password" placeholder="Senha" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded text-sm outline-none focus:border-[#1e9b95]" required minlength="6">
+                <button type="submit" class="w-full py-3 bg-[#1e9b95] text-white rounded font-bold hover:bg-[#15807d] transition-colors text-sm uppercase tracking-wider">Liberar Acesso</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Valor Exato -->
+    <div id="dash-value-modal" class="modal-overlay z-[110]">
+        <div class="bg-white rounded-md p-8 max-w-md w-full shadow-2xl relative" id="dash-value-card">
+            <button onclick="DashboardApp.closeFullValueModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <div class="text-center">
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 border-b border-gray-100 pb-3">Montante Bruto Auditado</h3>
+                <p class="text-3xl font-black text-[#333a3f] break-words my-6" id="modal-full-value">R$ 0,00</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Padrão -->
+    <div id="dash-login-modal" class="modal-overlay">
+        <div class="bg-white rounded-md p-8 max-w-sm w-full shadow-2xl relative" id="dash-login-card">
+            <button onclick="DashboardApp.closeLoginModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-black text-[#333a3f] uppercase">Login</h2>
+                <p class="text-sm text-gray-500 mt-1">Acesse sua conta</p>
+            </div>
+            <div id="dash-login-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm text-center font-medium"></div>
+            <form onsubmit="event.preventDefault(); DashboardApp.submitLogin();" class="space-y-4">
+                <div>
+                    <input type="text" id="dash-username" placeholder="E-mail" class="w-full px-4 py-2.5 rounded border border-gray-300 focus:ring-2 focus:ring-[#1e9b95] outline-none" required>
+                </div>
+                <div>
+                    <input type="password" id="dash-password" placeholder="Senha" class="w-full px-4 py-2.5 rounded border border-gray-300 focus:ring-2 focus:ring-[#1e9b95] outline-none" required>
+                </div>
+                <button type="submit" class="w-full py-3 bg-[#1e9b95] text-white rounded font-bold hover:bg-[#15807d] transition-colors mt-2 uppercase text-sm">Entrar</button>
+            </form>
+        </div>
+    </div>
+
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-let categoriaChart = null;
-let mensalChart = null;
-let currentUser = localStorage.getItem('politik_user');
+const DashboardApp = (function() {
+    let charts = { categoria: null, mensal: null };
+    let currentUser = localStorage.getItem('politik_user');
 
-document.addEventListener('DOMContentLoaded', function() {
-    updateAuthUI();
-    loadDashboardStats();
-    loadCharts();
+    const colorPalette = [
+        '#1e9b95', '#333a3f', '#64748b', '#94a3b8', '#cbd5e1', 
+        '#e2e8f0', '#0f766e', '#2dd4bf', '#0284c7', '#38bdf8'
+    ];
 
-    setInterval(() => {
-        loadDashboardStats();
-    }, 30000);
-});
+    const toggleLoader = (chartId, show) => {
+        const loader = document.getElementById(`loader-${chartId}`);
+        if(loader) show ? loader.classList.remove('hidden') : loader.classList.add('hidden');
+    };
 
-// RF07: Authentication Logic
-function updateAuthUI() {
-    const container = document.getElementById('auth-container');
-    if (currentUser) {
-        container.innerHTML = `
-            <div class="flex items-center gap-3">
-                <span class="text-sm font-medium text-surface-700">Olá, ${currentUser}</span>
-                <button onclick="logout()" class="px-4 py-2 bg-danger-50 text-danger-600 rounded-lg text-sm font-medium hover:bg-danger-100 transition-colors">Sair</button>
-            </div>
-        `;
-    } else {
-        container.innerHTML = `
-            <button onclick="openLoginModal()" class="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">Entrar no Sistema</button>
-        `;
-    }
-}
+    const formatCurrencyAbbrev = (val) => {
+        if (val >= 1000000000) return 'R$ ' + (val / 1000000000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Bi';
+        if (val >= 1000000) return 'R$ ' + (val / 1000000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Mi';
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 }).format(val);
+    };
 
-function openLoginModal() {
-    document.getElementById('login-modal').style.display = 'flex';
-}
+    const formatCurrencyFull = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
 
-function closeLoginModal() {
-    document.getElementById('login-modal').style.display = 'none';
-    document.getElementById('login-error').classList.add('hidden');
-}
-
-function submitLogin() {
-    const usernameInput = document.getElementById('username').value;
-    const passwordInput = document.getElementById('password').value;
-    const errorDiv = document.getElementById('login-error');
-
-    fetch('/api/auth/login/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            username: usernameInput,
-            password: passwordInput
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            localStorage.setItem('politik_user', data.user.username);
-            currentUser = data.user.username;
-            closeLoginModal();
-            updateAuthUI();
-        } else {
-            errorDiv.textContent = data.message || 'Credenciais inválidas';
-            errorDiv.classList.remove('hidden');
+    const fetchSecure = async (url) => {
+        try {
+            const res = await fetch(url);
+            if(res.status === 401) throw new Error('Unauthorized');
+            return await res.json();
+        } catch (e) {
+            return null;
         }
-    })
-    .catch(err => {
-        errorDiv.textContent = 'Erro de conexão com o servidor.';
-        errorDiv.classList.remove('hidden');
-    });
-}
+    };
 
-function logout() {
-    fetch('/api/auth/logout/', { method: 'POST' })
-    .then(() => {
-        localStorage.removeItem('politik_user');
-        currentUser = null;
-        updateAuthUI();
-    });
-}
+    return {
+        init: function() {
+            this.formatKPIs();
+            this.updateAuthUI();
+            if (currentUser) this.loadCharts();
+        },
 
-// Stats & Charts Logic
-function loadDashboardStats() {
-    fetch('/api/estatisticas/')
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('total-politicos').textContent =
-                data.stats_por_categoria ? Object.keys(data.stats_por_categoria).length * 15 : '0';
-            document.getElementById('total-mandatos').textContent =
-                data.stats_por_ano ? Object.keys(data.stats_por_ano).length * 20 : '0';
+        formatKPIs: function() {
+            const volumeEl = document.getElementById('kpi-volume');
+            if (volumeEl) {
+                const rawData = parseFloat(volumeEl.getAttribute('data-raw')) || 0;
+                volumeEl.textContent = formatCurrencyAbbrev(rawData);
+            }
+        },
 
-            const totalGastos = Object.values(data.stats_por_categoria || {}).reduce(
-                (sum, cat) => sum + (cat.total || 0), 0
-            );
-            document.getElementById('total-gastos').textContent =
-                new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalGastos);
+        openExpressModal: function() { document.getElementById('dash-express-modal').classList.add('active'); },
+        closeExpressModal: function() { document.getElementById('dash-express-modal').classList.remove('active'); },
+        
+        showFullValueModal: function() {
+            const volumeEl = document.getElementById('kpi-volume');
+            if (volumeEl) {
+                document.getElementById('modal-full-value').textContent = formatCurrencyFull(parseFloat(volumeEl.getAttribute('data-raw')) || 0);
+                document.getElementById('dash-value-modal').classList.add('active');
+            }
+        },
+        closeFullValueModal: function() { document.getElementById('dash-value-modal').classList.remove('active'); },
+        
+        openLoginModal: function() { document.getElementById('dash-login-modal').classList.add('active'); },
+        closeLoginModal: function() { document.getElementById('dash-login-modal').classList.remove('active'); },
 
-            const totalAlertas = Object.values(data.alertas_stats || {}).reduce(
-                (sum, tipo) => sum + tipo.count, 0
-            );
-            document.getElementById('total-alertas').textContent = totalAlertas;
+        submitExpressAuth: async function() {
+            const nome = document.getElementById('express-nome').value;
+            const email = document.getElementById('express-email').value;
+            const pass = document.getElementById('express-password').value;
+            const errDiv = document.getElementById('dash-express-error');
 
-            document.getElementById('last-updated').textContent =
-                new Date().toLocaleTimeString('pt-BR');
-        });
-}
+            try {
+                const res = await fetch('/api/auth/express/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome: nome, email: email, password: pass })
+                });
+                const data = await res.json();
 
-function loadCharts() {
-    const ano = document.getElementById('filter-ano').value || '2026';
+                if (data.success) {
+                    localStorage.setItem('politik_user', data.user.username);
+                    currentUser = data.user.username;
+                    this.closeExpressModal();
+                    this.updateAuthUI();
+                    this.loadCharts(); 
+                } else {
+                    errDiv.textContent = data.message || data.error || 'Não foi possível validar seus dados.';
+                    errDiv.classList.remove('hidden');
+                }
+            } catch (e) {
+                errDiv.textContent = 'Erro de conexão com o servidor.';
+                errDiv.classList.remove('hidden');
+            }
+        },
 
-    fetch(`/api/estatisticas/?ano=${ano}`)
-        .then(response => response.json())
-        .then(data => {
-            const ctxCategoria = document.getElementById('chart-categoria').getContext('2d');
-            if (categoriaChart) categoriaChart.destroy();
+        submitLogin: async function() {
+            const user = document.getElementById('dash-username').value;
+            const pass = document.getElementById('dash-password').value;
+            const errDiv = document.getElementById('dash-login-error');
 
-            const labels = Object.keys(data.stats_por_categoria || {});
-            const values = labels.map(label => (data.stats_por_categoria[label] || {}).total || 0);
+            try {
+                const res = await fetch('/api/auth/login/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+                const data = await res.json();
 
-            categoriaChart = new Chart(ctxCategoria, {
-                type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: values,
-                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6']
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
+                if (data.success) {
+                    localStorage.setItem('politik_user', data.user.username);
+                    window.location.reload(); 
+                } else {
+                    errDiv.textContent = 'Credenciais inválidas.';
+                    errDiv.classList.remove('hidden');
+                }
+            } catch (e) {
+                errDiv.textContent = 'Falha de comunicação com o servidor.';
+                errDiv.classList.remove('hidden');
+            }
+        },
+
+        logout: async function() {
+            await fetch('/api/auth/logout/', { method: 'POST' });
+            localStorage.removeItem('politik_user');
+            window.location.reload();
+        },
+
+        updateAuthUI: function() {
+            const container = document.getElementById('dash-auth-container');
+            if (currentUser) {
+                container.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm font-bold text-white">${currentUser}</span>
+                        <button onclick="DashboardApp.logout()" class="text-xs font-bold text-gray-400 hover:text-white transition-colors">Sair</button>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <button onclick="DashboardApp.openLoginModal()" class="text-sm font-bold text-gray-300 hover:text-white transition-colors">Login</button>
+                `;
+            }
+        },
+
+        applyFilters: function() { 
+            if (!currentUser) {
+                this.openExpressModal();
+                return;
+            }
+            this.loadCharts(); 
+        },
+
+        loadCharts: async function() {
+            const ano = document.getElementById('filter-ano').value || new Date().getFullYear();
+            const cargo = document.getElementById('filter-cargo').value;
+            const esfera = document.getElementById('filter-esfera').value;
+            const categoria = document.getElementById('filter-categoria').value;
+
+            const queryParams = new URLSearchParams({
+                ano: ano,
+                ...(cargo && { cargo: cargo }),
+                ...(esfera && { esfera: esfera }),
+                ...(categoria && { categoria: categoria })
             });
+            
+            toggleLoader('pizza', true);
+            toggleLoader('linha', true);
 
-            const ctxMensal = document.getElementById('chart-mensal').getContext('2d');
-            if (mensalChart) mensalChart.destroy();
+            const statsData = await fetchSecure(`/api/estatisticas/?${queryParams.toString()}`);
+            
+            toggleLoader('pizza', false);
+            toggleLoader('linha', false);
 
-            const labelsAno = Object.keys(data.stats_por_ano || {}).sort();
-            const valuesAno = labelsAno.map(l => (data.stats_por_ano[l] || {}).total || 0);
+            if(statsData) {
+                const volumeEl = document.getElementById('kpi-volume');
+                if(volumeEl) {
+                    volumeEl.setAttribute('data-raw', statsData.total_geral || 0);
+                    volumeEl.textContent = formatCurrencyAbbrev(statsData.total_geral || 0);
+                    volumeEl.previousElementSibling.previousElementSibling.textContent = `Montante Liquidado (${ano})`;
+                }
 
-            mensalChart = new Chart(ctxMensal, {
-                type: 'line',
-                data: {
-                    labels: labelsAno,
-                    datasets: [{
-                        label: 'Gastos (R$)',
-                        data: valuesAno,
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        fill: true
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        });
-}
+                if(statsData.stats_por_categoria) {
+                    const ctx = document.getElementById('chart-categoria').getContext('2d');
+                    if (charts.categoria) charts.categoria.destroy();
 
-function applyFilters() {
-    const ano = document.getElementById('filter-ano').value;
-    const cargo = document.getElementById('filter-cargo').value;
-    const esfera = document.getElementById('filter-esfera').value;
-    
-    loadCharts();
-    
-    document.getElementById('chart-ano').textContent = ano || 'Todos';
-    document.getElementById('chart-politico').textContent = 
-        (cargo || esfera) ? `${cargo} ${esfera}`.trim() : 'Todos';
-}
+                    const labels = Object.keys(statsData.stats_por_categoria);
+                    const values = labels.map(l => statsData.stats_por_categoria[l].total);
+
+                    if(values.length > 0) {
+                        charts.categoria = new Chart(ctx, {
+                            type: 'doughnut',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    data: values,
+                                    backgroundColor: colorPalette,
+                                    borderWidth: 0
+                                }]
+                            },
+                            options: { 
+                                responsive: true, 
+                                maintainAspectRatio: false, 
+                                cutout: '75%',
+                                plugins: { 
+                                    legend: { 
+                                        position: 'bottom',
+                                        labels: { boxWidth: 10, padding: 15, font: { family: "'Inter', sans-serif", size: 10 } }
+                                    } 
+                                } 
+                            }
+                        });
+                    }
+                }
+
+                if(statsData.stats_por_mes) {
+                    const ctx = document.getElementById('chart-mensal').getContext('2d');
+                    if (charts.mensal) charts.mensal.destroy();
+                    
+                    const matrix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(mes => statsData.stats_por_mes[mes] || 0);
+
+                    charts.mensal = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
+                            datasets: [{
+                                label: 'Despesas Liquidadas',
+                                data: matrix,
+                                backgroundColor: '#1e9b95',
+                                borderRadius: 2
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: { 
+                                y: { 
+                                    beginAtZero: true, 
+                                    ticks: { callback: formatCurrencyAbbrev, font: { family: "'Inter', sans-serif" } },
+                                    grid: { color: '#f8fafc', drawBorder: false }
+                                },
+                                x: {
+                                    grid: { display: false, drawBorder: false },
+                                    ticks: { font: { family: "'Inter', sans-serif", size: 10 }, color: '#94a3b8' }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        }
+    };
+})();
+
+document.addEventListener('DOMContentLoaded', () => DashboardApp.init());
 </script>
 {% endblock %}

@@ -212,6 +212,9 @@ class Despesa(models.Model):
     ano = models.IntegerField(verbose_name="Ano")
     mes = models.IntegerField(blank=True, null=True, verbose_name="Mês")
 
+    # RF04/RF05: rastreamento de processamento pelo motor de anomalias
+    processado_em = models.DateTimeField(blank=True, null=True, verbose_name="Processado pelo Motor de Anomalias")
+
     criado_em = models.DateTimeField(default=timezone.now, verbose_name="Criado em")
     atualizado_em = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
 
@@ -228,6 +231,7 @@ class Despesa(models.Model):
             models.Index(fields=['data_emissao']),
             models.Index(fields=['-data_emissao']),
             models.Index(fields=['fonte']),
+            models.Index(fields=['processado_em', 'id']),
         ]
 
     def __str__(self):

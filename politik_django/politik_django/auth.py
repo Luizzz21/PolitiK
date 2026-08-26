@@ -218,3 +218,31 @@ def enforce_csrf(request):
         return HttpResponseForbidden(f'CSRF Failed: {reason}')
         
     return None
+
+from functools import wraps
+from django.http import JsonResponse
+
+def jwt_required(view_func):
+    """
+    Decorador para proteger rotas da API.
+    Exige que a requisição possua um JWT válido nos cookies.
+    """
+    @wraps(view_func)
+    def wrapped_view(request, *args, **kwargs):
+        # Ignora a verificação se a view for especificamente para login
+        if request.path == '/api/auth/login/':
+            return view_func(request, *args, **kwargs)
+            
+        user, error_message = authenticate_request(request)
+        
+        if not user:
+            return JsonResponse({
+                'success': False,
+                'message': error_message or 'Acesso negado. Autenticação requerida.'
+            }, status=401)
+            
+        # Anexa o usuário autenticado à requisição para uso interno da view
+        request.user = user
+        return view_func(request, *args, **kwargs)
+        
+    return wrapped_view

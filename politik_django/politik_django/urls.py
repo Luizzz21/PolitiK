@@ -17,6 +17,7 @@ urlpatterns = [
     path('alertas/', views.pagina_alertas, name='alertas'),
 
     # API endpoints
+    path('api/auth/express/', views.api_express_auth, name='api_express_auth'),
     path('api/', include([
         # Auth JWT
         path('auth/login/', views.api_login, name='api_login'),
