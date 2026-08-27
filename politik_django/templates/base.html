@@ -20,8 +20,7 @@
                     colors: {
                         primary: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 900: '#0c4a6e' },
                         danger: { 50: '#fef2f2', 100: '#fee2e2', 500: '#ef4444', 600: '#dc2626', 900: '#7f1d1d' },
-                        success: { 50: '#f0fdf4', 100: '#dcfce7', 500: '#22c55e', 600: '#16a34a', 900: '#14532d' },
-                        surface: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a' }
+                        success: { 50: '#f0fdf4', 100: '#dcfce7', 500: '#22c55e', 600: '#16a34a', 900: '#14532d' }
                     },
                     fontFamily: {
                         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
@@ -30,38 +29,60 @@
             }
         }
     </script>
+    
+    <!-- CSS Global do Tema Dark Slate -->
+    <style>
+        :root {
+            --color-grafite: #333a3f;
+            --color-turquesa: #1e9b95;
+        }
+        body {
+            background-color: var(--color-grafite) !important;
+            color: #f8fafc;
+        }
+    </style>
+    
     {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-surface-50 font-sans antialiased min-h-screen flex flex-col">
+<body class="font-sans antialiased min-h-screen flex flex-col">
     
-    <!-- NAVBAR INTEGRADA E LIMPA -->
-    <nav class="bg-white border-b border-surface-200 sticky top-0 z-40 shadow-sm">
+    <!-- NAVBAR GLOBAL COM BUSCA INTEGRADA E ESTADO DINÂMICO -->
+    <nav class="border-b border-gray-600 sticky top-0 z-50 shadow-sm" style="background-color: var(--color-grafite);">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <!-- Logo e Links de Navegação Estrutural -->
-                <div class="flex items-center">
-                    <!-- Correção: Link aponta para a raiz '/' e a logo foi redesenhada de forma tipográfica -->
-                    <a href="/" class="flex items-center gap-2 group mr-8">
-                        <div class="w-8 h-8 bg-surface-900 text-white rounded flex items-center justify-center font-bold text-lg group-hover:bg-primary-600 transition-colors">
+            <div class="flex justify-between items-center h-16">
+                
+                <!-- Links de Navegação e Logo -->
+                <div class="flex items-center gap-8">
+                    <a href="/" class="flex items-center gap-2 group">
+                        <div class="w-8 h-8 bg-white text-[#333a3f] rounded flex items-center justify-center font-bold text-lg group-hover:bg-[#1e9b95] group-hover:text-white transition-colors">
                             P
                         </div>
-                        <span class="font-black text-xl text-surface-900 tracking-tight">PolitiK</span>
+                        <span class="font-black text-xl text-white tracking-tight">PolitiK</span>
                     </a>
                     
-                    <div class="hidden sm:flex sm:space-x-6">
-                        <a href="/" class="border-surface-900 text-surface-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold">
+                    <div class="hidden sm:flex sm:space-x-6 h-16">
+                        <!-- Lógica Crítica: request.path define qual aba recebe a linha turquesa -->
+                        <a href="/" class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold transition-colors {% if request.path == '/' %}border-[#1e9b95] text-white{% else %}border-transparent text-gray-400 hover:text-white hover:border-gray-500{% endif %}">
                             Dashboard
                         </a>
-                        <a href="/alertas/" class="border-transparent text-surface-500 hover:border-surface-300 hover:text-surface-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-semibold transition-colors">
+                        <a href="/alertas/" class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold transition-colors {% if '/alertas/' in request.path %}border-[#1e9b95] text-white{% else %}border-transparent text-gray-400 hover:text-white hover:border-gray-500{% endif %}">
                             Central de Alertas
                         </a>
                     </div>
                 </div>
-                
-                <!-- NOTA ARQUITETÔNICA: 
-                     Não há barra de busca ou botões de login aqui. 
-                     Esses elementos são dinâmicos e agora pertencem exclusivamente ao index.html 
-                     para não poluírem ou quebrarem outras telas do sistema. -->
+
+                <!-- Barra de Pesquisa Global -->
+                <div class="flex-1 max-w-md ml-8 relative hidden md:block">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        </div>
+                        <input type="text" id="global-search-input" placeholder="Pesquisar agente político..." class="block w-full pl-10 pr-3 py-2 border border-gray-600 rounded-md leading-5 bg-[#2d3748] text-gray-300 placeholder-gray-400 focus:outline-none focus:bg-white focus:text-gray-900 focus:border-[#1e9b95] focus:ring-2 focus:ring-[#1e9b95] sm:text-sm transition-all" autocomplete="off">
+                    </div>
+                    <!-- Menu Suspenso de Resultados -->
+                    <div id="global-search-dropdown" class="absolute z-50 w-full bg-white mt-1 rounded-md shadow-2xl border border-gray-200 hidden max-h-72 overflow-y-auto"></div>
+                </div>
+
             </div>
         </div>
     </nav>
@@ -71,14 +92,70 @@
         {% block content %}{% endblock %}
     </main>
 
-    <!-- FOOTER INTEGRADO E LIMPO -->
-    <footer class="bg-white border-t border-surface-200 mt-auto">
+    <!-- FOOTER NO TEMA DARK -->
+    <footer class="border-t border-gray-600 mt-auto" style="background-color: var(--color-grafite);">
         <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-            <p class="text-center text-sm text-surface-500 font-medium">
+            <p class="text-center text-sm text-gray-500 font-medium">
                 &copy; 2026 PolitiK - Plataforma de Transparência Nacional.
             </p>
         </div>
     </footer>
+
+    <!-- Motor de Busca Global Isolado -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('global-search-input');
+        const searchDropdown = document.getElementById('global-search-dropdown');
+        let globalSearchTimeout = null;
+
+        if(searchInput) {
+            searchInput.addEventListener('input', function() {
+                clearTimeout(globalSearchTimeout);
+                const query = this.value.trim();
+                
+                if(query.length < 3) {
+                    searchDropdown.classList.add('hidden');
+                    return;
+                }
+
+                // Debounce para não martelar o banco de dados
+                globalSearchTimeout = setTimeout(async () => {
+                    try {
+                        const res = await fetch(`/api/politicos/?busca=${encodeURIComponent(query)}`);
+                        const data = await res.json();
+                        searchDropdown.innerHTML = '';
+                        
+                        if(data && data.politicos && data.politicos.length > 0) {
+                            data.politicos.forEach(pol => {
+                                const div = document.createElement('div');
+                                div.className = 'px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors';
+                                div.innerHTML = `
+                                    <div class="font-bold text-gray-900">${pol.nome_civil}</div>
+                                    <div class="text-xs text-gray-500 uppercase mt-0.5">${pol.partido || 'S/P'} • ${pol.uf || 'BR'}</div>
+                                `; 
+                                div.onclick = () => window.location.href = `/politico/${pol.id}/`;
+                                searchDropdown.appendChild(div);
+                            });
+                            searchDropdown.classList.remove('hidden');
+                        } else {
+                            searchDropdown.innerHTML = '<div class="px-5 py-4 text-sm text-gray-500">Nenhum agente localizado.</div>';
+                            searchDropdown.classList.remove('hidden');
+                        }
+                    } catch(e) {
+                        console.error("Falha ao consultar a API de busca", e);
+                    }
+                }, 300); 
+            });
+
+            // Fecha o dropdown se clicar fora
+            document.addEventListener('click', (e) => {
+                if(!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
+                    searchDropdown.classList.add('hidden');
+                }
+            });
+        }
+    });
+    </script>
 
     {% block extra_scripts %}{% endblock %}
 </body>

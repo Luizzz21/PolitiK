@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}PolitiK - Transparência Nacional{% endblock %}
+{% block title %}PolitiK - Analytics Nacional{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -10,7 +10,7 @@
     }
     
     body {
-        background-color: var(--color-grafite);
+        background-color: var(--color-grafite) !important;
     }
 
     .stat-card {
@@ -107,67 +107,69 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         
-        <div class="stat-card bg-white p-5 shadow-lg flex items-center justify-between">
+        <div class="stat-card bg-white p-5 shadow-lg flex items-center justify-between border-t-4 border-[#333a3f]">
             <div>
-                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total de Registros</p>
+                <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Registros</p>
                 <div class="flex items-center gap-2">
-                    <svg class="w-5 h-5 text-[#1e9b95]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                     <p class="text-3xl font-black text-[#333a3f]">{{ stats.total_politicos }}</p>
                 </div>
             </div>
         </div>
 
-        <div class="stat-card bg-white p-5 shadow-lg flex items-center justify-between">
+        <div class="stat-card bg-white p-5 shadow-lg flex items-center justify-between border-t-4 border-[#333a3f]">
             <div>
-                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Mandatos Ativos</p>
+                <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Mandatos Ativos</p>
                 <div class="flex items-center gap-2">
-                    <svg class="w-5 h-5 text-[#1e9b95]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                     <p class="text-3xl font-black text-[#333a3f]">{{ stats.total_mandatos }}</p>
                 </div>
             </div>
         </div>
 
-        <div class="stat-card bg-white p-5 shadow-lg flex items-center justify-between cursor-pointer group" onclick="DashboardApp.showFullValueModal()">
+        <div class="stat-card bg-white p-5 shadow-lg flex items-center justify-between cursor-pointer group border-t-4 border-[#1e9b95]" onclick="DashboardApp.showFullValueModal()">
             <div class="min-w-0">
-                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Montante Liquidado ({{ ano_atual }})</p>
+                <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 group-hover:text-[#1e9b95] transition-colors">Liquidado ({{ ano_atual }})</p>
                 <div class="flex items-center gap-2">
-                    <svg class="w-5 h-5 text-[#1e9b95]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2-1.343-2-3-2zm0-6c1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2-1.343-2-3-2zm0 10c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2-1.343-2-3-2z" /></svg>
                     <p class="text-2xl font-black text-[#333a3f] truncate group-hover:text-[#1e9b95] transition-colors" id="kpi-volume" data-raw="{{ stats.total_despesas_ano.total|default:'0'|stringformat:'f' }}">Carregando...</p>
                 </div>
             </div>
         </div>
 
-        <div class="stat-card bg-[#fff5f5] p-5 shadow-lg flex items-center justify-between border-l-4 border-red-500">
+        <div class="stat-card bg-[#fff5f5] p-5 shadow-lg flex items-center justify-between border-t-4 border-red-500">
             <div>
-                <p class="text-xs font-bold text-red-500 uppercase tracking-wider mb-1">Alertas / Investigações</p>
+                <p class="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Investigações</p>
                 <div class="flex items-center gap-2">
-                    <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c.77-1.333-.262-2.854-1.732-3z" /></svg>
                     <p class="text-3xl font-black text-red-600">{{ stats.alertas_ativos }}</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+    <!-- Gráficos Superiores -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         
-        <div class="lg:col-span-2 bg-white rounded-md p-6 shadow-xl">
-            <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
-                <h2 class="text-sm font-bold text-gray-600 uppercase tracking-widest">Execução Histórica</h2>
-            </div>
+        <div class="lg:col-span-2 bg-white rounded p-6 shadow-xl">
+            <h2 class="text-sm font-bold text-gray-600 uppercase tracking-widest border-b border-gray-100 pb-2 mb-4">Execução Histórica</h2>
             <div class="chart-container" id="container-linha">
                 <div class="chart-loader hidden" id="loader-linha"><div class="spinner"></div></div>
                 <canvas id="chart-mensal"></canvas>
             </div>
         </div>
 
-        <div class="lg:col-span-1 bg-white rounded-md p-6 shadow-xl">
-            <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
-                <h2 class="text-sm font-bold text-gray-600 uppercase tracking-widest">Alocação</h2>
-            </div>
+        <div class="lg:col-span-1 bg-white rounded p-6 shadow-xl">
+            <h2 class="text-sm font-bold text-gray-600 uppercase tracking-widest border-b border-gray-100 pb-2 mb-4">Alocação</h2>
             <div class="chart-container" id="container-pizza">
                 <div class="chart-loader hidden" id="loader-pizza"><div class="spinner"></div></div>
                 <canvas id="chart-categoria"></canvas>
             </div>
+        </div>
+    </div>
+
+    <!-- Gráfico Inferior: Top Fornecedores -->
+    <div class="w-full bg-white rounded p-6 shadow-xl mb-8">
+        <h2 class="text-sm font-bold text-gray-600 uppercase tracking-widest border-b border-gray-100 pb-2 mb-4">Top 5 Entidades Beneficiadas (Volume Financeiro)</h2>
+        <div class="chart-container" id="container-fornecedores" style="height: 250px;">
+            <div class="chart-loader hidden" id="loader-fornecedores"><div class="spinner"></div></div>
+            <canvas id="chart-fornecedores"></canvas>
         </div>
     </div>
 
@@ -182,7 +184,7 @@
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
                 </div>
                 <h2 class="text-xl font-black text-[#333a3f] uppercase">Acesso à Plataforma</h2>
-                <p class="text-sm text-gray-500 mt-2">Crie sua conta rapidamente ou faça login para liberar os filtros.</p>
+                <p class="text-sm text-gray-500 mt-2">Crie sua conta rapidamente ou faça login para gerenciar alertas.</p>
             </div>
             <div id="dash-express-error" class="hidden mb-4 p-3 bg-red-50 text-red-600 rounded text-sm text-center font-medium"></div>
             <form onsubmit="event.preventDefault(); DashboardApp.submitExpressAuth();" class="space-y-4">
@@ -220,10 +222,10 @@
             <div id="dash-login-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm text-center font-medium"></div>
             <form onsubmit="event.preventDefault(); DashboardApp.submitLogin();" class="space-y-4">
                 <div>
-                    <input type="text" id="dash-username" placeholder="E-mail" class="w-full px-4 py-2.5 rounded border border-gray-300 focus:ring-2 focus:ring-[#1e9b95] outline-none" required>
+                    <input type="text" id="dash-username" placeholder="E-mail" class="w-full px-4 py-2.5 rounded border border-gray-300 focus:ring-2 focus:ring-[#1e9b95] outline-none text-gray-900" required>
                 </div>
                 <div>
-                    <input type="password" id="dash-password" placeholder="Senha" class="w-full px-4 py-2.5 rounded border border-gray-300 focus:ring-2 focus:ring-[#1e9b95] outline-none" required>
+                    <input type="password" id="dash-password" placeholder="Senha" class="w-full px-4 py-2.5 rounded border border-gray-300 focus:ring-2 focus:ring-[#1e9b95] outline-none text-gray-900" required>
                 </div>
                 <button type="submit" class="w-full py-3 bg-[#1e9b95] text-white rounded font-bold hover:bg-[#15807d] transition-colors mt-2 uppercase text-sm">Entrar</button>
             </form>
@@ -237,7 +239,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 const DashboardApp = (function() {
-    let charts = { categoria: null, mensal: null };
+    let charts = { categoria: null, mensal: null, fornecedores: null };
     let currentUser = localStorage.getItem('politik_user');
 
     const colorPalette = [
@@ -261,7 +263,6 @@ const DashboardApp = (function() {
     const fetchSecure = async (url) => {
         try {
             const res = await fetch(url);
-            if(res.status === 401) throw new Error('Unauthorized');
             return await res.json();
         } catch (e) {
             return null;
@@ -272,7 +273,7 @@ const DashboardApp = (function() {
         init: function() {
             this.formatKPIs();
             this.updateAuthUI();
-            if (currentUser) this.loadCharts();
+            this.loadCharts(); // Dashboard SEMPRE carrega os gráficos (Público)
         },
 
         formatKPIs: function() {
@@ -317,7 +318,6 @@ const DashboardApp = (function() {
                     currentUser = data.user.username;
                     this.closeExpressModal();
                     this.updateAuthUI();
-                    this.loadCharts(); 
                 } else {
                     errDiv.textContent = data.message || data.error || 'Não foi possível validar seus dados.';
                     errDiv.classList.remove('hidden');
@@ -377,10 +377,6 @@ const DashboardApp = (function() {
         },
 
         applyFilters: function() { 
-            if (!currentUser) {
-                this.openExpressModal();
-                return;
-            }
             this.loadCharts(); 
         },
 
@@ -399,18 +395,19 @@ const DashboardApp = (function() {
             
             toggleLoader('pizza', true);
             toggleLoader('linha', true);
+            toggleLoader('fornecedores', true);
 
             const statsData = await fetchSecure(`/api/estatisticas/?${queryParams.toString()}`);
             
             toggleLoader('pizza', false);
             toggleLoader('linha', false);
+            toggleLoader('fornecedores', false);
 
             if(statsData) {
                 const volumeEl = document.getElementById('kpi-volume');
                 if(volumeEl) {
                     volumeEl.setAttribute('data-raw', statsData.total_geral || 0);
                     volumeEl.textContent = formatCurrencyAbbrev(statsData.total_geral || 0);
-                    volumeEl.previousElementSibling.previousElementSibling.textContent = `Montante Liquidado (${ano})`;
                 }
 
                 if(statsData.stats_por_categoria) {
@@ -418,7 +415,7 @@ const DashboardApp = (function() {
                     if (charts.categoria) charts.categoria.destroy();
 
                     const labels = Object.keys(statsData.stats_por_categoria);
-                    const values = labels.map(l => statsData.stats_por_categoria[l].total);
+                    const values = labels.map(l => statsData.stats_por_categoria[l]);
 
                     if(values.length > 0) {
                         charts.categoria = new Chart(ctx, {
@@ -478,6 +475,35 @@ const DashboardApp = (function() {
                                     ticks: { font: { family: "'Inter', sans-serif", size: 10 }, color: '#94a3b8' }
                                 }
                             }
+                        }
+                    });
+                }
+
+                if(statsData.top_fornecedores) {
+                    const ctx = document.getElementById('chart-fornecedores').getContext('2d');
+                    if (charts.fornecedores) charts.fornecedores.destroy();
+                    const labelsFornecedores = Object.keys(statsData.top_fornecedores).map(l => l.length > 35 ? l.substring(0, 35) + '...' : l);
+                    const valuesFornecedores = Object.keys(statsData.top_fornecedores).map(l => statsData.top_fornecedores[l]);
+
+                    charts.fornecedores = new Chart(ctx, {
+                        type: 'bar',
+                        data: { 
+                            labels: labelsFornecedores, 
+                            datasets: [{ 
+                                data: valuesFornecedores, 
+                                backgroundColor: '#333a3f', 
+                                borderRadius: 2 
+                            }] 
+                        },
+                        options: { 
+                            indexAxis: 'y', 
+                            responsive: true, 
+                            maintainAspectRatio: false, 
+                            plugins: { legend: { display: false } }, 
+                            scales: { 
+                                x: { beginAtZero: true, ticks: { callback: formatCurrencyAbbrev } }, 
+                                y: { grid: { display: false } } 
+                            } 
                         }
                     });
                 }

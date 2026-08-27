@@ -1,43 +1,38 @@
 """
-PolitiK - URL Configuration
+URL configuration for politik_django project.
 """
-
 from django.contrib import admin
-from django.urls import path, include
-from django.views.generic import TemplateView
+from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Admin interface
     path('admin/', admin.site.urls),
 
-    # Home page
+    # Frontend pages
     path('', views.index, name='index'),
-    path('politico/<int:politico_id>/', views.pagina_politico, name='politico_detail'),
-    path('alertas/', views.pagina_alertas, name='alertas'),
+    path('politico/<int:politico_id>/', views.pagina_politico, name='pagina_politico'),
+    path('alertas/', views.pagina_alertas, name='pagina_alertas'),
+    path('minha-conta/', views.pagina_minha_conta, name='pagina_minha_conta'),
 
-    # API endpoints
+    # API Endpoints - Consultas
+    path('api/politicos/', views.api_buscar_politicos, name='api_buscar_politicos'),
+    path('api/despesas/', views.api_buscar_despesas, name='api_buscar_despesas'),
+    path('api/estatisticas/', views.api_estatisticas, name='api_estatisticas'),
+    
+    # API Endpoints - Utilitários
+    path('api/categorias/', views.api_categorias, name='api_categorias'),
+    path('api/fontes/', views.api_fontes, name='api_fontes'),
+    path('api/anos/', views.api_anos, name='api_anos'),
+    path('api/health/', views.api_health, name='api_health'),
+
+    # API Endpoints - Ações e Vínculos
+    path('api/alerta/atualizar/', views.api_atualizar_alerta, name='api_atualizar_alerta'),
+    path('api/politico/acompanhar/', views.api_acompanhar_politico, name='api_acompanhar_politico'),
+    path('api/assinaturas/', views.api_assinaturas, name='api_assinaturas'),
+    path('api/assinatura/<int:assinatura_id>/remover/', views.api_remover_assinatura, name='api_remover_assinatura'),
+
+    # API Endpoints - Autenticação JWT
+    path('api/auth/login/', views.api_login, name='api_login'),
+    path('api/auth/logout/', views.api_logout, name='api_logout'),
     path('api/auth/express/', views.api_express_auth, name='api_express_auth'),
-    path('api/', include([
-        # Auth JWT
-        path('auth/login/', views.api_login, name='api_login'),
-        path('auth/logout/', views.api_logout, name='api_logout'),
-        # Political data
-        path('politicos/', views.api_buscar_politicos, name='api_buscar_politicos'),
-        path('despesas/', views.api_buscar_despesas, name='api_buscar_despesas'),
-        path('estatisticas/', views.api_estatisticas, name='api_estatisticas'),
-        path('categorias/', views.api_categorias, name='api_categorias'),
-        path('fontes/', views.api_fontes, name='api_fontes'),
-        path('anos/', views.api_anos, name='api_anos'),
-        path('health/', views.api_health, name='api_health'),
-
-        # Alert management
-        path('alerta/atualizar/', views.api_atualizar_alerta, name='api_atualizar_alerta'),
-    ])),
-
-    # Health check (alternative)
-    path('health/', views.api_health, name='health_check'),
-
-    # Django auth URLs (for login/logout)
-    path('accounts/', include('django.contrib.auth.urls')),
 ]

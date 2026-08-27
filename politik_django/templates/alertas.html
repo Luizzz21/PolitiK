@@ -1,67 +1,129 @@
 {% extends 'base.html' %}
 
-{% block title %}Central de Alertas{% endblock %}
+{% block title %}PolitiK - Central de Alertas{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold text-surface-900 mb-6">Central de Alertas e Anomalias</h1>
-    
-    <div class="bg-white rounded-xl p-6 shadow-sm">
-        <ul class="space-y-4">
-            {% for alerta in alertas %}
-            <li class="p-5 rounded-lg border shadow-sm transition-all hover:shadow-md {% if not alerta.resolvido %}bg-danger-50 border-danger-200{% else %}bg-surface-50 border-surface-200{% endif %}">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <h3 class="font-bold text-lg text-surface-900">{{ alerta.titulo }}</h3>
-                        <p class="text-surface-700 mt-1">{{ alerta.descricao }}</p>
-                    </div>
-                    <span class="text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider {% if alerta.severidade == 'alta' or alerta.severidade == 'critica' %}bg-danger-200 text-danger-800{% else %}bg-warning-200 text-warning-800{% endif %}">
-                        {{ alerta.severidade }}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <header class="mb-8 border-b border-gray-600 pb-4">
+        <h1 class="text-3xl font-black text-white tracking-tight uppercase">
+            Central de Alertas <span class="text-[#1e9b95] font-light ml-2">| Investigações</span>
+        </h1>
+        <p class="text-sm text-gray-400 mt-2">Total de anomalias ativas: <strong class="text-red-400">{{ alertas_nao_resolvidos.count }}</strong></p>
+    </header>
+
+    {% if alertas_nao_resolvidos|length == 0 %}
+    <!-- Estado Vazio -->
+    <div class="bg-[#2d3748] border border-gray-600 rounded-lg p-16 text-center text-gray-400 shadow-xl">
+        <svg class="w-20 h-20 mx-auto mb-6 text-[#1e9b95] opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <h3 class="text-2xl font-black text-white mb-2 uppercase tracking-wide">Nenhuma anomalia detectada</h3>
+        <p class="text-base text-gray-400">O motor de regras não encontrou padrões suspeitos nas últimas ingestões governamentais.</p>
+    </div>
+    {% else %}
+    <!-- Lista de Alertas -->
+    <div class="space-y-6">
+        {% for alerta in alertas_nao_resolvidos %}
+        <div class="bg-[#2d3748] border-l-4 {% if alerta.severidade == 'ALTA' or alerta.severidade == 'CRITICA' %}border-red-500{% else %}border-yellow-500{% endif %} rounded-r-lg p-6 shadow-2xl flex flex-col md:flex-row gap-6 justify-between items-start md:items-center relative overflow-hidden transition-all duration-300" id="alerta-card-{{ alerta.id }}">
+            
+            <div class="flex-1 z-10">
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest {% if alerta.severidade == 'ALTA' or alerta.severidade == 'CRITICA' %}bg-red-500/20 text-red-400{% else %}bg-yellow-500/20 text-yellow-400{% endif %}">
+                        RISCO {{ alerta.get_severidade_display }}
                     </span>
+                    <h2 class="text-xl font-bold text-white tracking-tight">{{ alerta.titulo }}</h2>
                 </div>
                 
-                <!-- DADOS CRÍTICOS INJETADOS AQUI -->
-                <div class="mt-4 pt-4 border-t border-surface-200 text-sm text-surface-600 grid grid-cols-1 md:grid-cols-2 gap-3 bg-white/50 p-3 rounded">
-                    <div>
-                        <strong class="text-surface-800">Político Envolvido:</strong> 
-                        {{ alerta.mandato.politico.nome_civil|default:"Não identificado" }} 
-                        <span class="text-xs">({{ alerta.mandato.politico.partido|default:"Sem Partido" }})</span>
+                <p class="text-gray-300 text-sm mb-5 bg-[#333a3f] p-3 rounded border border-gray-600">{{ alerta.descricao }}</p>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+                    <div class="bg-[#1e293b] p-4 rounded-md border border-gray-700 shadow-inner">
+                        <span class="block text-gray-500 font-bold mb-1 uppercase tracking-wider text-[10px]">Agente Político</span>
+                        <span class="text-gray-200 font-bold text-sm">{{ alerta.mandato.politico.nome_civil }}</span>
+                        <span class="text-gray-400 block mt-0.5 text-[10px] uppercase">{{ alerta.mandato.politico.partido|default:"Sem Partido" }}</span>
                     </div>
-                    <div>
-                        <strong class="text-surface-800">Data de Detecção:</strong> 
-                        {{ alerta.criado_em|date:"d/m/Y às H:i" }}
+                    <div class="bg-[#1e293b] p-4 rounded-md border border-gray-700 shadow-inner">
+                        <span class="block text-gray-500 font-bold mb-1 uppercase tracking-wider text-[10px]">Mandato Vinculado</span>
+                        <span class="text-gray-200 font-medium">{{ alerta.mandato.cargo }}</span>
+                        <span class="text-gray-400 block mt-0.5 text-[10px] uppercase">{{ alerta.mandato.esfera }}</span>
                     </div>
-                    <div>
-                        <strong class="text-surface-800">Mandato Afetado:</strong> 
-                        {{ alerta.mandato.cargo|default:"Não especificado" }} - {{ alerta.mandato.estado_uf|default:"BR" }}
+                    <div class="bg-[#1e293b] p-4 rounded-md border border-gray-700 shadow-inner">
+                        <span class="block text-gray-500 font-bold mb-1 uppercase tracking-wider text-[10px]">Data do Gasto Suspeito</span>
+                        <span class="text-[#f59e0b] font-bold text-sm">{{ alerta.despesa.data_emissao|date:"d/m/Y"|default:"Data Indisponível" }}</span>
                     </div>
-                    <div>
-                        <strong class="text-surface-800">Status da Investigação:</strong> 
-                        {% if alerta.resolvido %}
-                            <span class="text-success-600 font-semibold bg-success-50 px-2 py-0.5 rounded">✓ Concluída</span>
-                        {% else %}
-                            <span class="text-danger-600 font-semibold bg-danger-100 px-2 py-0.5 rounded">⚠️ Pendente</span>
-                        {% endif %}
+                    <div class="bg-[#1e293b] p-4 rounded-md border border-gray-700 shadow-inner">
+                        <span class="block text-gray-500 font-bold mb-1 uppercase tracking-wider text-[10px]">Referência Cruzada</span>
+                        <span class="text-[#1e9b95] font-mono font-bold">{{ alerta.referencia_cnpj|default:"Análise de Volume" }}</span>
                     </div>
                 </div>
-            </li>
-            {% empty %}
-            <div class="text-surface-500 text-center py-12 flex flex-col items-center">
-                <svg class="w-12 h-12 text-surface-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p class="text-lg font-medium">Nenhuma anomalia detectada.</p>
-                <p class="text-sm">O motor de IA analisou todos os registros recentes e não encontrou desvios de padrão.</p>
             </div>
-            {% endfor %}
-        </ul>
-        <div class="mt-8 flex justify-between items-center border-t border-surface-100 pt-6">
-            <a href="/" class="text-primary-600 font-medium hover:text-primary-800 transition-colors flex items-center gap-1">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-                Voltar ao Dashboard
-            </a>
-            <span class="text-xs text-surface-400">Total de registros: {{ alertas|length }}</span>
+            
+            <div class="shrink-0 w-full md:w-auto mt-4 md:mt-0 z-10">
+                <button class="w-full md:w-auto px-6 py-4 bg-gray-700 hover:bg-[#1e9b95] text-white text-sm font-black uppercase tracking-wider rounded transition-colors flex items-center justify-center gap-2 group shadow-lg" data-alerta-id="{{ alerta.id }}" onclick="resolverAlerta(this)">
+                    <svg class="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    Baixar Alerta
+                </button>
+            </div>
+            
+            <!-- Marca d'água decorativa -->
+            <svg class="absolute -right-10 -bottom-10 w-48 h-48 text-gray-800 opacity-20 pointer-events-none" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
         </div>
+        {% endfor %}
     </div>
+    {% endif %}
 </div>
+
+{% block extra_scripts %}
+<script>
+function resolverAlerta(btn) {
+    const alertaId = btn.dataset.alertaId;
+    const originalText = btn.innerHTML;
+    
+    // Feedback visual de carregamento
+    btn.innerHTML = '<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>';
+    btn.disabled = true;
+
+    // Dispara a requisição para a nossa API de alertas
+    fetch('/api/alerta/atualizar/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({ alerta_id: alertaId, resolvido: true })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            const card = document.getElementById(`alerta-card-${alertaId}`);
+            // Animação de saída fluida
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            
+            setTimeout(() => {
+                card.remove();
+                // Se não sobrar mais nenhum card, recarrega a página para mostrar o ícone de "Tudo Limpo"
+                if(document.querySelectorAll('[id^="alerta-card-"]').length === 0) {
+                    window.location.reload();
+                }
+            }, 300);
+        } else {
+            alert('Falha de sistema: ' + (data.error || 'Tente novamente.'));
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    })
+    .catch(err => {
+        alert('Falha de conexão com o servidor. Verifique o terminal.');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+
+function getCSRFToken() {
+    return document.cookie.split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+}
+</script>
+{% endblock %}
 {% endblock %}
