@@ -11,11 +11,15 @@ urlpatterns = [
     # Frontend pages
     path('', views.index, name='index'),
     path('politico/<int:politico_id>/', views.pagina_politico, name='pagina_politico'),
+    path('ranking/', views.ranking_view, name='ranking'),
+    path('despesas/', views.despesas_view, name='despesas'),
+    path('fornecedor/<str:cnpj>/', views.fornecedor_detail, name='fornecedor_detail'),
     path('alertas/', views.pagina_alertas, name='pagina_alertas'),
     path('minha-conta/', views.pagina_minha_conta, name='pagina_minha_conta'),
 
     # API Endpoints - Consultas
     path('api/politicos/', views.api_buscar_politicos, name='api_buscar_politicos'),
+    path('api/export/despesas/csv/', views.api_exportar_despesas_csv, name='api_export_despesas_csv'),
     path('api/despesas/', views.api_buscar_despesas, name='api_buscar_despesas'),
     path('api/estatisticas/', views.api_estatisticas, name='api_estatisticas'),
     
@@ -28,6 +32,7 @@ urlpatterns = [
     # API Endpoints - Ações e Vínculos
     path('api/alerta/atualizar/', views.api_atualizar_alerta, name='api_atualizar_alerta'),
     path('api/politico/acompanhar/', views.api_acompanhar_politico, name='api_acompanhar_politico'),
+    path('api/notificacoes/', views.api_notificacoes, name='api_notificacoes'),
     path('api/assinaturas/', views.api_assinaturas, name='api_assinaturas'),
     path('api/assinatura/<int:assinatura_id>/remover/', views.api_remover_assinatura, name='api_remover_assinatura'),
 

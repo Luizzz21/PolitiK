@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-your-secret-key-here-change-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() == 'true'
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() == 'true'
 
 ALLOWED_HOSTS = ['*']
 #ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
@@ -62,8 +62,12 @@ WSGI_APPLICATION = 'politik_django.wsgi.application'
 # Database - Using SQLite for development, PostgreSQL in production
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'politik_db',
+        'USER': 'politik_user',
+        'PASSWORD': 'politik_password_123',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
@@ -88,6 +92,8 @@ LANGUAGE_CODE = 'pt-br'
 TIME_ZONE = 'America/Sao_Paulo'
 USE_I18N = True
 USE_TZ = True
+USE_THOUSAND_SEPARATOR = True
+USE_L10N = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'

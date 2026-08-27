@@ -15,21 +15,11 @@ import logging
 from datetime import datetime
 import time
 
-# Configuração do ambiente Django para rodar scripts externos
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(BASE_DIR, 'politik_django'))
+from django.core.management.base import BaseCommand
 
-# Use Django project settings from the correct path
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'politik_django.settings')
-
-import django
-django.setup()
-
-import django
-django.setup()
-
-# Importação dos modelos
-from politik_django.models import Politico, Mandato, Fornecedor, Despesa, Alerta, NegocioRegras
+# Importação dos modelos e regras
+from politik_django.models import Politico, Mandato, Fornecedor, Despesa, Alerta
+from politik_django.business_rules import NegocioRegras
 from django.db import transaction
 
 # Configuração de Logs
@@ -111,6 +101,19 @@ def processar_despesa(mandato, fornecedor, categoria, tipo_verba, descricao,
         )
 
         data_formatada = str(data_emissao)[:10] if data_emissao and len(str(data_emissao)) >= 10 else f"{ano}-01-01"
+        num_doc_clean = str(numero_documento)[:100] if numero_documento else None
+
+        # FRENTE 1.9: Deduplicação inteligente
+        exists = Despesa.objects.filter(
+            mandato=mandato,
+            fornecedor=fornecedor,
+            valor_liquidado=valor,
+            data_emissao=data_formatada,
+            numero_documento=num_doc_clean
+        ).exists()
+
+        if exists:
+            return False, "Duplicado"
 
         Despesa.objects.create(
             mandato=mandato,
@@ -118,7 +121,7 @@ def processar_despesa(mandato, fornecedor, categoria, tipo_verba, descricao,
             categoria=categoria,
             tipo_verba=str(tipo_verba)[:250] if tipo_verba else 'Não especificado',
             descricao_despesa=str(descricao)[:500] if descricao else None,
-            numero_documento=str(numero_documento)[:100] if numero_documento else None,
+            numero_documento=num_doc_clean,
             valor_liquidado=valor,
             data_emissao=data_formatada,
             url_documento=url_documento,
@@ -169,7 +172,7 @@ def baixar_e_processar_camara(ano):
         processados = 0
 
         for linha in reader:
-            if processados >= 1000: break # Limite de amostragem rápida
+            if processados >= GLOBAL_LIMITE: break
 
             # Skip rows without ideCadastro (metadata/header records)
             if not linha.get('ideCadastro'): continue
@@ -217,7 +220,7 @@ def baixar_e_processar_senado(ano):
         processados = 0
 
         for linha in reader:
-            if processados >= 1000: break
+            if processados >= GLOBAL_LIMITE: break
             
             nome_senador = linha.get('SENADOR')
             if not nome_senador: continue
@@ -268,7 +271,7 @@ def baixar_e_processar_executivo(ano, mes="01"):
         processados = 0
 
         for linha in reader:
-            if processados >= 1000: break
+            if processados >= GLOBAL_LIMITE: break
             
             nome_portador = linha.get('NOME PORTADOR')
             if not nome_portador or nome_portador == 'NÃO SE APLICA': continue
@@ -299,30 +302,62 @@ def baixar_e_processar_executivo(ano, mes="01"):
         logger.error(f"Erro no Executivo {ano}/{mes}: {e}")
         return 0, 1
 
-def main():
-    logger.info("=" * 60)
-    logger.info("PolitiK - Motor de Ingestão de Dados Multiesfera")
-    logger.info("=" * 60)
-    
-    anos_historico = [2024, 2025, 2026] 
-    
-    total_geral = 0
-    try:
-        for ano in anos_historico:
-            logger.info(f"\n--- Iniciando Extração do Ano: {ano} ---")
-            
-            p_camara, _ = baixar_e_processar_camara(ano)
-            p_senado, _ = baixar_e_processar_senado(ano)
-            p_executivo, _ = baixar_e_processar_executivo(ano, "01")
-            
-            total_geral += (p_camara + p_senado + p_executivo)
-            time.sleep(2)
+class Command(BaseCommand):
+    help = 'Motor de Ingestão de Dados Multiesfera'
 
+    def add_arguments(self, parser):
+        parser.add_argument('--ano', nargs='+', type=int, help='Anos para importar (ex: 2024 2025)')
+        parser.add_argument('--limite', type=int, default=1000, help='Limite de registros por fonte (default 1000, 0 para sem limite)')
+
+    def handle(self, *args, **options):
         logger.info("=" * 60)
-        logger.info(f"Coleta de {total_geral} registros finalizada. O banco de dados histórico está pronto.")
-    except Exception as e:
-        logger.error(f"Falha fatal na orquestração: {e}")
-        sys.exit(1)
+        logger.info("PolitiK - Motor de Ingestão de Dados Multiesfera")
+        logger.info("=" * 60)
+        
+        anos_historico = options['ano'] or [2024, 2025, 2026] 
+        limite = options['limite']
+        
+        # Guardar limite globalmente para as funcoes poderem ler (hack rápido para não mudar a assinatura de todas)
+        global GLOBAL_LIMITE
+        GLOBAL_LIMITE = limite if limite > 0 else float('inf')
+        
+        total_geral = 0
+        try:
+            for ano in anos_historico:
+                logger.info(f"\n--- Iniciando Extração do Ano: {ano} ---")
+                
+                p_camara, _ = baixar_e_processar_camara(ano)
+                p_senado, _ = baixar_e_processar_senado(ano)
+                p_executivo, _ = baixar_e_processar_executivo(ano, "01")
+                
+                total_geral += (p_camara + p_senado + p_executivo)
+                time.sleep(2)
 
-if __name__ == "__main__":
-    main()
+            logger.info("=" * 60)
+            logger.info("Fase de Agregação de Anomalias (Score e Concentração)...")
+            
+            mandatos_afetados = Mandato.objects.all()
+            for mandato in mandatos_afetados:
+                # Checa Concentração
+                is_conc, msg, val, cnpj = NegocioRegras.verificar_concentracao_fornecedor(mandato)
+                if is_conc:
+                    if not Alerta.objects.filter(mandato=mandato, titulo='Concentração Anômala de Fornecedor').exists():
+                        Alerta.objects.create(
+                            mandato=mandato,
+                            tipo='suspeita',
+                            severidade='critica',
+                            titulo='Concentração Anômala de Fornecedor',
+                            descricao=msg,
+                            valor_real=val,
+                            referencia_cnpj=cnpj
+                        )
+                
+                # Recalcula e atualiza Score Final do Político neste Mandato
+                NegocioRegras.calcular_e_atualizar_score(mandato)
+
+            logger.info(f"Coleta e processamento de {total_geral} registros finalizados.")
+            logger.info("=" * 60)
+        except Exception as e:
+            logger.error(f"Falha fatal na orquestração: {e}")
+            raise
+

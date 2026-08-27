@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block title %}PolitiK - Minha Conta{% endblock %}
+
+{% block extra_head %}
+<style>
+    body { background-color: #333a3f !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <div class="mb-4">
+        <a href="/" class="text-sm font-bold text-gray-400 hover:text-[#1e9b95] transition-colors uppercase tracking-widest">
+            &larr; Voltar ao Dashboard
+        </a>
+    </div>
+
+    <div class="bg-[#2d3748] rounded shadow-xl p-6 mb-6 border-t-4 border-[#1e9b95]">
+        <h1 class="text-2xl font-black text-white uppercase tracking-tight">Minha Conta</h1>
+        <p class="text-sm text-gray-400 mt-1">{{ user.first_name|default:user.username }} &bull; {{ user.email }}</p>
+    </div>
+
+    <div class="bg-[#2d3748] rounded shadow-xl p-6">
+        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest border-b border-gray-600 pb-2 mb-5">
+            Políticos que Acompanho
+        </h2>
+
+        {% if assinaturas %}
+        <div class="space-y-4">
+            {% for assinatura in assinaturas %}
+            <div class="flex items-center justify-between bg-[#333a3f] rounded p-4 group" id="assinatura-card-{{ assinatura.id }}">
+                <a href="/politico/{{ assinatura.mandato.politico.id }}/" class="flex-1 min-w-0">
+                    <p class="text-sm font-black text-white uppercase group-hover:text-[#1e9b95] transition-colors">
+                        {{ assinatura.mandato.politico.nome_civil }}
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        {{ assinatura.mandato.cargo }} &bull; {{ assinatura.mandato.esfera }} &bull; {{ assinatura.mandato.estado_uf|default:"BR" }}
+                    </p>
+                    <p class="text-[10px] text-gray-600 mt-1">
+                        Seguindo desde {{ assinatura.criado_em|date:"d/m/Y" }}
+                    </p>
+                </a>
+                <button onclick="removerAssinatura({{ assinatura.id }}, this)"
+                    class="ml-4 px-4 py-2 text-xs font-bold text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors uppercase tracking-wider">
+                    Deixar de Seguir
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-12">
+            <svg class="w-16 h-16 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+            </svg>
+            <p class="text-gray-500 font-bold">Você ainda não acompanha nenhum político.</p>
+            <p class="text-gray-600 text-sm mt-2">Pesquise um agente e clique em "Acompanhar" para receber alertas.</p>
+            <a href="/" class="inline-block mt-4 px-6 py-2 bg-[#1e9b95] text-white rounded font-bold text-sm uppercase hover:bg-[#15807d] transition-colors">
+                Explorar Dashboard
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function getCSRFToken() {
+    const name = 'csrftoken';
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.startsWith(name + '=')) return cookie.substring(name.length + 1);
+    }
+    return '';
+}
+
+async function removerAssinatura(assinaturaId, btn) {
+    const originalText = btn.textContent;
+    btn.textContent = '...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`/api/assinatura/${assinaturaId}/remover/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify({})
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            const card = document.getElementById(`assinatura-card-${assinaturaId}`);
+            card.style.opacity = '0';
+            card.style.transform = 'translateX(20px)';
+            card.style.transition = 'all 0.3s ease';
+            setTimeout(() => card.remove(), 300);
+        } else {
+            btn.textContent = originalText;
+            btn.disabled = false;
+            alert(data.message || 'Erro ao remover assinatura');
+        }
+    } catch (e) {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        alert('Erro de conexão');
+    }
+}
+</script>
+{% endblock %}
+

@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block title %}PolitiK - Perfil do Fornecedor: {{ fornecedor.razao_social }}{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <header class="mb-6 border-b border-gray-600 pb-4 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div>
+            <div class="flex items-center gap-3 mb-2">
+                <h1 class="text-2xl font-black text-white tracking-tight uppercase">{{ fornecedor.razao_social }}</h1>
+                {% if fornecedor.risco_score >= 70 or fornecedor.bandeira_risco == 'ALTO' %}
+                    <span class="px-2 py-1 bg-red-100 text-red-800 text-xs font-black rounded-full uppercase tracking-wider shadow">Risco Elevado</span>
+                {% elif fornecedor.risco_score >= 30 or fornecedor.bandeira_risco == 'MEDIO' %}
+                    <span class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-black rounded-full uppercase tracking-wider shadow">Risco Moderado</span>
+                {% else %}
+                    <span class="px-2 py-1 bg-green-100 text-green-800 text-xs font-black rounded-full uppercase tracking-wider shadow">Regular</span>
+                {% endif %}
+            </div>
+            <p class="text-sm text-gray-400 font-bold tracking-widest">CNPJ: {{ fornecedor.cnpj }} <span class="mx-2">|</span> Abertura: {{ fornecedor.data_abertura|date:"d/m/Y"|default:"N/A" }}</p>
+        </div>
+        <div class="flex flex-col text-right bg-[#373D3F] border border-gray-600 rounded p-3 shadow-lg">
+            <span class="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Total Recebido (Público)</span>
+            <span class="text-xl font-black text-[#1A9E96]">R$ {{ total_recebido|floatformat:2 }}</span>
+        </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Info Receita Federal / Cadastral -->
+        <div class="lg:col-span-1 flex flex-col gap-6">
+            <div class="bg-white rounded p-6 shadow-xl border-t-4 {% if fornecedor.risco_score >= 70 %}border-red-500{% elif fornecedor.risco_score >= 30 %}border-yellow-500{% else %}border-[#1A9E96]{% endif %}">
+                <h2 class="text-sm font-black text-[#373D3F] uppercase tracking-widest border-b border-gray-200 pb-2 mb-4">Dados Cadastrais</h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Nome Fantasia</p>
+                        <p class="text-sm font-bold text-gray-900">{{ fornecedor.nome_fantasia|default:"-" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Atividade Principal (CNAE)</p>
+                        <p class="text-sm font-bold text-gray-900">{{ fornecedor.cnae_principal|default:"Não informado" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Natureza Jurídica</p>
+                        <p class="text-sm font-bold text-gray-900">{{ fornecedor.natureza_juridica|default:"-" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Capital Social</p>
+                        <p class="text-sm font-bold text-[#1A9E96]">R$ {{ fornecedor.capital_social|floatformat:2|default:"0,00" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Situação Cadastral</p>
+                        <span class="inline-flex mt-1 px-2 py-0.5 text-xs font-black rounded uppercase 
+                            {% if fornecedor.situacao_cadastral == 'ATIVA' %}bg-green-100 text-green-800
+                            {% elif fornecedor.situacao_cadastral == 'BAIXADA' or fornecedor.situacao_cadastral == 'INAPTA' %}bg-red-100 text-red-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ fornecedor.situacao_cadastral|default:"Desconhecida" }}
+                        </span>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Endereço</p>
+                        <p class="text-sm font-bold text-gray-900">{{ fornecedor.endereco|default:"Não informado" }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            {% if fornecedor.risco_score > 0 %}
+            <div class="bg-white rounded p-6 shadow-xl border border-red-200 bg-red-50">
+                <h2 class="text-sm font-black text-red-800 uppercase tracking-widest border-b border-red-200 pb-2 mb-4">Motor Anti-Corrupção</h2>
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="text-3xl font-black text-red-600">{{ fornecedor.risco_score }}<span class="text-sm text-red-400">/100</span></span>
+                    <span class="text-xs font-bold text-red-800 leading-tight">Score de<br>Risco</span>
+                </div>
+                <p class="text-xs text-red-700 mt-2 font-medium">Esta entidade disparou alertas de anomalia, podendo ser classificada como CNPJ de risco ou uso atípico.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Políticos e Despesas Recentes -->
+        <div class="lg:col-span-2 flex flex-col gap-6">
+            
+            <div class="bg-white rounded p-6 shadow-xl">
+                <h2 class="text-sm font-black text-[#373D3F] uppercase tracking-widest border-b border-gray-200 pb-2 mb-4">Políticos que Pagaram a esta Entidade</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="text-left text-[10px] font-black text-gray-500 uppercase tracking-widest pb-2">Agente Político</th>
+                                <th class="text-left text-[10px] font-black text-gray-500 uppercase tracking-widest pb-2">Esfera / Cargo</th>
+                                <th class="text-right text-[10px] font-black text-gray-500 uppercase tracking-widest pb-2">Total Repassado</th>
+                                <th class="text-right text-[10px] font-black text-gray-500 uppercase tracking-widest pb-2"></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            {% for pagador in pagadores %}
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="py-3 text-sm font-bold text-[#373D3F]">{{ pagador.mandato__politico__nome_civil }}</td>
+                                <td class="py-3 text-xs text-gray-500 font-bold uppercase tracking-wider">{{ pagador.mandato__cargo }} ({{ pagador.mandato__esfera }})</td>
+                                <td class="py-3 text-sm font-black text-[#1A9E96] text-right">R$ {{ pagador.total_pago|floatformat:2 }}</td>
+                                <td class="py-3 text-right">
+                                    <a href="/politico/{{ pagador.mandato__politico__id }}/" class="text-xs font-bold text-white bg-[#373D3F] hover:bg-[#1A9E96] px-2 py-1 rounded transition-colors shadow">Dossiê</a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="py-4 text-center text-sm text-gray-500">Nenhum pagamento registrado.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-white rounded p-6 shadow-xl">
+                <h2 class="text-sm font-black text-[#373D3F] uppercase tracking-widest border-b border-gray-200 pb-2 mb-4">Últimas 50 Despesas</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="text-left text-[10px] font-black text-gray-500 uppercase tracking-widest pb-2">Data</th>
+                                <th class="text-left text-[10px] font-black text-gray-500 uppercase tracking-widest pb-2">Categoria</th>
+                                <th class="text-left text-[10px] font-black text-gray-500 uppercase tracking-widest pb-2">Tipo / Fonte</th>
+                                <th class="text-right text-[10px] font-black text-gray-500 uppercase tracking-widest pb-2">Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            {% for despesa in despesas_recentes %}
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="py-2 text-xs font-bold text-gray-600">{{ despesa.data_emissao|date:"d/m/Y"|default:"-" }}</td>
+                                <td class="py-2 text-xs text-gray-600">{{ despesa.categoria }}</td>
+                                <td class="py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{{ despesa.tipo_verba }} | {{ despesa.fonte }}</td>
+                                <td class="py-2 text-sm font-black text-red-600 text-right">R$ {{ despesa.valor_liquidado|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="py-4 text-center text-sm text-gray-500">Nenhuma despesa recente encontrada.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+

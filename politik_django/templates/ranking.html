@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}PolitiK - Ranking Nacional de Agentes{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <header class="mb-6 border-b border-gray-600 pb-4 flex flex-col md:flex-row justify-between items-end gap-4">
+        <div>
+            <h1 class="text-2xl font-black text-white tracking-tight uppercase">Ranking de Políticos</h1>
+            <p class="text-sm text-gray-400 mt-1">Acompanhe quem mais gasta e quem apresenta maior risco de irregularidades.</p>
+        </div>
+        <div class="flex gap-2">
+            <select id="sort-by" class="px-3 py-2 text-sm font-bold text-[#373D3F] bg-white border border-gray-300 rounded shadow-sm outline-none cursor-pointer" onchange="window.location.href='?sort=' + this.value">
+                <option value="-total_gasto" {% if current_sort == '-total_gasto' %}selected{% endif %}>Maior Volume de Gasto</option>
+                <option value="-score_risco" {% if current_sort == '-score_risco' %}selected{% endif %}>Maior Score de Risco</option>
+                <option value="politico__nome_civil" {% if current_sort == 'politico__nome_civil' %}selected{% endif %}>Ordem Alfabética</option>
+            </select>
+        </div>
+    </header>
+
+    <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-[#373D3F]">
+                    <tr>
+                        <th scope="col" class="px-6 py-4 text-left text-xs font-black text-white uppercase tracking-widest">Agente Político</th>
+                        <th scope="col" class="px-6 py-4 text-left text-xs font-black text-white uppercase tracking-widest">Cargo / Esfera</th>
+                        <th scope="col" class="px-6 py-4 text-left text-xs font-black text-white uppercase tracking-widest">Total Liquidado</th>
+                        <th scope="col" class="px-6 py-4 text-left text-xs font-black text-white uppercase tracking-widest">Score Risco</th>
+                        <th scope="col" class="px-6 py-4 text-right text-xs font-black text-white uppercase tracking-widest">Ação</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="ranking-body">
+                    {% for mandato in mandatos %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10">
+                                    {% if mandato.politico.foto_url %}
+                                        <img class="h-10 w-10 rounded-full object-cover border border-gray-200" src="{{ mandato.politico.foto_url }}" alt="">
+                                    {% else %}
+                                        <div class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center"><span class="text-gray-500 font-bold">{{ mandato.politico.nome_civil|slice:':1' }}</span></div>
+                                    {% endif %}
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-black text-[#373D3F]">{{ mandato.politico.nome_civil }}</div>
+                                    <div class="text-xs text-gray-500 font-bold uppercase mt-0.5">{{ mandato.politico.partido|default:'-' }} • {{ mandato.estado_uf|default:'BR' }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-bold text-gray-900">{{ mandato.cargo }}</div>
+                            <div class="text-xs text-gray-500">{{ mandato.esfera }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-black text-[#1A9E96]">R$ {{ mandato.total_gasto|floatformat:2 }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-black rounded-full {% if mandato.score_risco >= 70 %}bg-red-100 text-red-800{% elif mandato.score_risco >= 30 %}bg-yellow-100 text-yellow-800{% else %}bg-green-100 text-green-800{% endif %}">
+                                {{ mandato.score_risco }}/100
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="/politico/{{ mandato.politico.id }}/" class="text-white bg-[#373D3F] hover:bg-[#1A9E96] px-3 py-1.5 rounded transition-colors text-xs font-bold uppercase tracking-wider shadow">Dossiê</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center text-gray-500">Nenhum registro encontrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

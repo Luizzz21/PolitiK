@@ -89,6 +89,9 @@ class Mandato(models.Model):
     ano_inicio = models.IntegerField(blank=True, null=True, verbose_name="Ano de Início")
     ano_fim = models.IntegerField(blank=True, null=True, verbose_name="Ano de Fim")
 
+    # Motor Anti-Corrupção - Score consolidado (0 a 100)
+    score_risco = models.IntegerField(default=0, verbose_name="Score de Risco", help_text="0-100: Quanto maior, mais anomalias")
+
     created_at = models.DateTimeField(default=timezone.now, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
 
@@ -139,6 +142,12 @@ class Fornecedor(models.Model):
 
     telefone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Telefone")
     email = models.CharField(max_length=255, blank=True, null=True, verbose_name="Email")
+
+    natureza_juridica = models.CharField(max_length=200, blank=True, null=True, verbose_name="Natureza Jurídica")
+    capital_social = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, verbose_name="Capital Social")
+    ultima_atualizacao_receita = models.DateTimeField(blank=True, null=True, verbose_name="Última consulta à Receita")
+    
+    quadro_societario = models.JSONField(blank=True, null=True, verbose_name="Quadro Societário (QSA)")
 
     criado_em = models.DateTimeField(default=timezone.now, verbose_name="Criado em")
     atualizado_em = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
@@ -411,156 +420,4 @@ class Configuracao(models.Model):
         return self.valor
 
 
-class NegocioRegras:
-    """
-    Regras de negócios que implementam RF03-RF05
-    """
-
-    @staticmethod
-    def obter_categoria_absoluta(descricao):
-        """
-        RF03 - Categorização absoluta obrigatória
-        Mapeia descrições para as 11 categorias absolutas
-        """
-        if not descricao:
-            return 'Outros'
-
-        descricao_upper = descricao.upper()
-
-        # Mapeamento específico para CEAP (Câmara)
-        if 'CEAP' in descricao_upper:
-            return 'Cota Parlamentar'
-
-        # Mapeamento de palavras-chave por categoria
-        mapeamento_categorias = {
-            'Cota Parlamentar': [
-                'COTA PARLAMENTAR', 'MANUTENCAO', 'ALUGUEL', 'LOCAÇÃO',
-                'MATERIAL DE EXPEDIENTE', 'CONSUMO DE ÁGUA', 'ENERGIA ELÉTRICA',
-                'SERVIÇOS POSTAIS', 'TELEFONIA', 'INTERNET'
-            ],
-            'Emendas Pix': [
-                'EMENDA PIX', 'TRANSFERENCIA ESPECIAL', 'CONVÊNIO'
-            ],
-            'Emendas de Comissão': [
-                'EMENDA DE COMISSÃO', 'EMENDA DE BANCO'
-            ],
-            'Salários': [
-                'SALARIO', 'REMUNERAÇÃO', 'PROVENTOS', 'APOSENTADORIA',
-                'PENSÃO', '13º SALARIO', 'FÉRIAS'
-            ],
-            'Auxílio-Moradia': [
-                'AUXILIO MORADIA', 'ALUGUEL RESIDENCIAL', 'MORADIA'
-            ],
-            'Combustíveis e Lubrificantes': [
-                'COMBUSTIVEL', 'GASOLINA', 'ETANOL', 'DIESEL',
-                'LUBRIFICANTE', 'ÓLEO DIESEL', 'GNV'
-            ],
-            'Passagens Aéreas': [
-                'PASSAGEM AEREA', 'PASSAGEM AÉREA', 'EMBARQUE',
-                'DESCOLAGEM', 'POUSSO'
-            ],
-            'Consultorias e Pesquisas': [
-                'CONSULTORIA', 'ASSESSORIA', 'PESQUISA',
-                'ESTUDO', 'LAUDO', 'PARECER'
-            ],
-            'Serviços de Saúde': [
-                'SAUDE', 'HOSPITAL', 'CLINICA', 'CONSULTA',
-                'EXAME', 'PROCEDIMENTO', 'MEDICAMENTO'
-            ],
-            'Educação': [
-                'EDUCAÇÃO', 'ESCOLA', 'UNIVERSIDADE', 'CURSO',
-                'CAPACITAÇÃO', 'TREINAMENTO', 'PALESTRA'
-            ]
-        }
-
-        for categoria, palavras_chave in mapeamento_categorias.items():
-            for palavra in palavras_chave:
-                if palavra in descricao_upper:
-                    return categoria
-
-        return 'Outros'
-
-    @staticmethod
-    def verificar_anomalia_cnpj(cnpj):
-        """
-        RF04 - Motor de Anomalias
-        Verifica CNPJ contra base da Receita Federal
-        """
-        if not cnpj or len(cnpj) != 14:
-            return False, "CNPJ inválido"
-
-        # Validação básica
-        if not cnpj.isdigit():
-            return False, "CNPJ contém caracteres inválidos"
-
-        # Lista de situação cadastral suspeitas
-        situacoes_suspeitas = ['01', '02', '03']  # Ativa, Inapta, Suspensa
-
-        # Verificação simplificada - na implementação real,
-        # esta chamada integraria com API da Receita Federal
-        if len(set(cnpj)) <= 3:  # Todos dígitos iguais
-            return True, "CNPJ com dígitos repetidos (suspeito)"
-
-        if cnpj.endswith('0000'):  # Muitos zeros no final
-            return True, "CNPJ com muitos zeros finais (suspeito)"
-
-        return False, ""
-
-    @staticmethod
-    def verificar_triggers_volume(categoria, valor, descricao=""):
-        """
-        RF05 - Gatilhos de Volume
-        Gera alertas para gastos que ultrapassem limites matemáticos lógicos
-        """
-        if not categoria or valor <= 0:
-            return False, "", ""
-
-        categoria_upper = categoria.upper()
-        descricao_upper = descricao.upper() if descricao else ""
-
-        # Obter limites da configuração
-        limites = NegocioRegras._obter_limites_configuracao()
-
-        # Gatilho específico para Combustíveis
-        if 'COMBUSTIVEL' in categoria_upper or 'COMBUSTIVEL' in descricao_upper:
-            # Assumindo litro de combustível a R$ 6,5 e tanque médio de 50L
-            if valor > limites['combustivel_litros_diarios'] * 6.5:
-                return True, 'volume', f'Gasto de combustível suspeito: R$ {valor:.2f}'
-
-        # Gatilho para Emendas Pix
-        if 'EMENDA' in categoria_upper and 'PIX' in categoria_upper:
-            if valor > limites['emendas_pix_mensais']:
-                return True, 'volume', f'Emenda Pix acima do limite mensal: R$ {valor:.2f}'
-
-        # Gatilhos específicos por categoria
-        gatilhos_categoria = {
-            'Material de Expediente': (5000, 'Material de expediente excessivo'),
-            'Consultorias': (100000, 'Consultoria suspeitamente alta'),
-            'Serviços de Saúde': (50000, 'Serviço de saúde excessivo'),
-        }
-
-        if categoria in gatilhos_categoria:
-            limite, mensagem = gatilhos_categoria[categoria]
-            if valor > limite:
-                return True, 'anomalia', f'{mensagem}: R$ {valor:.2f}'
-
-        return False, "", ""
-
-    @staticmethod
-    def _obter_limites_configuracao():
-        """Obter limites de configuração do sistema"""
-        limites = {
-            'combustivel_litros_diarios': 50,  # litros
-            'emendas_pix_mensais': 100000,  # reais
-        }
-
-        try:
-            for config in Configuracao.objects.all():
-                if config.chave == 'LIMITE_VOLUME_COMBUSTIVEL':
-                    limites['combustivel_litros_diarios'] = int(config.valor_numerico)
-                elif config.chave == 'LIMITE_EMENDAS_PIX':
-                    limites['emendas_pix_mensais'] = float(config.valor_numerico)
-        except:
-            pass  # Se falhar, usa padrões
-
-        return limites
+# Remover a classe NegocioRegras duplicada

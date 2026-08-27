@@ -7,6 +7,8 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django_ratelimit.decorators import ratelimit
+
 from django.db.models import Sum, Count, Q, Avg
 from django.utils import timezone
 from datetime import datetime, timedelta
@@ -26,6 +28,35 @@ from .business_rules import NegocioRegras
 User = get_user_model()
 
 # Frontend Views
+
+def ranking_view(request):
+    sort_by = request.GET.get('sort', '-score_risco')
+    allowed_sorts = ['-score_risco', '-total_gasto', 'politico__nome_civil']
+    if sort_by not in allowed_sorts:
+        sort_by = '-score_risco'
+        
+    mandatos = Mandato.objects.select_related('politico').all()
+    
+    # Calculate sum if needed, but we already have total_gasto property possibly? Wait, models.py has a field or property?
+    # Let's annotate total_gasto if it's not a field.
+    from django.db.models import Sum, F, DecimalField, Value
+    from django.db.models.functions import Coalesce
+    from decimal import Decimal
+    
+    mandatos = mandatos.annotate(
+        total_gasto=Coalesce(Sum('despesas__valor_liquidado'), Value(Decimal('0.00')), output_field=DecimalField())
+    ).order_by(sort_by)[:100]
+    
+    context = {
+        'mandatos': mandatos,
+        'current_sort': sort_by
+    }
+    return render(request, 'ranking.html', context)
+
+
+def despesas_view(request):
+    return render(request, 'despesas.html')
+
 def index(request):
     """Main dashboard view (RF06 - Dynamic Filters)"""
     try:
@@ -51,6 +82,11 @@ def index(request):
         ).annotate(count=Count('id')),
     }
 
+    # Calcula Top Gastadores (Ranking)
+    top_gastadores = Mandato.objects.annotate(
+        total_gasto=Sum('despesas__valor_liquidado')
+    ).filter(total_gasto__gt=0).order_by('-total_gasto')[:5]
+
     cargos = set(Mandato.objects.values_list('cargo', flat=True))
     esferas = set(Mandato.objects.values_list('esfera', flat=True))
     anos = set(Despesa.objects.values_list('ano', flat=True).order_by('-ano'))
@@ -59,6 +95,7 @@ def index(request):
 
     context = {
         'stats': stats,
+        'top_gastadores': top_gastadores,
         'cargos': sorted(cargos),
         'esferas': sorted(esferas),
         'anos': sorted(anos),
@@ -67,6 +104,31 @@ def index(request):
     }
 
     return render(request, 'index.html', context)
+
+def fornecedor_detail(request, cnpj):
+    """Perfil individual do fornecedor e análise de risco (Frente 3.4)"""
+    fornecedor = get_object_or_404(Fornecedor, cnpj=cnpj)
+    
+    # Agregações de despesas
+    despesas = Despesa.objects.filter(fornecedor=fornecedor).select_related('mandato__politico')
+    
+    total_recebido = despesas.aggregate(total=Sum('valor_liquidado'))['total'] or 0.0
+    
+    # Maiores pagadores (políticos)
+    pagadores = despesas.values(
+        'mandato__politico__id', 
+        'mandato__politico__nome_civil', 
+        'mandato__cargo', 
+        'mandato__esfera'
+    ).annotate(total_pago=Sum('valor_liquidado')).order_by('-total_pago')
+    
+    context = {
+        'fornecedor': fornecedor,
+        'total_recebido': total_recebido,
+        'pagadores': pagadores,
+        'despesas_recentes': despesas.order_by('-data_emissao')[:50]
+    }
+    return render(request, 'fornecedor_detail.html', context)
 
 def pagina_politico(request, politico_id):
     """Detailed view for a specific politician (Dossiê)"""
@@ -93,6 +155,41 @@ def pagina_politico(request, politico_id):
     }
 
     return render(request, 'politico_detail.html', context)
+
+import csv
+from django.http import HttpResponse
+
+def api_exportar_despesas_csv(request):
+    """Exporta a lista filtrada de despesas para CSV (Frente 3.8)"""
+    ano = request.GET.get('ano')
+    categoria = request.GET.get('categoria')
+    esfera = request.GET.get('esfera')
+    
+    queryset = Despesa.objects.select_related('mandato__politico', 'fornecedor').order_by('-data_emissao')
+    
+    if ano: queryset = queryset.filter(ano=ano)
+    if categoria: queryset = queryset.filter(categoria=categoria)
+    if esfera: queryset = queryset.filter(mandato__esfera=esfera)
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="politik_despesas.csv"'
+    
+    writer = csv.writer(response, delimiter=';')
+    writer.writerow(['Data', 'Politico', 'Cargo', 'Esfera', 'Fornecedor (Razao Social)', 'CNPJ Fornecedor', 'Categoria', 'Valor (R$)'])
+    
+    for d in queryset[:5000]: # Limite de seguranca
+        writer.writerow([
+            d.data_emissao.strftime('%d/%m/%Y') if d.data_emissao else '',
+            d.mandato.politico.nome_civil,
+            d.mandato.cargo,
+            d.mandato.esfera,
+            d.fornecedor.razao_social if d.fornecedor else '',
+            d.fornecedor.cnpj if d.fornecedor else '',
+            d.categoria,
+            f"{d.valor_liquidado:.2f}".replace('.', ',')
+        ])
+        
+    return response
 
 def pagina_alertas(request):
     """View for alerts management"""
@@ -238,9 +335,12 @@ def api_buscar_despesas(request):
     })
 
 @csrf_exempt
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET"])
+@ratelimit(key='ip', rate='10/s', block=True)
 def api_estatisticas(request):
-    """Estatísticas dinâmicas para gráficos"""
+    """
+    Retorna métricas globais e KPIs agregados (RF01, RF02, RNF01).
+    """
     ano = request.GET.get('ano')
     categoria = request.GET.get('categoria')
     fonte = request.GET.get('fonte')
@@ -280,19 +380,43 @@ def api_estatisticas(request):
     
     stats_fornecedores = {f['fornecedor__razao_social']: float(f['total'] or 0) for f in fornecedores_existentes}
 
+    # Calcula Top Políticos dinâmico (Frente 3)
+    top_politicos_query = queryset.values(
+        'mandato__politico__id',
+        'mandato__politico__nome_civil',
+        'mandato__cargo',
+        'mandato__esfera',
+        'mandato__score_risco'
+    ).annotate(
+        total_gasto=Sum('valor_liquidado')
+    ).filter(total_gasto__gt=0).order_by('-total_gasto')[:5]
+
+    top_politicos_list = []
+    for p in top_politicos_query:
+        top_politicos_list.append({
+            'id': p['mandato__politico__id'],
+            'nome': p['mandato__politico__nome_civil'],
+            'foto': None,
+            'cargo': p['mandato__cargo'],
+            'esfera': p['mandato__esfera'],
+            'score': p['mandato__score_risco'],
+            'total': float(p['total_gasto'] or 0)
+        })
+
     total_geral = float(queryset.aggregate(total=Sum('valor_liquidado'))['total'] or 0)
 
     return JsonResponse({
         'stats_por_categoria': stats,
         'stats_por_mes': stats_mensal,
         'top_fornecedores': stats_fornecedores,
+        'top_politicos': top_politicos_list,
         'total_geral': total_geral,
         'success': True
     })
 
-@jwt_required
 @csrf_exempt
 @require_http_methods(["POST"])
+@jwt_required
 def api_atualizar_alerta(request):
     """Atualizar status de alerta"""
     try:
@@ -316,9 +440,35 @@ def api_atualizar_alerta(request):
 
 
 # --- SISTEMA DE VÍNCULO (SEGUIR POLÍTICO) ---
-@jwt_required
 @csrf_exempt
 @require_http_methods(["POST", "GET"])
+@jwt_required
+def api_notificacoes(request):
+    """Retorna os ultimos alertas dos politicos que o usuario assina (Frente 3.7)"""
+    user, error = authenticate_request(request)
+    if not user:
+        return JsonResponse({'success': False, 'message': error}, status=401)
+        
+    mandatos_seguidos = Assinatura.objects.filter(usuario=user, ativo=True).values_list('mandato_id', flat=True)
+    
+    alertas = Alerta.objects.filter(
+        mandato_id__in=mandatos_seguidos, 
+        resolvido=False
+    ).select_related('mandato__politico').order_by('-criado_em')[:10]
+    
+    data = []
+    for a in alertas:
+        data.append({
+            'id': a.id,
+            'titulo': a.titulo,
+            'descricao': a.descricao,
+            'severidade': a.severidade,
+            'politico_nome': a.mandato.politico.nome_civil,
+            'data': a.criado_em.strftime('%d/%m/%Y %H:%M')
+        })
+        
+    return JsonResponse({'success': True, 'notificacoes': data})
+
 def api_assinaturas(request):
     """Gerenciar assinaturas (seguir/parar de seguir políticos)"""
     if request.method == "GET":
@@ -404,9 +554,9 @@ def api_assinaturas(request):
         except Exception as e:
             return JsonResponse({'success': False, 'message': f'Erro interno: {str(e)}'}, status=400)
 
-@jwt_required
 @csrf_exempt
-@require_http_methods(["DELETE"])
+@require_http_methods(["DELETE", "POST"])
+@jwt_required
 def api_remover_assinatura(request, assinatura_id):
     """Remover assinatura (parar de seguir político)"""
     try:
@@ -425,9 +575,9 @@ def api_remover_assinatura(request, assinatura_id):
     except Exception as e:
         return JsonResponse({'success': False, 'message': f'Erro interno: {str(e)}'}, status=400)
 
-@jwt_required
 @csrf_exempt
 @require_http_methods(["POST"])
+@jwt_required
 def api_acompanhar_politico(request):
     """Associa ou desassocia um usuário a um político"""
     try:
@@ -469,8 +619,7 @@ def api_acompanhar_politico(request):
     except Exception as e:
         return JsonResponse({'success': False, 'message': f'Erro interno: {str(e)}'}, status=400)
 
-# Utility API endpoints
-@jwt_required
+# Utility API endpoints (públicos - RF03 Filtros Dinâmicos)
 def api_categorias(request):
     categorias = Despesa.CATEGORIA_ABSOLUTA_CHOICES
     return JsonResponse({
@@ -478,14 +627,12 @@ def api_categorias(request):
         'categorias_completas': categorias,
     })
 
-@jwt_required
 def api_fontes(request):
     fontes = Despesa.objects.values_list('fonte', flat=True).distinct()
     return JsonResponse({
         'fontes': sorted(list(fontes)),
     })
 
-@jwt_required
 def api_anos(request):
     anos = Despesa.objects.values_list('ano', flat=True).distinct().order_by('-ano')
     return JsonResponse({
@@ -552,7 +699,7 @@ def api_express_auth(request):
 
         user, created = User.objects.get_or_create(
             email=email,
-            defaults={'first_name': nome}
+            defaults={'first_name': nome, 'username': email, 'anonimo': False}
         )
 
         if created:
@@ -578,3 +725,4 @@ def api_express_auth(request):
     except Exception as e:
         print(traceback.format_exc())
         return JsonResponse({'success': False, 'message': f'Erro interno: {str(e)}'}, status=400)
+

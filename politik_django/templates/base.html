@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -33,12 +34,16 @@
     <!-- CSS Global do Tema Dark Slate -->
     <style>
         :root {
-            --color-grafite: #333a3f;
-            --color-turquesa: #1e9b95;
+            --color-grafite: #373D3F;
+            --color-turquesa: #1A9E96;
         }
         body {
             background-color: var(--color-grafite) !important;
             color: #f8fafc;
+        }
+        /* Correção de Contraste Global: Fundos claros devem ter texto escuro por padrão */
+        .bg-white, .bg-gray-50, .bg-gray-100, .bg-red-50, .bg-orange-50 {
+            color: #1f2937; /* text-gray-800 */
         }
     </style>
     
@@ -47,25 +52,28 @@
 <body class="font-sans antialiased min-h-screen flex flex-col">
     
     <!-- NAVBAR GLOBAL COM BUSCA INTEGRADA E ESTADO DINÂMICO -->
-    <nav class="border-b border-gray-600 sticky top-0 z-50 shadow-sm" style="background-color: var(--color-grafite);">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav class="border-b border-[#373D3F] sticky top-0 z-50 shadow-sm" style="background-color: var(--color-grafite);">
+        <div class="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 
                 <!-- Links de Navegação e Logo -->
                 <div class="flex items-center gap-8">
                     <a href="/" class="flex items-center gap-2 group">
-                        <div class="w-8 h-8 bg-white text-[#333a3f] rounded flex items-center justify-center font-bold text-lg group-hover:bg-[#1e9b95] group-hover:text-white transition-colors">
-                            P
-                        </div>
-                        <span class="font-black text-xl text-white tracking-tight">PolitiK</span>
+                        <img src="{% static 'img/logo.png' %}" alt="PolitiK Logo" class="h-8 object-contain bg-white rounded shadow p-0.5">
                     </a>
                     
                     <div class="hidden sm:flex sm:space-x-6 h-16">
                         <!-- Lógica Crítica: request.path define qual aba recebe a linha turquesa -->
-                        <a href="/" class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold transition-colors {% if request.path == '/' %}border-[#1e9b95] text-white{% else %}border-transparent text-gray-400 hover:text-white hover:border-gray-500{% endif %}">
+                        <a href="/" class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold transition-colors {% if request.path == '/' %}border-[#1A9E96] text-white{% else %}border-transparent text-gray-400 hover:text-white hover:border-gray-500{% endif %}">
                             Dashboard
                         </a>
-                        <a href="/alertas/" class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold transition-colors {% if '/alertas/' in request.path %}border-[#1e9b95] text-white{% else %}border-transparent text-gray-400 hover:text-white hover:border-gray-500{% endif %}">
+                        <a href="/despesas/" class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold transition-colors {% if '/despesas/' in request.path %}border-[#1A9E96] text-white{% else %}border-transparent text-gray-400 hover:text-white hover:border-gray-500{% endif %}">
+                            Despesas
+                        </a>
+                        <a href="/ranking/" class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold transition-colors {% if '/ranking/' in request.path %}border-[#1A9E96] text-white{% else %}border-transparent text-gray-400 hover:text-white hover:border-gray-500{% endif %}">
+                            Ranking
+                        </a>
+                        <a href="/alertas/" class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold transition-colors {% if '/alertas/' in request.path %}border-[#1A9E96] text-white{% else %}border-transparent text-gray-400 hover:text-white hover:border-gray-500{% endif %}">
                             Central de Alertas
                         </a>
                     </div>
@@ -77,10 +85,39 @@
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                         </div>
-                        <input type="text" id="global-search-input" placeholder="Pesquisar agente político..." class="block w-full pl-10 pr-3 py-2 border border-gray-600 rounded-md leading-5 bg-[#2d3748] text-gray-300 placeholder-gray-400 focus:outline-none focus:bg-white focus:text-gray-900 focus:border-[#1e9b95] focus:ring-2 focus:ring-[#1e9b95] sm:text-sm transition-all" autocomplete="off">
+                        <input type="text" id="global-search-input" placeholder="Pesquisar agente político..." class="block w-full pl-10 pr-3 py-2 border border-gray-600 rounded-md leading-5 bg-[#2d3748] text-gray-300 placeholder-gray-400 focus:outline-none focus:bg-white focus:text-[#373D3F] focus:border-[#1A9E96] focus:ring-2 focus:ring-[#1A9E96] sm:text-sm transition-all" autocomplete="off">
                     </div>
                     <!-- Menu Suspenso de Resultados -->
                     <div id="global-search-dropdown" class="absolute z-50 w-full bg-white mt-1 rounded-md shadow-2xl border border-gray-200 hidden max-h-72 overflow-y-auto"></div>
+                </div>
+
+                <!-- Notificações e Usuário -->
+                <div class="flex items-center gap-4 ml-8">
+                    <!-- Sino de Notificação -->
+                    <div class="relative cursor-pointer group" id="notification-bell">
+                        <svg class="w-6 h-6 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                        </svg>
+                        <span id="notification-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full hidden">0</span>
+                        
+                        <!-- Dropdown de Notificações -->
+                        <div id="notification-dropdown" class="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-xl border border-gray-200 hidden z-50">
+                            <div class="p-3 border-b border-gray-100 font-bold text-gray-700 bg-gray-50 flex justify-between">
+                                Notificações Recentes
+                            </div>
+                            <div id="notification-list" class="max-h-72 overflow-y-auto">
+                                <div class="p-4 text-sm text-gray-500 text-center">Carregando...</div>
+                            </div>
+                            <div class="p-2 border-t border-gray-100 text-center">
+                                <a href="/alertas/" class="text-xs font-bold text-[#1A9E96] hover:underline">Ver todos os alertas</a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Auth Container -->
+                    <div id="nav-auth-container" class="flex items-center gap-4">
+                        <!-- Injetado via JS -->
+                    </div>
                 </div>
 
             </div>
@@ -93,9 +130,9 @@
     </main>
 
     <!-- FOOTER NO TEMA DARK -->
-    <footer class="border-t border-gray-600 mt-auto" style="background-color: var(--color-grafite);">
-        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-            <p class="text-center text-sm text-gray-500 font-medium">
+    <footer class="border-t border-[#373D3F] mt-auto" style="background-color: var(--color-grafite);">
+        <div class="w-full max-w-[1600px] mx-auto py-6 px-4 sm:px-6 lg:px-8">
+            <p class="text-center text-sm text-gray-400 font-medium">
                 &copy; 2026 PolitiK - Plataforma de Transparência Nacional.
             </p>
         </div>
@@ -158,5 +195,166 @@
     </script>
 
     {% block extra_scripts %}{% endblock %}
+    <script>
+        // ---- Notificações (Frente 3.7) ----
+        const notifBell = document.getElementById('notification-bell');
+        const notifDropdown = document.getElementById('notification-dropdown');
+        const notifBadge = document.getElementById('notification-badge');
+        const notifList = document.getElementById('notification-list');
+
+        if (notifBell) {
+            notifBell.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                notifDropdown.classList.toggle('hidden');
+                if (!notifDropdown.classList.contains('hidden')) {
+                    try {
+                        const res = await fetch('/api/notificacoes/');
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.success) {
+                                if (data.notificacoes.length > 0) {
+                                    notifList.innerHTML = data.notificacoes.map(n => `
+                                        <div class="p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer text-left">
+                                            <div class="flex items-center gap-2 mb-1">
+                                                <span class="w-2 h-2 rounded-full ${n.severidade === 'critica' ? 'bg-red-500' : (n.severidade === 'alta' ? 'bg-orange-500' : 'bg-yellow-500')}"></span>
+                                                <span class="text-xs font-bold text-gray-800 line-clamp-1">${n.titulo}</span>
+                                            </div>
+                                            <div class="text-xs text-gray-500 mb-1 line-clamp-2">${n.descricao}</div>
+                                            <div class="flex justify-between text-[10px] text-gray-400 font-medium">
+                                                <span>${n.politico_nome}</span>
+                                                <span>${n.data}</span>
+                                            </div>
+                                        </div>
+                                    `).join('');
+                                    
+                                    notifBadge.textContent = data.notificacoes.length;
+                                    notifBadge.classList.remove('hidden');
+                                } else {
+                                    notifList.innerHTML = '<div class="p-4 text-sm text-gray-500 text-center">Nenhum alerta recente.</div>';
+                                    notifBadge.classList.add('hidden');
+                                }
+                            } else {
+                                notifList.innerHTML = `<div class="p-4 text-sm text-gray-500 text-center">${data.message || 'Erro ao carregar.'}</div>`;
+                            }
+                        } else if (res.status === 401) {
+                            localStorage.removeItem('politik_user');
+                            notifList.innerHTML = '<div class="p-4 text-sm text-gray-500 text-center">Sessão expirada. Recarregue a página.</div>';
+                            setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                            notifList.innerHTML = '<div class="p-4 text-sm text-red-500 text-center">Erro no servidor.</div>';
+                        }
+                    } catch (err) {
+                        notifList.innerHTML = '<div class="p-4 text-sm text-red-500 text-center">Erro ao carregar notificações.</div>';
+                    }
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!notifBell.contains(e.target)) {
+                    notifDropdown.classList.add('hidden');
+                }
+            });
+            
+            // Sincroniza estado de login do frontend com o JWT no backend
+            if(localStorage.getItem('politik_user')) {
+                fetch('/api/notificacoes/')
+                    .then(r => {
+                        if (r.status === 401) {
+                            // Token expirou ou invlido, forar logout no frontend
+                            localStorage.removeItem('politik_user');
+                            window.location.reload();
+                            return null;
+                        }
+                        return r.json();
+                    })
+                    .then(d => {
+                        if(d && d.success && d.notificacoes.length > 0) {
+                            notifBadge.textContent = d.notificacoes.length;
+                            notifBadge.classList.remove('hidden');
+                        }
+                    }).catch(e => {});
+            }
+        }
+    </script>
+
+    <!-- Global Auth Modal -->
+    <div id="global-auth-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[120] flex items-center justify-center">
+        <div class="bg-white rounded-md p-8 max-w-md w-full shadow-2xl relative">
+            <button onclick="AuthApp.closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <div class="text-center mb-6">
+                <div class="w-12 h-12 bg-[#e0f2f1] text-[#1A9E96] rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                </div>
+                <h2 class="text-xl font-black text-[#333a3f] uppercase">Acesso à Plataforma</h2>
+                <p class="text-sm text-gray-500 mt-2">Faça login ou crie sua conta gratuitamente.</p>
+            </div>
+            <div id="global-auth-error" class="hidden mb-4 p-3 bg-red-50 text-red-600 rounded text-sm text-center font-medium"></div>
+            <form onsubmit="event.preventDefault(); AuthApp.submit();" class="space-y-4">
+                <input type="text" id="auth-nome" placeholder="Seu nome (opcional para login)" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96]">
+                <input type="email" id="auth-email" placeholder="Seu e-mail" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96]" required>
+                <input type="password" id="auth-password" placeholder="Senha" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96]" required minlength="6">
+                <button type="submit" class="w-full py-3 bg-[#1A9E96] text-white rounded font-bold hover:bg-[#15807d] transition-colors text-sm uppercase tracking-wider">Entrar / Cadastrar</button>
+            </form>
+        </div>
+    </div>
+
+
+<script>
+const AuthApp = {
+    init: function() {
+        const user = localStorage.getItem('politik_user');
+        const container = document.getElementById('nav-auth-container');
+        if (container) {
+            if (user) {
+                container.innerHTML = `
+                    <span class="text-sm font-bold text-white hidden sm:block">${user}</span>
+                    <a href="/minha-conta/" class="text-gray-400 hover:text-white text-sm font-bold transition-colors">Minha Conta</a>
+                    <button onclick="AuthApp.logout()" class="text-xs font-bold text-gray-400 hover:text-white transition-colors ml-2">Sair</button>
+                `;
+            } else {
+                container.innerHTML = `
+                    <button onclick="AuthApp.openModal()" class="text-[#1A9E96] border border-[#1A9E96] hover:bg-[#1A9E96] hover:text-white px-3 py-1 rounded text-sm font-bold transition-colors">Login / Cadastro</button>
+                `;
+            }
+        }
+    },
+    openModal: function() { document.getElementById('global-auth-modal').classList.remove('hidden'); },
+    closeModal: function() { document.getElementById('global-auth-modal').classList.add('hidden'); },
+    submit: async function() {
+        const nome = document.getElementById('auth-nome').value;
+        const email = document.getElementById('auth-email').value;
+        const pass = document.getElementById('auth-password').value;
+        const errDiv = document.getElementById('global-auth-error');
+
+        try {
+            const res = await fetch('/api/auth/express/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome: nome, email: email, password: pass })
+            });
+            const data = await res.json();
+            if (data.success) {
+                localStorage.setItem('politik_user', data.user.username);
+                window.location.reload();
+            } else {
+                errDiv.textContent = data.message || 'Erro ao validar dados.';
+                errDiv.classList.remove('hidden');
+            }
+        } catch (e) {
+            errDiv.textContent = 'Erro de conexão com o servidor.';
+            errDiv.classList.remove('hidden');
+        }
+    },
+    logout: async function() {
+        await fetch('/api/auth/logout/', { method: 'POST' });
+        localStorage.removeItem('politik_user');
+        window.location.href = '/';
+    }
+};
+document.addEventListener('DOMContentLoaded', () => AuthApp.init());
+</script>
+
 </body>
 </html>

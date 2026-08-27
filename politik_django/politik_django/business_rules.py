@@ -103,12 +103,13 @@ class NegocioRegras:
         return 'Outros'
 
     @staticmethod
-    def verificar_anomalia_cnpj(cnpj: str, situacao_cadastral: str = None) -> Tuple[bool, str]:
+    def verificar_anomalia_cnpj(fornecedor: Fornecedor, valor_despesa: float, data_emissao: datetime = None) -> Tuple[bool, str]:
         """
         RF04 - Motor de Anomalias
-        Verifica CNPJ contra base da Receita Federal (simulado)
+        Verifica CNPJ contra base da Receita Federal usando dados locais enriquecidos
         Retorna (is_anomalous, reason)
         """
+        cnpj = fornecedor.cnpj
         if not cnpj or len(cnpj) != 14:
             return False, "CNPJ inválido"
 
@@ -116,28 +117,31 @@ class NegocioRegras:
         if not cnpj.isdigit():
             return False, "CNPJ contém caracteres inválidos"
 
-        # Verificação de situação cadastral (se fornecida)
-        if situacao_cadastral and situacao_cadastral.upper() in ['BAIXADA', 'INAPTA', 'SUSPENSA', 'NULA']:
-            return True, f"Empresa com situação cadastral suspeita: {situacao_cadastral}"
+        # Verificação de situação cadastral
+        situacao = fornecedor.situacao_cadastral
+        if situacao and situacao.upper() in ['BAIXADA', 'INAPTA', 'SUSPENSA', 'NULA']:
+            return True, f"Empresa com situação cadastral suspeita: {situacao}"
 
-        # Verificação de padrões suspeitos
-        # 1. Todos dígitos iguais
+        # Verificação 2.1: CNPJ Frio - Empresa com menos de 3 meses faturando alto
+        if fornecedor.data_abertura and data_emissao:
+            dias_abertura = (data_emissao - fornecedor.data_abertura).days
+            if 0 <= dias_abertura < 90 and valor_despesa > 5000:
+                return True, f"Empresa recém-criada (aberta há {dias_abertura} dias da emissão) recebendo R$ {valor_despesa:,.2f}"
+
+        # Verificação 2.2: CNPJ Frio - Despesa maior que 3x o Capital Social
+        if fornecedor.capital_social and fornecedor.capital_social > 0:
+            if float(valor_despesa) > float(fornecedor.capital_social) * 3:
+                return True, f"Despesa (R$ {valor_despesa:,.2f}) excede 3x o Capital Social (R$ {fornecedor.capital_social:,.2f})"
+
+        # Padrões numéricos suspeitos (Fallback de dados ausentes)
         if len(set(cnpj)) <= 3:
             return True, "CNPJ com dígitos repetidos (padrão suspeito)"
 
-        # 2. Muitos zeros no final (padrão de empresas fantasmas)
         if cnpj.endswith('0000'):
             return True, "CNPJ com muitos zeros finais (suspeito)"
 
-        # 3. Sequência numérica
-        if cnpj in ['12345678901234', '00000000000000', '11111111111111',
-                    '22222222222222', '33333333333333', '44444444444444',
-                    '55555555555555', '66666666666666', '77777777777777',
-                    '88888888888888', '99999999999999']:
+        if cnpj in ['12345678901234', '00000000000000', '11111111111111']:
             return True, "CNPJ com padrão de teste/inválido"
-
-        # Na implementação real, aqui faria chamada à API da Receita Federal
-        # para verificar situação cadastral, data de abertura, etc.
 
         return False, ""
 
@@ -248,10 +252,134 @@ class NegocioRegras:
         """Prime the limits cache for a batch run (avoids per-record DB queries)."""
         cls._CACHE_LIMITES = limites
 
+    @staticmethod
+    def verificar_concentracao_fornecedor(mandato) -> Tuple[bool, str, float, str]:
+        """
+        RF05 - Concentração (> 60% do mandato em 1 fornecedor)
+        """
+        from django.db.models import Sum
+        total_mandato = Despesa.objects.filter(mandato=mandato).aggregate(t=Sum('valor_liquidado'))['t'] or 0.0
+        
+        if total_mandato < 50000:
+            return False, "", 0.0, None
+            
+        top_fornecedor = Despesa.objects.filter(mandato=mandato).values(
+            'fornecedor__cnpj', 'fornecedor__razao_social'
+        ).annotate(total=Sum('valor_liquidado')).order_by('-total').first()
+        
+        if top_fornecedor:
+            total_top = top_fornecedor['total'] or 0.0
+            percentual = (total_top / total_mandato) * 100
+            if percentual >= 60.0:
+                msg = f"Concentração anômala: {percentual:.1f}% dos gastos (R$ {total_top:,.2f}) foram para {top_fornecedor['fornecedor__razao_social']}."
+                return True, msg, float(total_top), top_fornecedor['fornecedor__cnpj']
+                
+        return False, "", 0.0, None
+
+    @staticmethod
+    def verificar_spike_anormal(despesa) -> Tuple[bool, str]:
+        """
+        RF05 - Spike Anormal (Gasto do mês atual é 3x maior que a média histórica dos meses anteriores)
+        """
+        if not despesa.data_emissao or not despesa.mandato_id:
+            return False, ""
+            
+        from django.db.models import Sum
+        from datetime import date
+        
+        ano, mes = despesa.data_emissao.year, despesa.data_emissao.month
+        
+        gasto_mes_atual = float(Despesa.objects.filter(
+            mandato=despesa.mandato,
+            data_emissao__year=ano,
+            data_emissao__month=mes
+        ).aggregate(t=Sum('valor_liquidado'))['t'] or 0.0)
+        
+        if gasto_mes_atual < 20000:
+            return False, ""
+            
+        meses_passados = Despesa.objects.filter(
+            mandato=despesa.mandato,
+            data_emissao__lt=date(ano, mes, 1)
+        ).values('data_emissao__year', 'data_emissao__month').annotate(total=Sum('valor_liquidado'))
+        
+        if len(meses_passados) < 3:
+            return False, ""
+            
+        soma_historico = sum(float(m['total']) for m in meses_passados)
+        media_historica = soma_historico / len(meses_passados)
+        
+        if media_historica > 5000 and gasto_mes_atual >= (media_historica * 3.0):
+            return True, f"Spike Anormal: Gasto do mês {mes}/{ano} (R$ {gasto_mes_atual:,.2f}) é {gasto_mes_atual/media_historica:.1f}x maior que a média histórica (R$ {media_historica:,.2f})."
+            
+        return False, ""
+
+    @staticmethod
+    def calcular_e_atualizar_score(mandato) -> int:
+        """
+        F2.10 - Recalcula o score de risco do mandato com base nos alertas vivos (não resolvidos).
+        """
+        alertas = Alerta.objects.filter(mandato=mandato, resolvido=False)
+        
+        score = 0
+        for a in alertas:
+            if 'CNPJ' in a.titulo or 'Situação Cadastral' in a.titulo or a.referencia_cnpj:
+                score += 30
+            elif a.severidade == 'critica':
+                score += 20
+            elif a.severidade == 'alta':
+                score += 10
+            else:
+                score += 5
+                
+        score = min(score, 100)
+        
+        if mandato.score_risco != score:
+            mandato.score_risco = score
+            mandato.save(update_fields=['score_risco'])
+            
+        return score
+
     @classmethod
     def limpar_cache_limites(cls) -> None:
         """Clear the limits cache after a batch run."""
         cls._CACHE_LIMITES = None
+
+    @staticmethod
+    def verificar_fracionamento(despesa: Despesa) -> Tuple[bool, str, float]:
+        """
+        RF05 - Verifica fracionamento de despesa (lei de licitação)
+        Agrupa todas as despesas daquele mandato para aquele fornecedor no MESMO DIA.
+        Retorna (is_fracionado, message, soma_dia).
+        """
+        if not despesa.data_emissao or not despesa.mandato_id or not despesa.fornecedor_id:
+            return False, "", 0.0
+
+        from django.db.models import Sum
+        
+        # Filtra despesas do mesmo fornecedor, no mesmo mandato e no mesmo dia
+        soma = Despesa.objects.filter(
+            mandato=despesa.mandato,
+            fornecedor=despesa.fornecedor,
+            data_emissao=despesa.data_emissao
+        ).exclude(pk=despesa.pk).aggregate(total=Sum('valor_liquidado'))['total'] or 0.0
+        
+        # Soma o valor da despesa atual
+        soma_dia = float(soma) + float(despesa.valor_liquidado)
+        
+        # O limite da lei 8.666 para dispensa é R$ 8.000 a 17.600. Usaremos 8.000 como gatilho.
+        if soma_dia >= 8000.0:
+            count = Despesa.objects.filter(
+                mandato=despesa.mandato,
+                fornecedor=despesa.fornecedor,
+                data_emissao=despesa.data_emissao
+            ).exclude(pk=despesa.pk).count()
+            
+            if count > 0:
+                data_str = despesa.data_emissao.strftime("%d/%m/%Y")
+                return True, f"Fracionamento suspeito: {count + 1} despesas no dia {data_str} totalizando R$ {soma_dia:,.2f}", soma_dia
+                
+        return False, "", 0.0
 
     @staticmethod
     def processar_despesa_com_validacao(despesa: Despesa) -> Tuple[bool, list]:
@@ -272,8 +400,9 @@ class NegocioRegras:
         # 2. RF04 - Verificar anomalia no CNPJ do fornecedor
         if despesa.fornecedor and despesa.fornecedor.cnpj:
             is_anomalous, motivo = NegocioRegras.verificar_anomalia_cnpj(
-                despesa.fornecedor.cnpj,
-                despesa.fornecedor.situacao_cadastral
+                despesa.fornecedor,
+                float(despesa.valor_liquidado),
+                despesa.data_emissao
             )
             if is_anomalous:
                 alerta = Alerta.objects.create(
@@ -305,6 +434,117 @@ class NegocioRegras:
                 valor_real=despesa.valor_liquidado
             )
             alertas_gerados.append(alerta)
+
+        # 4. F2.3 - Verificar Fracionamento de despesas no mesmo dia
+        if despesa.pk is None: # Se for nova inserção
+            # Precisamos salvar primeiro para poder agregar, mas aqui só lemos o passado
+            is_frac, msg_frac, soma_frac = NegocioRegras.verificar_fracionamento(despesa)
+            if is_frac:
+                alerta = Alerta.objects.create(
+                    mandato=despesa.mandato,
+                    tipo='suspeita',
+                    severidade='critica',
+                    titulo='Possível Fracionamento de Despesa',
+                    descricao=msg_frac,
+                    valor_trigger=8000,
+                    valor_real=soma_frac,
+                )
+                alertas_gerados.append(alerta)
+                
+            # F2.7 - Verificar Despesa Duplicada
+            if despesa.fornecedor and despesa.data_emissao and despesa.valor_liquidado:
+                duplicadas = Despesa.objects.filter(
+                    mandato=despesa.mandato,
+                    fornecedor=despesa.fornecedor,
+                    data_emissao=despesa.data_emissao,
+                    valor_liquidado=despesa.valor_liquidado
+                ).exclude(pk=despesa.pk).count()
+                if duplicadas > 0:
+                    alerta = Alerta.objects.create(
+                        mandato=despesa.mandato,
+                        tipo='suspeita',
+                        severidade='alta',
+                        titulo='Despesa Duplicada',
+                        descricao=f'Despesa idêntica (mesmo fornecedor, data e valor exato de R$ {despesa.valor_liquidado:.2f}) lançada {duplicadas} vez(es) anterior(es).',
+                        valor_real=despesa.valor_liquidado,
+                    )
+                    alertas_gerados.append(alerta)
+
+        # F2.4 - Gasto em Dia Não Útil (Fim de Semana)
+        if despesa.data_emissao:
+            dia_semana = despesa.data_emissao.weekday()
+            # 5 = Sábado, 6 = Domingo
+            if dia_semana in [5, 6] and despesa.categoria not in ['Hospedagem', 'Passagens Aéreas', 'Alimentação', 'Cota Parlamentar']:
+                # Alimentação e hospedagem podem ser válidas. Consultoria/Material em domingo é estranho.
+                alerta = Alerta.objects.create(
+                    mandato=despesa.mandato,
+                    tipo='suspeita',
+                    severidade='media',
+                    titulo='Gasto em Fim de Semana',
+                    descricao=f'Despesa da categoria "{despesa.categoria}" emitida num {"Domingo" if dia_semana == 6 else "Sábado"}.',
+                    valor_real=despesa.valor_liquidado,
+                )
+                alertas_gerados.append(alerta)
+
+        # F2.5 - Inconsistência Geográfica
+        if despesa.fornecedor and despesa.fornecedor.uf and despesa.mandato.estado_uf:
+            # Categorias estritamente locais
+            cats_locais = ['Combustíveis e Lubrificantes', 'Serviços de Saúde', 'Alimentação']
+            if despesa.categoria in cats_locais and despesa.fornecedor.uf != despesa.mandato.estado_uf:
+                # Exceção comum: Brasília (DF) para mandatos federais
+                if not (despesa.mandato.esfera == 'Federal' and despesa.fornecedor.uf == 'DF'):
+                    alerta = Alerta.objects.create(
+                        mandato=despesa.mandato,
+                        tipo='suspeita',
+                        severidade='alta',
+                        titulo='Inconsistência Geográfica',
+                        descricao=f'Agente de {despesa.mandato.estado_uf} realizou despesa local ({despesa.categoria}) no estado de {despesa.fornecedor.uf}.',
+                        valor_real=despesa.valor_liquidado,
+                        referencia_cnpj=despesa.fornecedor.cnpj
+                    )
+                    alertas_gerados.append(alerta)
+
+        # F2.8 - Vínculo Societário / Parentesco
+        if despesa.fornecedor and despesa.fornecedor.quadro_societario and despesa.mandato and despesa.mandato.politico:
+            politico = despesa.mandato.politico
+            nome_politico_parts = politico.nome_civil.upper().split()
+            # Pega o último sobrenome do político (mais propenso a matching familiar)
+            if len(nome_politico_parts) > 1:
+                sobrenome_politico = nome_politico_parts[-1]
+                
+                # Procura no QSA
+                for socio in despesa.fornecedor.quadro_societario:
+                    nome_socio = socio.get('nome', '').upper()
+                    
+                    # Evita match em nomes muito curtos como "DA", "SILVA" é muito comum mas vamos deixar por enquanto
+                    if len(sobrenome_politico) > 3 and sobrenome_politico in nome_socio:
+                        alerta = Alerta.objects.create(
+                            mandato=despesa.mandato,
+                            tipo='suspeita',
+                            severidade='alta',
+                            titulo='Possível Vínculo Societário/Parentesco',
+                            descricao=f'O sócio "{socio.get("nome")}" possui o sobrenome "{sobrenome_politico}" do político.',
+                            valor_real=despesa.valor_liquidado,
+                            referencia_cnpj=despesa.fornecedor.cnpj
+                        )
+                        alertas_gerados.append(alerta)
+                        break # Um alerta por despesa já basta para F2.8
+
+        # 5. F2.9 - Verificar Spike Anormal
+        if despesa.pk is None:
+            is_spike, msg_spike = NegocioRegras.verificar_spike_anormal(despesa)
+            if is_spike:
+                spike_exist = Alerta.objects.filter(mandato=despesa.mandato, titulo='Spike Anormal Detectado', resolvido=False).exists()
+                if not spike_exist:
+                    alerta = Alerta.objects.create(
+                        mandato=despesa.mandato,
+                        tipo='volume',
+                        severidade='alta',
+                        titulo='Spike Anormal Detectado',
+                        descricao=msg_spike,
+                        valor_real=despesa.valor_liquidado
+                    )
+                    alertas_gerados.append(alerta)
 
         # Salvar despesa
         despesa.save()

@@ -2,15 +2,26 @@
 JWT Authentication utilities for PolitiK
 Implements secure JWT authentication with HTTPOnly cookies and refresh tokens
 """
+"""
+Modulo de Autenticacao com JWT em Cookies HttpOnly
+-------------------------------------------------
+F4.4 - Proteção CSRF Explícita:
+Como usamos JSON APIs com Cookies, desabilitamos o CSRF tradicional (@csrf_exempt).
+A proteção real ocorre garantindo que os cookies JWT possuam a flag `SameSite=Lax` 
+(ou Strict), impedindo requisições cross-origin automáticas.
+"""
 import datetime
 import logging
-from typing import Tuple, Optional
+from typing import Tuple, Optional, TYPE_CHECKING
 
 import jwt
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.middleware.csrf import CsrfViewMiddleware
 from django.utils import timezone
+
+if TYPE_CHECKING:
+    from .models import Usuario
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -20,11 +31,11 @@ JWT_SECRET_KEY = getattr(settings, 'JWT_SECRET_KEY', settings.SECRET_KEY)
 JWT_ALGORITHM = getattr(settings, 'JWT_ALGORITHM', 'HS256')
 JWT_ACCESS_TOKEN_LIFETIME = getattr(settings, 'JWT_ACCESS_TOKEN_LIFETIME', datetime.timedelta(minutes=15))
 JWT_REFRESH_TOKEN_LIFETIME = getattr(settings, 'JWT_REFRESH_TOKEN_LIFETIME', datetime.timedelta(days=7))
-JWT_AUTH_COOKIE = getattr(settings, 'JWT_AUTH_COOKIE', 'access_token')
+JWT_AUTH_COOKIE = getattr(settings, 'JWT_AUTH_COOKIE', 'auth_token')
 JWT_AUTH_REFRESH_COOKIE = getattr(settings, 'JWT_AUTH_REFRESH_COOKIE', 'refresh_token')
 
 
-def create_access_token(user: User) -> str:
+def create_access_token(user) -> str:
     """
     Create a JWT access token for the given user.
 
@@ -46,7 +57,7 @@ def create_access_token(user: User) -> str:
     return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
 
-def create_refresh_token(user: User) -> str:
+def create_refresh_token(user) -> str:
     """
     Create a JWT refresh token for the given user.
 
@@ -87,7 +98,7 @@ def verify_token(token: str) -> Tuple[bool, Optional[dict]]:
         return False, None
 
 
-def get_user_from_token(token: str) -> Optional[User]:
+def get_user_from_token(token: str):
     """
     Extract user from a valid JWT token.
 
@@ -173,7 +184,7 @@ def get_tokens_from_request(request) -> Tuple[Optional[str], Optional[str]]:
     return access_token, refresh_token
 
 
-def authenticate_request(request) -> Tuple[Optional[User], Optional[str]]:
+def authenticate_request(request):
     """
     Authenticate a request using JWT tokens from cookies.
 
