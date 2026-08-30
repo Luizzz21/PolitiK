@@ -13,6 +13,7 @@ urlpatterns = [
     path('politico/<int:politico_id>/', views.pagina_politico, name='pagina_politico'),
     path('ranking/', views.ranking_view, name='ranking'),
     path('despesas/', views.despesas_view, name='despesas'),
+    path('fornecedores/', views.fornecedores_view, name='fornecedores'),
     path('fornecedor/<str:cnpj>/', views.fornecedor_detail, name='fornecedor_detail'),
     path('alertas/', views.pagina_alertas, name='pagina_alertas'),
     path('minha-conta/', views.pagina_minha_conta, name='pagina_minha_conta'),
@@ -40,4 +41,5 @@ urlpatterns = [
     path('api/auth/login/', views.api_login, name='api_login'),
     path('api/auth/logout/', views.api_logout, name='api_logout'),
     path('api/auth/express/', views.api_express_auth, name='api_express_auth'),
+    path('api/v1/fornecedor-risco/<str:cnpj>/', views.api_b2b_fornecedor_risk, name='api_b2b_fornecedor_risk'),
 ]

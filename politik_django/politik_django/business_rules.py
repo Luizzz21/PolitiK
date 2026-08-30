@@ -147,7 +147,7 @@ class NegocioRegras:
 
     @staticmethod
     def verificar_triggers_volume(categoria: str, valor: float, descricao: str = "",
-                                  data_emissao: datetime = None) -> Tuple[bool, str, str]:
+                                  data_emissao=None, despesa=None) -> Tuple[bool, str, str]:
         """
         RF05 - Gatilhos de Volume
         Gera alertas para gastos que ultrapassem limites matemáticos lógicos
@@ -163,11 +163,29 @@ class NegocioRegras:
         limites = NegocioRegras._obter_limites_configuracao()
 
         # 1. Gatilho específico para Combustíveis
-        # Volume suspeito: mais que 50 litros/dia * preço médio
+        # Refinado: Volume suspeito = (limite diário) * (dias desde a última nota de combustível)
         if 'COMBUSTIVEL' in categoria_upper or 'COMBUSTIVEL' in descricao_upper:
-            limite = limites['combustivel_litros_diarios'] * limites['combustivel_preco_medio']
-            if valor > limite:
-                return True, 'volume', f'Gasto de combustível suspeito: R$ {valor:.2f} (limite: R$ {limite:.2f}/dia)'
+            limite_diario = limites['combustivel_litros_diarios'] * limites['combustivel_preco_medio']
+            dias_acumulados = 1
+            
+            if despesa and despesa.mandato and despesa.data_emissao:
+                from .models import Despesa
+                ultima_despesa = Despesa.objects.filter(
+                    mandato=despesa.mandato,
+                    categoria=despesa.categoria,
+                    data_emissao__lt=despesa.data_emissao
+                ).order_by('-data_emissao').first()
+                
+                if ultima_despesa and ultima_despesa.data_emissao:
+                    delta = (despesa.data_emissao - ultima_despesa.data_emissao).days
+                    dias_acumulados = max(1, delta)
+                else:
+                    # Se não houver nota anterior, assumimos um acúmulo de 15 dias de tolerância
+                    dias_acumulados = 15
+
+            limite_total = limite_diario * dias_acumulados
+            if valor > limite_total:
+                return True, 'volume', f'Combustível: R$ {valor:.2f} (Acumulado de {dias_acumulados} dia(s). Limite tolerado: R$ {limite_total:.2f}).'
 
         # 2. Gatilho para Emendas Pix
         if 'EMENDA' in categoria_upper and 'PIX' in categoria_upper:
@@ -263,7 +281,7 @@ class NegocioRegras:
         if total_mandato < 50000:
             return False, "", 0.0, None
             
-        top_fornecedor = Despesa.objects.filter(mandato=mandato).values(
+        top_fornecedor = Despesa.objects.filter(mandato=mandato, fornecedor__isnull=False).values(
             'fornecedor__cnpj', 'fornecedor__razao_social'
         ).annotate(total=Sum('valor_liquidado')).order_by('-total').first()
         
@@ -271,8 +289,11 @@ class NegocioRegras:
             total_top = top_fornecedor['total'] or 0.0
             percentual = (total_top / total_mandato) * 100
             if percentual >= 60.0:
-                msg = f"Concentração anômala: {percentual:.1f}% dos gastos (R$ {total_top:,.2f}) foram para {top_fornecedor['fornecedor__razao_social']}."
-                return True, msg, float(total_top), top_fornecedor['fornecedor__cnpj']
+                nome_forn = top_fornecedor.get('fornecedor__razao_social')
+                cnpj_forn = top_fornecedor.get('fornecedor__cnpj')
+                display_name = nome_forn if nome_forn else (f"o CNPJ {cnpj_forn}" if cnpj_forn else "fornecedor não identificado")
+                msg = f"Concentração anômala: {percentual:.1f}% dos gastos (R$ {total_top:,.2f}) foram para {display_name}."
+                return True, msg, float(total_top), cnpj_forn
                 
         return False, "", 0.0, None
 
@@ -405,7 +426,7 @@ class NegocioRegras:
                 despesa.data_emissao
             )
             if is_anomalous:
-                alerta = Alerta.objects.create(
+                alerta, created = Alerta.objects.get_or_create(
                     mandato=despesa.mandato,
                     tipo='anomalia',
                     severidade='media',
@@ -421,10 +442,11 @@ class NegocioRegras:
             despesa.categoria,
             float(despesa.valor_liquidado),
             despesa.tipo_verba or despesa.descricao_despesa or '',
-            despesa.data_emissao
+            despesa.data_emissao,
+            despesa
         )
         if is_triggered:
-            alerta = Alerta.objects.create(
+            alerta, created = Alerta.objects.get_or_create(
                 mandato=despesa.mandato,
                 tipo=tipo_alerta,
                 severidade='alta' if tipo_alerta == 'volume' else 'media',
@@ -440,7 +462,7 @@ class NegocioRegras:
             # Precisamos salvar primeiro para poder agregar, mas aqui só lemos o passado
             is_frac, msg_frac, soma_frac = NegocioRegras.verificar_fracionamento(despesa)
             if is_frac:
-                alerta = Alerta.objects.create(
+                alerta, created = Alerta.objects.get_or_create(
                     mandato=despesa.mandato,
                     tipo='suspeita',
                     severidade='critica',
@@ -460,7 +482,7 @@ class NegocioRegras:
                     valor_liquidado=despesa.valor_liquidado
                 ).exclude(pk=despesa.pk).count()
                 if duplicadas > 0:
-                    alerta = Alerta.objects.create(
+                    alerta, created = Alerta.objects.get_or_create(
                         mandato=despesa.mandato,
                         tipo='suspeita',
                         severidade='alta',
@@ -476,7 +498,7 @@ class NegocioRegras:
             # 5 = Sábado, 6 = Domingo
             if dia_semana in [5, 6] and despesa.categoria not in ['Hospedagem', 'Passagens Aéreas', 'Alimentação', 'Cota Parlamentar']:
                 # Alimentação e hospedagem podem ser válidas. Consultoria/Material em domingo é estranho.
-                alerta = Alerta.objects.create(
+                alerta, created = Alerta.objects.get_or_create(
                     mandato=despesa.mandato,
                     tipo='suspeita',
                     severidade='media',
@@ -493,7 +515,7 @@ class NegocioRegras:
             if despesa.categoria in cats_locais and despesa.fornecedor.uf != despesa.mandato.estado_uf:
                 # Exceção comum: Brasília (DF) para mandatos federais
                 if not (despesa.mandato.esfera == 'Federal' and despesa.fornecedor.uf == 'DF'):
-                    alerta = Alerta.objects.create(
+                    alerta, created = Alerta.objects.get_or_create(
                         mandato=despesa.mandato,
                         tipo='suspeita',
                         severidade='alta',
@@ -518,7 +540,7 @@ class NegocioRegras:
                     
                     # Evita match em nomes muito curtos como "DA", "SILVA" é muito comum mas vamos deixar por enquanto
                     if len(sobrenome_politico) > 3 and sobrenome_politico in nome_socio:
-                        alerta = Alerta.objects.create(
+                        alerta, created = Alerta.objects.get_or_create(
                             mandato=despesa.mandato,
                             tipo='suspeita',
                             severidade='alta',
@@ -536,7 +558,7 @@ class NegocioRegras:
             if is_spike:
                 spike_exist = Alerta.objects.filter(mandato=despesa.mandato, titulo='Spike Anormal Detectado', resolvido=False).exists()
                 if not spike_exist:
-                    alerta = Alerta.objects.create(
+                    alerta, created = Alerta.objects.get_or_create(
                         mandato=despesa.mandato,
                         tipo='volume',
                         severidade='alta',

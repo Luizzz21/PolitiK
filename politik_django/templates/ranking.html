@@ -31,37 +31,37 @@
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200" id="ranking-body">
-                    {% for mandato in mandatos %}
+                    {% for p in politicos %}
                     <tr class="hover:bg-gray-50 transition-colors">
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center">
                                 <div class="flex-shrink-0 h-10 w-10">
-                                    {% if mandato.politico.foto_url %}
-                                        <img class="h-10 w-10 rounded-full object-cover border border-gray-200" src="{{ mandato.politico.foto_url }}" alt="">
+                                    {% if p.foto_url %}
+                                        <img class="h-10 w-10 rounded-full object-cover border border-gray-200" src="{{ p.foto_url }}" alt="">
                                     {% else %}
-                                        <div class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center"><span class="text-gray-500 font-bold">{{ mandato.politico.nome_civil|slice:':1' }}</span></div>
+                                        <div class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center"><span class="text-gray-500 font-bold">{{ p.nome_civil|slice:':1' }}</span></div>
                                     {% endif %}
                                 </div>
                                 <div class="ml-4">
-                                    <div class="text-sm font-black text-[#373D3F]">{{ mandato.politico.nome_civil }}</div>
+                                    <div class="text-sm font-black text-[#373D3F]">{{ p.nome_civil }}</div>
                                     <div class="text-xs text-gray-500 font-bold uppercase mt-0.5">{{ mandato.politico.partido|default:'-' }} • {{ mandato.estado_uf|default:'BR' }}</div>
                                 </div>
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-bold text-gray-900">{{ mandato.cargo }}</div>
-                            <div class="text-xs text-gray-500">{{ mandato.esfera }}</div>
+                            <div class="text-sm font-bold text-gray-900">{{ p.cargo_display }}</div>
+                            <div class="text-xs text-gray-500">{{ p.esfera_display }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-black text-[#1A9E96]">R$ {{ mandato.total_gasto|floatformat:2 }}</div>
+                            <div class="text-sm font-black text-[#1A9E96]">R$ {{ p.total_gasto|floatformat:2 }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-black rounded-full {% if mandato.score_risco >= 70 %}bg-red-100 text-red-800{% elif mandato.score_risco >= 30 %}bg-yellow-100 text-yellow-800{% else %}bg-green-100 text-green-800{% endif %}">
-                                {{ mandato.score_risco }}/100
+                            <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-black rounded-full {% if p.score_risco >= 70 %}bg-red-100 text-red-800{% elif p.score_risco >= 30 %}bg-yellow-100 text-yellow-800{% else %}bg-green-100 text-green-800{% endif %}">
+                                {{ p.score_risco }}/100
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href="/politico/{{ mandato.politico.id }}/" class="text-white bg-[#373D3F] hover:bg-[#1A9E96] px-3 py-1.5 rounded transition-colors text-xs font-bold uppercase tracking-wider shadow">Dossiê</a>
+                            <a href="/politico/{{ p.id|stringformat:"d" }}/" class="text-white bg-[#373D3F] hover:bg-[#1A9E96] px-3 py-1.5 rounded transition-colors text-xs font-bold uppercase tracking-wider shadow">Dossiê</a>
                         </td>
                     </tr>
                     {% empty %}

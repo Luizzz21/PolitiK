@@ -6,6 +6,13 @@
 <!-- Overlay do Lazy Login com Abas (Tabs) -->
 <div id="lazy-login-overlay" class="fixed inset-0 bg-gray-900/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity">
     <div class="bg-white rounded-md p-8 max-w-md w-full shadow-2xl relative border-t-4 border-[#1A9E96]">
+        <button onclick="window.location.href='/'" class="absolute top-4 right-4 text-gray-400 hover:text-[#1A9E96] text-xs font-bold uppercase flex items-center gap-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+            Voltar
+        </button>
+
+        
+        
         
         <div class="text-center mb-6">
             <div class="w-16 h-16 bg-[#e0f2f1] text-[#1A9E96] rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
@@ -53,13 +60,18 @@
 
     <!-- Header do Dossiê -->
     <div class="bg-[#2d3748] rounded shadow-xl p-6 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center border-t-4 border-[#1A9E96] relative overflow-hidden">
-        <div class="z-10">
+                <div class="z-10">
             <h1 class="text-3xl font-black text-white uppercase tracking-tight">{{ politico.nome_civil }}</h1>
             <div class="flex items-center gap-3 text-sm font-bold text-gray-400 mt-2 tracking-widest uppercase">
-                <span class="text-[#1A9E96]">{{ politico.partido|default:"Partido Não Informado" }}</span>
+                <span class="text-[#1A9E96]">{{ politico.partido|default:"SEM PARTIDO" }}</span>
                 <span class="w-1.5 h-1.5 bg-gray-500 rounded-full"></span>
                 <span>{{ politico.uf|default:"BR" }}</span>
+                <span class="w-1.5 h-1.5 bg-gray-500 rounded-full"></span>
+                <span class="{% if max_score > 70 %}text-red-500{% elif max_score > 30 %}text-yellow-500{% else %}text-green-500{% endif %}">SCORE {{ max_score|floatformat:0 }}/100</span>
+                <span class="w-1.5 h-1.5 bg-gray-500 rounded-full"></span>
+                <span class="text-[#1A9E96] bg-[#1A9E96]/20 px-2 py-0.5 rounded font-black">TOTAL GASTO: R$ <span id="total-gasto-fmt" data-val="{{ total_gasto_raw }}">{{ total_gasto }}</span></span>
             </div>
+        </div>
         </div>
         
         <!-- Botão de Vínculo Funcional -->
@@ -90,13 +102,19 @@
                         <p class="text-sm font-black text-white uppercase">{{ mandato.cargo }}</p>
                         <p class="text-xs font-bold text-gray-400 uppercase mt-0.5">{{ mandato.esfera }} • {{ mandato.estado_uf|default:"BR" }}</p>
                         <p class="text-xs text-gray-500 mt-1.5 bg-[#373D3F] inline-block px-2 py-1 rounded">
-                            {{ mandato.ano_inicio|default:"-" }} a {{ mandato.ano_fim|default:"Presente" }}
+                            {{ mandato.ano_inicio|stringformat:"i"|default:"-" }} a {{ mandato.ano_fim|stringformat:"i"|default:"Presente" }}
                         </p>
                     </div>
                     {% empty %}
                     <p class="text-sm text-gray-500">Nenhum mandato estruturado encontrado.</p>
                     {% endfor %}
                 </div>
+            </div>
+
+            <!-- Espaço para Anúncio -->
+            <div class="bg-gray-100 border-2 border-dashed border-gray-300 rounded shadow-sm p-6 flex flex-col items-center justify-center text-center min-h-[300px]">
+                <span class="text-gray-400 text-sm font-bold uppercase tracking-widest mb-2">Espaço Publicitário</span>
+                <span class="text-xs text-gray-400">Anúncio aparecerá aqui em breve.</span>
             </div>
         </div>
 
@@ -126,12 +144,83 @@
                 </div>
             </div>
 
-            <!-- Timeline -->
+            
+            <!-- Composição do Score -->
+            <details class="bg-white rounded shadow-xl mb-6 border-t-4 border-red-500 group">
+                <summary class="p-6 text-sm font-black text-gray-700 uppercase tracking-widest cursor-pointer hover:bg-gray-50 flex justify-between items-center outline-none">
+                    Composição do Score de Risco
+                    <svg class="w-5 h-5 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </summary>
+                <div class="p-6 pt-0">
+                
+                {% if max_score == 0 %}
+                    <div class="bg-green-50 border border-green-200 text-green-700 p-4 rounded-md flex items-center gap-3">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <div>
+                            <p class="font-bold">Score Limpo (Risco Zero)</p>
+                            <p class="text-xs mt-1">Este agente não possui nenhum alerta ativo de anomalia, fraude cadastral ou gasto irregular identificado pelo robô.</p>
+                        </div>
+                    </div>
+                {% else %}
+                    <p class="text-xs text-gray-500 mb-4">O Score de <strong>{{ max_score }}</strong> foi gerado automaticamente pela Inteligência Artificial com base nas seguintes anomalias e infrações financeiras rastreadas:</p>
+                    
+                    <div class="space-y-3">
+                        {% for alerta in alertas %}
+                        <div class="border {% if alerta.severidade == 'critica' %}border-red-200 bg-red-50{% elif alerta.severidade == 'alta' %}border-orange-200 bg-orange-50{% else %}border-yellow-200 bg-yellow-50{% endif %} rounded p-3 flex flex-col md:flex-row md:items-center justify-between gap-2">
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded {% if alerta.severidade == 'critica' %}bg-red-500 text-white{% elif alerta.severidade == 'alta' %}bg-orange-500 text-white{% else %}bg-yellow-400 text-gray-800{% endif %}">
+                                        {{ alerta.get_severidade_display }}
+                                    </span>
+                                    <h3 class="text-sm font-bold {% if alerta.severidade == 'critica' %}text-red-700{% elif alerta.severidade == 'alta' %}text-orange-700{% else %}text-yellow-700{% endif %}">{{ alerta.titulo }}</h3>
+                                </div>
+                                <p class="text-xs text-gray-600">{{ alerta.descricao }}</p>
+                                {% if alerta.referencia_cnpj %}
+                                <p class="text-[10px] font-bold mt-1">
+                                    Envolvido: <a href="/fornecedor/{{ alerta.referencia_cnpj }}/" class="text-[#1A9E96] hover:text-[#15807d] hover:underline cursor-pointer">CNPJ {{ alerta.referencia_cnpj }} ➔ Acessar Dossiê da Empresa</a>
+                                </p>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="text-right whitespace-nowrap">
+                                <span class="text-xs font-black text-gray-400 block mb-1">PONTUAÇÃO ALVO</span>
+                                <span class="text-lg font-black {% if alerta.severidade == 'critica' %}text-red-600{% elif alerta.severidade == 'alta' %}text-orange-600{% else %}text-yellow-600{% endif %}">
+                                    {% if 'CNPJ' in alerta.titulo or 'Situação Cadastral' in alerta.titulo or alerta.referencia_cnpj %}
+                                        +30 pts
+                                    {% elif alerta.severidade == 'critica' %}
+                                        +20 pts
+                                    {% elif alerta.severidade == 'alta' %}
+                                        +10 pts
+                                    {% else %}
+                                        +5 pts
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="text-xs text-gray-500 italic">Score manual ou anomalia arquivada.</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </details>
+
+<!-- Timeline -->
             <div class="bg-white rounded shadow-xl p-6">
-                <h2 class="text-sm font-bold text-[#373D3F] uppercase tracking-widest border-b border-gray-200 pb-2 mb-6">Timeline de Despesas</h2>
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-200 pb-2 mb-6">
+                    <h2 class="text-sm font-bold text-[#373D3F] uppercase tracking-widest">Timeline de Despesas</h2>
+                    <div class="flex items-center gap-2 mt-2 md:mt-0 text-xs">
+                        <label class="font-bold text-gray-500">Período:</label>
+                        <input type="date" id="timeline-start" onchange="DetailApp.filterTimeline()" class="border border-gray-300 rounded px-2 py-1 outline-none focus:border-[#1A9E96] text-gray-700 bg-gray-50">
+                        <span class="text-gray-400">até</span>
+                        <input type="date" id="timeline-end" onchange="DetailApp.filterTimeline()" class="border border-gray-300 rounded px-2 py-1 outline-none focus:border-[#1A9E96] text-gray-700 bg-gray-50">
+                        <button onclick="document.getElementById('timeline-start').value=''; document.getElementById('timeline-end').value=''; DetailApp.filterTimeline();" class="ml-1 text-gray-400 hover:text-red-500 transition-colors" title="Limpar Filtro">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                </div>
                 <div class="relative border-l-2 border-[#1A9E96]/30 ml-3 space-y-8 pb-4">
-                    {% for despesa in despesas_politico|slice:":10" %}
-                    <div class="relative pl-6">
+                    {% for despesa in despesas_politico %}
+                    <div class="relative pl-6 timeline-item" data-date="{{ despesa.data_emissao|date:'Y-m-d' }}">
                         <div class="absolute w-4 h-4 bg-[#1A9E96] rounded-full -left-[9px] top-1 shadow text-white flex items-center justify-center border-2 border-white"></div>
                         
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-1">
@@ -160,22 +249,35 @@
     </div>
 </div>
 
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const el = document.getElementById("total-gasto-fmt");
+        if(el) {
+            // Usa o valor bruto injetado pelo Python (ex: 6890710.17)
+            const rawStr = el.getAttribute("data-val");
+            const val = parseFloat(rawStr);
+            if(!isNaN(val)) {
+                el.innerText = val.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            }
+        }
+    });
+</script>
 <!-- Isolamento seguro dos dados do Django para o Javascript -->
 <script id="politico-data" type="application/json">
 {
-    "id": "{{ politico.id }}",
+    "id": "{{ politico.id|stringformat:"d" }}",
     "is_following": {{ is_following|yesno:"true,false" }}
 }
 </script>
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script>
 const DetailApp = (function() {
     let politicoChart = null;
     const politicoData = JSON.parse(document.getElementById('politico-data').textContent);
-    const politicoId = politicoData.id;
+    const politicoId = parseInt(politicoData.id, 10);
     let isFollowingState = politicoData.is_following;
     const colorPalette = ['#1A9E96', '#373D3F', '#64748b', '#94a3b8', '#cbd5e1', '#0f766e', '#2dd4bf'];
 
@@ -312,6 +414,32 @@ const DetailApp = (function() {
             }
         },
 
+        
+        filterTimeline: function() {
+            const startVal = document.getElementById('timeline-start').value;
+            const endVal = document.getElementById('timeline-end').value;
+            const items = document.querySelectorAll('.timeline-item');
+            
+            const startDate = startVal ? new Date(startVal) : null;
+            const endDate = endVal ? new Date(endVal) : null;
+            
+            items.forEach(item => {
+                const itemDateStr = item.getAttribute('data-date');
+                if (!itemDateStr) {
+                    item.style.display = 'block';
+                    return;
+                }
+                
+                const itemDate = new Date(itemDateStr);
+                let show = true;
+                
+                if (startDate && itemDate < startDate) show = false;
+                if (endDate && itemDate > endDate) show = false;
+                
+                item.style.display = show ? 'block' : 'none';
+            });
+        },
+
         loadPoliticoChart: async function() {
             toggleLoader(true);
             const l2 = document.getElementById('loader-politico-line');
@@ -383,7 +511,13 @@ const DetailApp = (function() {
                         }
                     }
                 }
-            } catch (e) {
+                        } catch (e) {
+                console.error('Error loading charts:', e);
+                const err = document.createElement('div');
+                err.className = 'text-red-500 p-4 text-xs';
+                err.textContent = 'Erro ao renderizar gráfico: ' + e.message;
+                document.getElementById('chart-politico-cat').parentElement.appendChild(err);
+                
                 toggleLoader(false);
                 if (l2) l2.classList.add('hidden');
             }

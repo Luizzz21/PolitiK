@@ -30,8 +30,8 @@
         {% if assinaturas %}
         <div class="space-y-4">
             {% for assinatura in assinaturas %}
-            <div class="flex items-center justify-between bg-[#333a3f] rounded p-4 group" id="assinatura-card-{{ assinatura.id }}">
-                <a href="/politico/{{ assinatura.mandato.politico.id }}/" class="flex-1 min-w-0">
+            <div class="flex items-center justify-between bg-[#333a3f] rounded p-4 group" id="assinatura-card-{{ assinatura.id|stringformat:"d" }}">
+                <a href="/politico/{{ assinatura.mandato.politico.id|stringformat:"d" }}/" class="flex-1 min-w-0">
                     <p class="text-sm font-black text-white uppercase group-hover:text-[#1e9b95] transition-colors">
                         {{ assinatura.mandato.politico.nome_civil }}
                     </p>
@@ -42,7 +42,7 @@
                         Seguindo desde {{ assinatura.criado_em|date:"d/m/Y" }}
                     </p>
                 </a>
-                <button onclick="removerAssinatura({{ assinatura.id }}, this)"
+                <button onclick="removerAssinatura({{ assinatura.id|stringformat:"d" }}, this)"
                     class="ml-4 px-4 py-2 text-xs font-bold text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors uppercase tracking-wider">
                     Deixar de Seguir
                 </button>

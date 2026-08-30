@@ -9,7 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django_ratelimit.decorators import ratelimit
 
-from django.db.models import Sum, Count, Q, Avg
+from django.db.models import Sum, Count, Count, Max, Q, Q, Avg
 from django.utils import timezone
 from datetime import datetime, timedelta
 import json
@@ -20,7 +20,7 @@ from .auth import create_access_token, create_refresh_token, set_jwt_cookies, cl
 
 from .models import (
     Politico, Mandato, Fornecedor, Despesa, Alerta, Usuario, Assinatura,
-    Configuracao
+    Configuracao, DespesaCampanha, EmendaParlamentar, CampanhaEleitoral
 )
 from .business_rules import NegocioRegras
 
@@ -30,28 +30,43 @@ User = get_user_model()
 # Frontend Views
 
 def ranking_view(request):
-    sort_by = request.GET.get('sort', '-score_risco')
-    allowed_sorts = ['-score_risco', '-total_gasto', 'politico__nome_civil']
-    if sort_by not in allowed_sorts:
-        sort_by = '-score_risco'
+    """View para o Ranking de Risco"""
+    busca = request.GET.get('q', '')
+    esfera = request.GET.get('esfera', '')
+    
+    queryset = Politico.objects.prefetch_related('mandatos').all()
+    
+    if busca:
+        queryset = queryset.filter(nome_civil__icontains=busca)
+    
+    if esfera:
+        queryset = queryset.filter(mandatos__esfera=esfera)
         
-    mandatos = Mandato.objects.select_related('politico').all()
+    politicos_raw = queryset.annotate(
+        total_gasto=Sum('mandatos__despesas__valor_liquidado'),
+        max_score=Max('mandatos__score_risco')
+    ).filter(total_gasto__gt=0).order_by('-total_gasto')[:100]
+
+
+    politicos = []
+    for p in politicos_raw:
+        # Tenta pegar o mandato principal (o mais recente)
+        mandato_principal = p.mandatos.first()
+        cargo_str = mandato_principal.cargo if mandato_principal else 'Agente Público'
+        esfera_str = mandato_principal.esfera if mandato_principal else '-'
+        
+        politicos.append({
+            'id': p.id,
+            'nome_civil': p.nome_civil,
+            'cargo_display': cargo_str,
+            'esfera_display': esfera_str,
+            'score_risco': p.max_score or 0,
+            'total_gasto': p.total_gasto or 0,
+            'foto_url': p.foto_url if hasattr(p, 'foto_url') else None,
+        })
+
     
-    # Calculate sum if needed, but we already have total_gasto property possibly? Wait, models.py has a field or property?
-    # Let's annotate total_gasto if it's not a field.
-    from django.db.models import Sum, F, DecimalField, Value
-    from django.db.models.functions import Coalesce
-    from decimal import Decimal
-    
-    mandatos = mandatos.annotate(
-        total_gasto=Coalesce(Sum('despesas__valor_liquidado'), Value(Decimal('0.00')), output_field=DecimalField())
-    ).order_by(sort_by)[:100]
-    
-    context = {
-        'mandatos': mandatos,
-        'current_sort': sort_by
-    }
-    return render(request, 'ranking.html', context)
+    return render(request, 'ranking.html', {'politicos': politicos, 'busca': busca, 'esfera_filtro': esfera})
 
 
 def despesas_view(request):
@@ -60,7 +75,7 @@ def despesas_view(request):
 def index(request):
     """Main dashboard view (RF06 - Dynamic Filters)"""
     try:
-        ano_atual_config = Configuracao.objects.get(chave='ANO_ATUAL')
+        ano_atual_config = Configuracao, DespesaCampanha, EmendaParlamentar, CampanhaEleitoral.objects.get(chave='ANO_ATUAL')
         ano_atual = int(ano_atual_config.valor_numerico)
     except:
         ano_atual = datetime.now().year
@@ -93,6 +108,8 @@ def index(request):
     
     categorias = list(NegocioRegras.CATEGORIAS_ABSOLUTAS.keys()) + ['Outros']
 
+    cargos_count = Mandato.objects.values('cargo').annotate(count=Count('id')).order_by('-count')
+
     context = {
         'stats': stats,
         'top_gastadores': top_gastadores,
@@ -101,6 +118,7 @@ def index(request):
         'anos': sorted(anos),
         'categorias': sorted(categorias),
         'ano_atual': ano_atual,
+        'cargos_count': cargos_count,
     }
 
     return render(request, 'index.html', context)
@@ -109,6 +127,39 @@ def fornecedor_detail(request, cnpj):
     """Perfil individual do fornecedor e análise de risco (Frente 3.4)"""
     fornecedor = get_object_or_404(Fornecedor, cnpj=cnpj)
     
+    # Busca dados na Receita Federal (BrasilAPI) se estiverem vazios
+    if not getattr(fornecedor, 'cnae_fiscal', None) or fornecedor.cnae_fiscal == '':
+        try:
+            import requests
+            resp = requests.get(f'https://brasilapi.com.br/api/cnpj/v1/{fornecedor.cnpj}', timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                fornecedor.razao_social = data.get('razao_social', fornecedor.razao_social)
+                fornecedor.nome_fantasia = data.get('nome_fantasia')
+                fornecedor.cnae_fiscal = f"{data.get('cnae_fiscal', '')} - {data.get('cnae_fiscal_descricao', '')}"
+                fornecedor.natureza_juridica = data.get('natureza_juridica')
+                fornecedor.capital_social = data.get('capital_social')
+                
+                situacao = data.get('descricao_situacao_cadastral', '')
+                if situacao in [c[1].upper() for c in Fornecedor.SITUACAO_CADASTRAL_CHOICES]:
+                    fornecedor.situacao_cadastral = situacao.upper()
+                else:
+                    fornecedor.situacao_cadastral = 'NULO'
+                    
+                fornecedor.uf = data.get('uf')
+                fornecedor.municipio = data.get('municipio')
+                fornecedor.logradouro = data.get('logradouro')
+                fornecedor.numero = data.get('numero')
+                fornecedor.bairro = data.get('bairro')
+                fornecedor.save()
+            elif resp.status_code == 404:
+                # CNPJ not found or invalid type, mark as DADOS INDISPONÍVEIS so we don't query again
+                fornecedor.cnae_fiscal = "DADOS INDISPONÍVEIS (RECEITA FEDERAL)"
+                fornecedor.save()
+        except Exception as e:
+            # Em caso de timeout ou erro de rede, não travamos a página do usuário
+            pass
+            
     # Agregações de despesas
     despesas = Despesa.objects.filter(fornecedor=fornecedor).select_related('mandato__politico')
     
@@ -122,6 +173,8 @@ def fornecedor_detail(request, cnpj):
         'mandato__esfera'
     ).annotate(total_pago=Sum('valor_liquidado')).order_by('-total_pago')
     
+    cargos_count = Mandato.objects.values('cargo').annotate(count=Count('id')).order_by('-count')
+
     context = {
         'fornecedor': fornecedor,
         'total_recebido': total_recebido,
@@ -135,23 +188,57 @@ def pagina_politico(request, politico_id):
     politico = get_object_or_404(Politico, id=politico_id)
     mandatos = Mandato.objects.filter(politico=politico)
     
-    despesas_politico = (
-        Despesa.objects
-        .select_related('fornecedor')
-        .filter(mandato__in=mandatos)
-        .order_by('-data_emissao')
-    )
+    # Campanhas Eleitorais
+    campanhas = CampanhaEleitoral.objects.filter(politico=politico).order_by('-ano')
+    
+    # Query parâmetros para filtro
+    busca = request.GET.get('q', '')
+    
+    despesas_query = Despesa.objects.select_related('fornecedor').filter(mandato__in=mandatos).order_by('-data_emissao')
+    if busca:
+        from django.db.models import Q
+        despesas_query = despesas_query.filter(Q(fornecedor__nome__icontains=busca) | Q(categoria__icontains=busca))
+    
+    # Limitar para as últimas 200 despesas para performance na página
+    despesas_politico = despesas_query[:200]
+    
+    # Despesas de campanha do politico
+    despesas_campanha = DespesaCampanha.objects.select_related('fornecedor', 'campanha').filter(campanha__in=campanhas).order_by('-data_despesa')[:200]
+    
+    # Emendas Parlamentares
+    emendas = EmendaParlamentar.objects.filter(politico=politico).order_by('-ano', '-valor_pago')
+    
+    # Alertas que compoem o Score de Risco
+    alertas = Alerta.objects.filter(mandato__in=mandatos, resolvido=False).order_by('-criado_em')
+    
+    from django.db.models import Max
+    max_score = mandatos.aggregate(Max('score_risco'))['score_risco__max'] or 0
     
     is_following = False
     user, error = authenticate_request(request)
     if user:
         is_following = Assinatura.objects.filter(usuario=user, mandato__in=mandatos, ativo=True).exists()
 
+    cargos_count = Mandato.objects.values('cargo').annotate(count=Count('id')).order_by('-count')
+
+    # Calculate total gasto
+    from django.db.models import Sum
+    total_gasto = Despesa.objects.filter(mandato__in=mandatos).aggregate(total=Sum('valor_liquidado'))['total'] or 0
+    total_gasto_raw = str(total_gasto)
+
     context = {
         'politico': politico,
         'mandatos': mandatos,
+        'campanhas': campanhas,
         'despesas_politico': despesas_politico,
+        'despesas_campanha': despesas_campanha,
+        'emendas': emendas,
         'is_following': is_following,
+        'busca': busca,
+        'max_score': max_score,
+        'alertas': alertas,
+        'total_gasto': total_gasto,
+        'total_gasto_raw': total_gasto_raw,
     }
 
     return render(request, 'politico_detail.html', context)
@@ -193,11 +280,24 @@ def api_exportar_despesas_csv(request):
 
 def pagina_alertas(request):
     """View for alerts management"""
+    busca = request.GET.get('q', '')
+    severidade = request.GET.get('severidade', '')
+
     alertas = Alerta.objects.select_related('mandato', 'mandato__politico').order_by('-criado_em')
+
+    if busca:
+        alertas = alertas.filter(mandato__politico__nome_civil__icontains=busca)
+    
+    if severidade:
+        alertas = alertas.filter(severidade=severidade)
+
+    cargos_count = Mandato.objects.values('cargo').annotate(count=Count('id')).order_by('-count')
 
     context = {
         'alertas': alertas,
         'alertas_nao_resolvidos': alertas.filter(resolvido=False),
+        'busca': busca,
+        'severidade_filtro': severidade,
     }
 
     return render(request, 'alertas.html', context)
@@ -213,6 +313,8 @@ def pagina_minha_conta(request):
     ).select_related(
         'mandato', 'mandato__politico'
     ).order_by('-criado_em')
+
+    cargos_count = Mandato.objects.values('cargo').annotate(count=Count('id')).order_by('-count')
 
     context = {
         'user': user,
@@ -374,11 +476,17 @@ def api_estatisticas(request):
     
     stats_mensal = {str(m['mes']): float(m['total'] or 0) for m in meses_existentes if m['mes']}
 
-    fornecedores_existentes = queryset.filter(fornecedor__isnull=False).values('fornecedor__razao_social').annotate(
+    fornecedores_existentes = queryset.filter(fornecedor__isnull=False).values('fornecedor__razao_social', 'fornecedor__cnpj').annotate(
         total=Sum('valor_liquidado')
     ).order_by('-total')[:5]
     
-    stats_fornecedores = {f['fornecedor__razao_social']: float(f['total'] or 0) for f in fornecedores_existentes}
+    stats_fornecedores = []
+    for f in fornecedores_existentes:
+        stats_fornecedores.append({
+            'razao_social': f['fornecedor__razao_social'],
+            'cnpj': f['fornecedor__cnpj'],
+            'total': float(f['total'] or 0)
+        })
 
     # Calcula Top Políticos dinâmico (Frente 3)
     top_politicos_query = queryset.values(
@@ -725,4 +833,118 @@ def api_express_auth(request):
     except Exception as e:
         print(traceback.format_exc())
         return JsonResponse({'success': False, 'message': f'Erro interno: {str(e)}'}, status=400)
+
+
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from .models import ClienteAPI
+
+@csrf_exempt
+def api_b2b_fornecedor_risk(request, cnpj):
+    """Endpoint B2B Avançado: Venda de dados de Risco/PEP e análise eleitoral"""
+    api_key = request.headers.get('X-API-KEY')
+    if not api_key:
+        return JsonResponse({'error': 'Acesso Negado. Forneça o header X-API-KEY.'}, status=401)
+    
+    try:
+        cliente = ClienteAPI.objects.get(api_key=api_key, is_active=True)
+    except ClienteAPI.DoesNotExist:
+        return JsonResponse({'error': 'API Key inválida ou inativa.'}, status=403)
+        
+    # Rate limit
+    if cliente.requisicoes_mes >= cliente.limite_requisicoes:
+        return JsonResponse({'error': 'Limite de requisições excedido. Faça upgrade do seu plano.'}, status=429)
+        
+    cliente.requisicoes_mes += 1
+    cliente.save()
+
+    try:
+        forn = Fornecedor.objects.get(cnpj=cnpj)
+        despesas = Despesa.objects.filter(fornecedor=forn)
+        total = despesas.aggregate(Sum('valor_liquidado'))['valor_liquidado__sum'] or 0
+        
+        # Breakdown por ano para capturar anos eleitorais (2022, 2024, 2026)
+        gastos_por_ano = list(despesas.values('ano').annotate(total=Sum('valor_liquidado')).order_by('-ano'))
+        
+        # Filtro de gastos sensíveis (ex: Publicidade em anos de eleição)
+        gastos_publicidade = despesas.filter(categoria__icontains='publicidade').aggregate(Sum('valor_liquidado'))['valor_liquidado__sum'] or 0
+        
+        # Pagadores
+        top_pagadores = list(despesas.values('mandato__politico__nome_civil', 'mandato__esfera', 'mandato__cargo').annotate(total_pago=Sum('valor_liquidado')).order_by('-total_pago')[:3])
+        
+        # Alertas
+        alertas = Alerta.objects.filter(mandato__despesas__fornecedor=forn, resolvido=False).distinct().count()
+        
+        data = {
+            'cnpj': forn.cnpj,
+            'razao_social': forn.razao_social,
+            'cnae_fiscal': forn.cnae_fiscal,
+            'situacao_receita': forn.situacao_cadastral,
+            'risco_politico': {
+                'total_recebido_governo': float(total),
+                'score_risco_interno': forn.risco_score if hasattr(forn, 'risco_score') else (alertas * 20),
+                'alertas_ativos_envolvidos': alertas,
+            },
+            'analise_avancada': {
+                'gastos_por_ano': {str(g['ano']): float(g['total']) for g in gastos_por_ano},
+                'total_publicidade_graficas': float(gastos_publicidade),
+                'flag_ano_eleitoral_sensivel': any(g['ano'] in [2022, 2024, 2026] and gastos_publicidade > 0 for g in gastos_por_ano),
+                'principais_politicos_envolvidos': top_pagadores
+            }
+        }
+        return JsonResponse({'status': 'success', 'data': data}, status=200)
+    except Fornecedor.DoesNotExist:
+        return JsonResponse({'status': 'not_found', 'message': 'Este CNPJ não possui histórico de recebimento de verba política na nossa base.'}, status=404)
+
+from django.core.paginator import Paginator
+from django.db.models.functions import Coalesce
+from django.db.models import F, DecimalField
+
+def fornecedores_view(request):
+    """Página que lista as empresas beneficiadas ordenadas por volume de dinheiro recebido."""
+    busca = request.GET.get('q', '')
+    filtro_uf = request.GET.get('uf', '')
+    filtro_situacao = request.GET.get('situacao', '')
+    
+    queryset = Fornecedor.objects.all()
+    
+    if busca:
+        queryset = queryset.filter(Q(razao_social__icontains=busca) | Q(cnpj__icontains=busca))
+    
+    if filtro_uf:
+        queryset = queryset.filter(uf=filtro_uf)
+        
+    if filtro_situacao:
+        queryset = queryset.filter(situacao_cadastral=filtro_situacao)
+        
+    # Anota o total recebido (Cota Parlamentar + Fundo Eleitoral)
+    queryset = queryset.annotate(
+        total_mandato=Coalesce(Sum('despesas__valor_liquidado'), 0.0, output_field=DecimalField()),
+        total_campanha=Coalesce(Sum('despesas_campanha__valor'), 0.0, output_field=DecimalField())
+    ).annotate(
+        total_recebido=F('total_mandato') + F('total_campanha')
+    ).filter(total_recebido__gt=0).order_by('-total_recebido')
+    
+    # Paginação (20 por página)
+    paginator = Paginator(queryset, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Opções para os filtros
+    ufs = Fornecedor.objects.exclude(uf__isnull=True).exclude(uf='').values_list('uf', flat=True).distinct().order_by('uf')
+    situacoes = [c[1].upper() for c in Fornecedor.SITUACAO_CADASTRAL_CHOICES]
+    
+    cargos_count = Mandato.objects.values('cargo').annotate(count=Count('id')).order_by('-count')
+
+    context = {
+        'page_obj': page_obj,
+        'busca': busca,
+        'filtro_uf': filtro_uf,
+        'filtro_situacao': filtro_situacao,
+        'ufs': ufs,
+        'situacoes': situacoes
+    }
+    
+    return render(request, 'fornecedores.html', context)
+
 

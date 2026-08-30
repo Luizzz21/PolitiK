@@ -150,25 +150,26 @@ def baixar_e_processar_camara(ano):
     logger.info(f"Extraindo Câmara dos Deputados: {ano}")
 
     try:
-        response = requests.get(url, timeout=30, stream=True)
-        if response.status_code != 200:
-            logger.warning(f"Arquivo da Câmara não disponível para {ano}.")
-            return 0, 0
-
-        content = b"".join(response.iter_content(chunk_size=8192))
-        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+        import subprocess
+        zip_path = f"camara_{ano}.zip"
+        subprocess.run(["powershell", "-Command", f"Invoke-WebRequest -Uri '{url}' -OutFile '{zip_path}'"], check=True)
+        
+        with zipfile.ZipFile(zip_path) as zf:
             csv_file = [f for f in zf.namelist() if f.lower().endswith('.csv')][0]
             with zf.open(csv_file) as f:
                 try:
-                    text = f.read().decode('utf-8')
+                    text_csv = f.read().decode('utf-8')
                 except UnicodeDecodeError:
-                    text = f.read().decode('ISO-8859-1')
+                    text_csv = f.read().decode('ISO-8859-1')
+        
+        if os.path.exists(zip_path):
+            os.remove(zip_path)
 
         # Remove BOM if present
-            if text.startswith('﻿'):
-                text = text[1:]
+            if text_csv.startswith('﻿'):
+                text_csv = text_csv[1:]
 
-        reader = csv.DictReader(io.StringIO(text), delimiter=';')
+        reader = csv.DictReader(io.StringIO(text_csv), delimiter=';')
         processados = 0
 
         for linha in reader:
@@ -181,8 +182,8 @@ def baixar_e_processar_camara(ano):
             if not nome_parlamentar or 'LID' in nome_parlamentar[:8]:
                 continue
 
-            politico = get_or_create_politico(linha.get('txNomeParlamentar'), linha.get('siglaPartido'), linha.get('siglaUf'))
-            mandato = get_or_create_mandato(politico, 'Deputado Federal', 'Federal', linha.get('siglaUf'), ano)
+            politico = get_or_create_politico(linha.get('txNomeParlamentar'), linha.get('sgPartido'), linha.get('sgUF'))
+            mandato = get_or_create_mandato(politico, 'Deputado Federal', 'Federal', linha.get('sgUF'), ano)
             fornecedor = get_or_create_fornecedor(linha.get('txtCNPJCPF'), linha.get('txtFornecedor'))
 
             mes = int(linha.get('datEmissao')[5:7]) if linha.get('datEmissao') and len(linha.get('datEmissao')) >= 7 else 1
@@ -206,13 +207,16 @@ def baixar_e_processar_senado(ano):
     logger.info(f"Extraindo Senado Federal: {ano}")
 
     try:
-        response = requests.get(url, timeout=30)
-        if response.status_code != 200:
-            logger.warning(f"Arquivo do Senado não disponível para {ano}.")
-            return 0, 0
-
-        text = response.content.decode('ISO-8859-1')
-        linhas = text.split('\n')
+        import subprocess
+        csv_path = f"senado_{ano}.csv"
+        subprocess.run(["powershell", "-Command", f"Invoke-WebRequest -Uri '{url}' -OutFile '{csv_path}'"], check=True)
+        
+        with open(csv_path, 'r', encoding='ISO-8859-1') as f:
+            text_csv2 = f.read()
+            
+        if os.path.exists(csv_path):
+            os.remove(csv_path)
+        linhas = text_csv2.split('\n')
         if len(linhas) > 1 and "SENADO FEDERAL" in linhas[0]:
             linhas = linhas[1:]
             
@@ -256,18 +260,19 @@ def baixar_e_processar_executivo(ano, mes="01"):
     logger.info(f"Extraindo Cartões Corporativos do Executivo: {ano}/{mes}")
 
     try:
-        response = requests.get(url, timeout=30, stream=True)
-        if response.status_code != 200:
-            logger.warning(f"Arquivo CPGF não disponível para {ano}/{mes}.")
-            return 0, 0
-
-        content = b"".join(response.iter_content(chunk_size=8192))
-        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+        import subprocess
+        zip_path = f"cpgf_{ano}_{mes}.zip"
+        subprocess.run(["powershell", "-Command", f"Invoke-WebRequest -Uri '{url}' -OutFile '{zip_path}'"], check=True)
+        
+        with zipfile.ZipFile(zip_path) as zf:
             csv_file = [f for f in zf.namelist() if f.lower().endswith('.csv')][0]
             with zf.open(csv_file) as f:
-                text = f.read().decode('ISO-8859-1')
+                text_csv3 = f.read().decode('ISO-8859-1')
+                
+        if os.path.exists(zip_path):
+            os.remove(zip_path)
 
-        reader = csv.DictReader(io.StringIO(text), delimiter=';')
+        reader = csv.DictReader(io.StringIO(text_csv3), delimiter=';')
         processados = 0
 
         for linha in reader:
@@ -324,13 +329,21 @@ class Command(BaseCommand):
         total_geral = 0
         try:
             for ano in anos_historico:
-                logger.info(f"\n--- Iniciando Extração do Ano: {ano} ---")
+                logger.info(f"--- Iniciando Extração do Ano: {ano} ---")
                 
                 p_camara, _ = baixar_e_processar_camara(ano)
                 p_senado, _ = baixar_e_processar_senado(ano)
-                p_executivo, _ = baixar_e_processar_executivo(ano, "01")
                 
-                total_geral += (p_camara + p_senado + p_executivo)
+                # Executivo é dividido por mês. Puxar até o mês atual se for ano corrente.
+                current_year = 2026 # Contexto simulado
+                max_month = 8 if ano == current_year else 12
+                p_executivo_total = 0
+                for mes in range(1, max_month + 1):
+                    mes_str = f"{mes:02d}"
+                    p_exec, _ = baixar_e_processar_executivo(ano, mes_str)
+                    p_executivo_total += p_exec
+                
+                total_geral += (p_camara + p_senado + p_executivo_total)
                 time.sleep(2)
 
             logger.info("=" * 60)

@@ -421,3 +421,156 @@ class Configuracao(models.Model):
 
 
 # Remover a classe NegocioRegras duplicada
+import uuid
+
+class ClienteAPI(models.Model):
+    """
+    Empresas B2B que assinam a API para análise de Risco (PEP / Background Check)
+    """
+    nome_empresa = models.CharField(max_length=255, verbose_name="Nome da Empresa")
+    api_key = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, verbose_name="Chave de Acesso (API Key)")
+    is_active = models.BooleanField(default=True, verbose_name="Ativo?")
+    requisicoes_mes = models.IntegerField(default=0, verbose_name="Requisições este mês")
+    limite_requisicoes = models.IntegerField(default=1000, verbose_name="Limite de requisições")
+    criado_em = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return self.nome_empresa
+
+
+# =========================================================
+# MÓDULO TSE (ELEIÇÕES, FUNDO ELEITORAL E CAMPANHA)
+# =========================================================
+
+class CampanhaEleitoral(models.Model):
+    """
+    Representa a candidatura de um político em um ano específico.
+    """
+    politico = models.ForeignKey(Politico, on_delete=models.CASCADE, related_name='campanhas', verbose_name="Político")
+    ano = models.IntegerField(verbose_name="Ano da Eleição")
+    cargo_disputado = models.CharField(max_length=100, verbose_name="Cargo Disputado")
+    uf_disputada = models.CharField(max_length=2, blank=True, null=True, verbose_name="UF Disputada")
+    numero_urna = models.CharField(max_length=10, blank=True, null=True, verbose_name="Número na Urna")
+    
+    RESULTADO_CHOICES = [
+        ('ELEITO', 'Eleito'),
+        ('NAO_ELEITO', 'Não Eleito'),
+        ('SUPLENTE', 'Suplente'),
+        ('RENUNCIA', 'Renúncia'),
+        ('INDEFERIDO', 'Indeferido'),
+        ('OUTRO', 'Outro'),
+    ]
+    resultado = models.CharField(max_length=30, choices=RESULTADO_CHOICES, default='OUTRO', verbose_name="Resultado")
+    
+    limite_gastos = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, verbose_name="Limite de Gastos")
+    
+    criado_em = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Campanha Eleitoral"
+        verbose_name_plural = "Campanhas Eleitorais"
+        db_table = 'campanha_eleitoral'
+        unique_together = ['politico', 'ano']
+
+    def __str__(self):
+        return f"{self.politico.nome_civil} - {self.cargo_disputado} ({self.ano})"
+
+
+class ReceitaCampanha(models.Model):
+    """
+    Dinheiro arrecadado pela campanha (Fundo Eleitoral, Doações).
+    """
+    campanha = models.ForeignKey(CampanhaEleitoral, on_delete=models.CASCADE, related_name='receitas', verbose_name="Campanha")
+    
+    ORIGEM_CHOICES = [
+        ('FEFC', 'Fundo Especial (FEFC)'),
+        ('FUNDO_PARTIDARIO', 'Fundo Partidário'),
+        ('DOACAO_PF', 'Doação Pessoa Física'),
+        ('DOACAO_PJ', 'Doação Pessoa Jurídica'),
+        ('PROPRIO', 'Recursos Próprios'),
+        ('OUTRO', 'Outros Recursos'),
+    ]
+    origem = models.CharField(max_length=30, choices=ORIGEM_CHOICES, default='OUTRO', verbose_name="Origem do Recurso")
+    
+    cpf_cnpj_doador = models.CharField(max_length=14, blank=True, null=True, verbose_name="CPF/CNPJ do Doador")
+    nome_doador = models.CharField(max_length=255, blank=True, null=True, verbose_name="Nome do Doador")
+    
+    valor = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Valor Recebido")
+    data_recebimento = models.DateField(blank=True, null=True, verbose_name="Data do Recebimento")
+    
+    criado_em = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Receita de Campanha"
+        verbose_name_plural = "Receitas de Campanha"
+        db_table = 'receita_campanha'
+        indexes = [
+            models.Index(fields=['cpf_cnpj_doador']),
+            models.Index(fields=['origem']),
+        ]
+
+    def __str__(self):
+        return f"{self.campanha} - {self.get_origem_display()}: R$ {self.valor}"
+
+
+class DespesaCampanha(models.Model):
+    """
+    Gastos efetuados durante a campanha eleitoral.
+    """
+    campanha = models.ForeignKey(CampanhaEleitoral, on_delete=models.CASCADE, related_name='despesas', verbose_name="Campanha")
+    
+    # Crucial link to our Fornecedor table (empresas)
+    fornecedor = models.ForeignKey(Fornecedor, on_delete=models.SET_NULL, null=True, blank=True, related_name='despesas_campanha', verbose_name="Fornecedor Contratado")
+    
+    cpf_cnpj_fornecedor = models.CharField(max_length=14, blank=True, null=True, verbose_name="CPF/CNPJ na Nota")
+    nome_fornecedor = models.CharField(max_length=255, blank=True, null=True, verbose_name="Nome na Nota")
+    
+    tipo_despesa = models.CharField(max_length=255, verbose_name="Tipo de Despesa")
+    valor = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Valor Gasto")
+    data_despesa = models.DateField(blank=True, null=True, verbose_name="Data da Despesa")
+    
+    criado_em = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Despesa de Campanha"
+        verbose_name_plural = "Despesas de Campanha"
+        db_table = 'despesa_campanha'
+        indexes = [
+            models.Index(fields=['cpf_cnpj_fornecedor']),
+            models.Index(fields=['tipo_despesa']),
+        ]
+
+    def __str__(self):
+        return f"{self.campanha} - {self.tipo_despesa}: R$ {self.valor}"
+
+
+
+class EmendaParlamentar(models.Model):
+    TIPO_CHOICES = [
+        ('PIX', 'Transferência Especial (Emenda Pix)'),
+        ('INDIVIDUAL', 'Emenda Individual (RP6)'),
+        ('BANCADA', 'Emenda de Bancada (RP7)'),
+        ('RELATOR', 'Emenda de Relator (RP9)'),
+        ('COMISSAO', 'Emenda de Comissão (RP8)'),
+        ('OUTROS', 'Outros Tipos')
+    ]
+
+    politico = models.ForeignKey(Politico, on_delete=models.CASCADE, related_name='emendas')
+    ano = models.IntegerField()
+    tipo_emenda = models.CharField(max_length=50, choices=TIPO_CHOICES, default='OUTROS')
+    numero_emenda = models.CharField(max_length=100, null=True, blank=True)
+    beneficiario = models.CharField(max_length=255, help_text='Município, Estado ou Entidade')
+    uf_beneficiario = models.CharField(max_length=2, null=True, blank=True)
+    valor_empenhado = models.DecimalField(max_digits=15, decimal_places=2, default=0.0)
+    valor_pago = models.DecimalField(max_digits=15, decimal_places=2, default=0.0)
+    data_atualizacao = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['politico', 'ano']),
+            models.Index(fields=['tipo_emenda']),
+        ]
+
+    def __str__(self):
+        return f"{self.tipo_emenda} - {self.beneficiario} (R$ {self.valor_pago})"
+

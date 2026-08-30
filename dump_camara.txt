@@ -1,0 +1,26 @@
+def baixar_e_processar_camara(ano):
+    """Extrai dados da Cota Parlamentar (CEAP) dos Deputados Federais"""
+    url = f"https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip"
+    logger.info(f"Extraindo Câmara dos Deputados: {ano}")
+
+    try:
+        import subprocess
+        zip_path = f"camara_{ano}.zip"
+        subprocess.run(["powershell", "-Command", f"Invoke-WebRequest -Uri '{url}' -OutFile '{zip_path}'"], check=True)
+        
+        with zipfile.ZipFile(zip_path) as zf:
+            csv_file = [f for f in zf.namelist() if f.lower().endswith('.csv')][0]
+            with zf.open(csv_file) as f:
+                try:
+                    text_csv = f.read().decode('utf-8')
+                except UnicodeDecodeError:
+                    text_csv = f.read().decode('ISO-8859-1')
+        
+        if os.path.exists(zip_path):
+            os.remove(zip_path)
+
+        # Remove BOM if present
+            if text.startswith('﻿'):
+                text = text[1:]
+
+        reader = csv.DictReader(io.StringIO(text_csv), delimiter=';')

@@ -37,6 +37,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'politik_django.middleware.JWTSlidingSessionMiddleware',
 ]
 
 ROOT_URLCONF = 'politik_django.urls'
