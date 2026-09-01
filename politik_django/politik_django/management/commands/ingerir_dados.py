@@ -40,10 +40,15 @@ def get_or_create_politico(nome_civil, partido=None, uf=None):
     if not nome_civil:
         raise ValueError("Nome civil é obrigatório.")
         
-    politico, created = Politico.objects.get_or_create(
-        nome_civil=nome_civil.strip().upper(),
-        defaults={'partido': partido, 'uf': uf}
-    )
+    nome_civil = nome_civil.strip().upper()
+    try:
+        politico, created = Politico.objects.get_or_create(
+            nome_civil=nome_civil,
+            defaults={'partido': partido, 'uf': uf}
+        )
+    except Politico.MultipleObjectsReturned:
+        politico = Politico.objects.filter(nome_civil=nome_civil).first()
+        created = False
     
     if not created and (politico.partido != partido or politico.uf != uf):
         if partido: politico.partido = partido
@@ -161,9 +166,13 @@ def baixar_e_processar_camara(ano):
     logger.info(f"Extraindo Câmara dos Deputados: {ano}")
 
     try:
-        import subprocess
         zip_path = f"camara_{ano}.zip"
-        subprocess.run(["powershell", "-Command", f"Invoke-WebRequest -Uri '{url}' -OutFile '{zip_path}'"], check=True)
+        
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        with open(zip_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
         
         with zipfile.ZipFile(zip_path) as zf:
             csv_file = [f for f in zf.namelist() if f.lower().endswith('.csv')][0]
@@ -279,9 +288,13 @@ def baixar_e_processar_executivo(ano, mes="01"):
     logger.info(f"Extraindo Cartões Corporativos do Executivo: {ano}/{mes}")
 
     try:
-        import subprocess
         zip_path = f"cpgf_{ano}_{mes}.zip"
-        subprocess.run(["powershell", "-Command", f"Invoke-WebRequest -Uri '{url}' -OutFile '{zip_path}'"], check=True)
+        
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        with open(zip_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
         
         with zipfile.ZipFile(zip_path) as zf:
             csv_file = [f for f in zf.namelist() if f.lower().endswith('.csv')][0]
