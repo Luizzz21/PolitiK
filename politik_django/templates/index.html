@@ -1,25 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}PolitiK - Analytics Nacional
-<!-- Modal de Cargos -->
-<div id="modal-cargos" class="fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-[200] flex items-center justify-center hidden" onclick="if(event.target === this) this.classList.add('hidden')">
-    <div class="bg-white rounded-lg p-6 max-w-sm w-full shadow-2xl relative">
-        <button onclick="document.getElementById('modal-cargos').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-        </button>
-        <h2 class="text-lg font-black text-[#333a3f] mb-4 border-b border-gray-100 pb-2">Composição da Base</h2>
-        <div class="space-y-3 max-h-64 overflow-y-auto pr-2">
-            {% for item in cargos_count %}
-            <div class="flex justify-between items-center border-b border-gray-50 pb-2 last:border-0 last:pb-0">
-                <span class="text-sm text-gray-600 font-medium">{{ item.cargo }}</span>
-                <span class="text-xs font-bold text-[#1A9E96] bg-[#e0f2f1] px-2 py-0.5 rounded-full">{{ item.count }}</span>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-
-{% endblock %}
+{% block title %}PolitiK - Analytics Nacional{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -212,7 +193,7 @@
             </button>
         </div>
         
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" id="top-gastadores-container">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" id="top-gastadores-container">
             <div class="col-span-full py-16 flex flex-col items-center justify-center text-center">
                 <div class="w-8 h-8 border-4 border-[#1e9b95] border-t-transparent rounded-full animate-spin mb-4"></div>
                 <p class="text-sm font-bold text-gray-700">Analisando movimentações...</p>

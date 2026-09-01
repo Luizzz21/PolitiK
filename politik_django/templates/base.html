@@ -131,8 +131,33 @@
                     <div id="nav-auth-container" class="flex items-center gap-4">
                         <!-- Injetado via JS -->
                     </div>
+
+                    <!-- Mobile Menu Button -->
+                    <div class="sm:hidden flex items-center ml-2">
+                        <button id="mobile-menu-btn" class="text-gray-400 hover:text-white focus:outline-none p-2 rounded-md hover:bg-gray-800">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                        </button>
+                    </div>
                 </div>
 
+            </div>
+        </div>
+
+        <!-- Mobile Menu (Hidden by default) -->
+        <div id="mobile-menu" class="sm:hidden hidden bg-gray-900 border-t border-gray-800">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                <a href="/" class="block px-3 py-2 rounded-md text-base font-bold text-gray-300 hover:text-white hover:bg-gray-800">Dashboard</a>
+                <a href="/despesas/" class="block px-3 py-2 rounded-md text-base font-bold text-gray-300 hover:text-white hover:bg-gray-800">Despesas</a>
+                <a href="/presidencia/" class="block px-3 py-2 rounded-md text-base font-bold text-gray-300 hover:text-white hover:bg-gray-800">Presidência</a>
+                <a href="/ranking/" class="block px-3 py-2 rounded-md text-base font-bold text-gray-300 hover:text-white hover:bg-gray-800">Ranking</a>
+                <a href="/alertas/" class="block px-3 py-2 rounded-md text-base font-bold text-gray-300 hover:text-white hover:bg-gray-800">Alertas</a>
+                <a href="/fornecedores/" class="block px-3 py-2 rounded-md text-base font-bold text-gray-300 hover:text-white hover:bg-gray-800">Fornecedores</a>
+                <a href="/comunidade/" class="block px-3 py-2 rounded-md text-base font-bold text-yellow-500 hover:text-yellow-400 hover:bg-gray-800">APIs Estaduais</a>
+            </div>
+            <!-- Mobile Search -->
+            <div class="px-4 py-4 border-t border-gray-800 relative">
+                <input type="text" id="mobile-search-input" placeholder="Pesquisar político..." class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-[#2d3748] text-gray-300 placeholder-gray-400 focus:outline-none focus:bg-white focus:text-[#373D3F]">
+                <div id="mobile-search-dropdown" class="absolute z-50 w-[90%] bg-white mt-1 rounded-md shadow-2xl border border-gray-200 hidden max-h-72 overflow-y-auto left-4 right-4"></div>
             </div>
         </div>
     </nav>
@@ -325,8 +350,8 @@
     </script>
 
     <!-- Global Auth Modal -->
-    <div id="global-auth-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[120] flex items-center justify-center">
-        <div class="bg-white rounded-md p-8 max-w-md w-full shadow-2xl relative">
+    <div id="global-auth-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[120] flex items-center justify-center p-4">
+        <div class="bg-white rounded-md p-6 sm:p-8 max-w-md w-full shadow-2xl relative">
         <button onclick="window.location.href='/'" class="absolute top-4 right-4 text-gray-400 hover:text-[#1A9E96] text-xs font-bold uppercase flex items-center gap-1">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
             Sair
@@ -365,7 +390,7 @@ const AuthApp = {
                 `;
             } else {
                 container.innerHTML = `
-                    <button onclick="AuthApp.openModal()" class="text-[#1A9E96] border border-[#1A9E96] hover:bg-[#1A9E96] hover:text-white px-3 py-1 rounded text-sm font-bold transition-colors">Login / Cadastro</button>
+                    <button onclick="AuthApp.openModal()" class="text-[#1A9E96] border border-[#1A9E96] hover:bg-[#1A9E96] hover:text-white px-2 py-1 sm:px-3 sm:py-1 rounded text-xs sm:text-sm font-bold transition-colors">Login</button>
                 `;
             }
         }
@@ -406,5 +431,57 @@ const AuthApp = {
 document.addEventListener('DOMContentLoaded', () => AuthApp.init());
 </script>
 
+    <!-- Mobile Scripts UI / UX -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Mobile Menu Toggle
+            const mobileBtn = document.getElementById('mobile-menu-btn');
+            const mobileMenu = document.getElementById('mobile-menu');
+            if(mobileBtn && mobileMenu) {
+                mobileBtn.addEventListener('click', () => {
+                    mobileMenu.classList.toggle('hidden');
+                });
+            }
+
+            // Mobile Search Setup
+            const mobileSearchInput = document.getElementById('mobile-search-input');
+            const mobileSearchDropdown = document.getElementById('mobile-search-dropdown');
+            if (mobileSearchInput && mobileSearchDropdown) {
+                let mDebounceTimer;
+                mobileSearchInput.addEventListener('input', (e) => {
+                    clearTimeout(mDebounceTimer);
+                    const query = e.target.value.trim();
+                    if (query.length < 2) {
+                        mobileSearchDropdown.classList.add('hidden');
+                        return;
+                    }
+                    mDebounceTimer = setTimeout(async () => {
+                        try {
+                            const res = await fetch('/api/pesquisa/?q=' + encodeURIComponent(query));
+                            const data = await res.json();
+                            if (data.success && data.resultados.length > 0) {
+                                mobileSearchDropdown.innerHTML = data.resultados.map(r => 
+                                    '<a href="/politico/' + r.id + '/" class="block px-4 py-3 border-b border-gray-50 hover:bg-gray-50">' +
+                                        '<div class="font-bold text-gray-800">' + r.nome + '</div>' +
+                                        '<div class="text-xs text-gray-500 uppercase tracking-widest mt-1">' + r.cargo + ' - ' + r.estado + ' (' + r.partido + ')</div>' +
+                                    '</a>'
+                                ).join('');
+                                mobileSearchDropdown.classList.remove('hidden');
+                            } else {
+                                mobileSearchDropdown.innerHTML = '<div class="p-4 text-sm text-gray-500 font-bold text-center">Nenhum resultado encontrado</div>';
+                                mobileSearchDropdown.classList.remove('hidden');
+                            }
+                        } catch (e) { console.error(e); }
+                    }, 300);
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!mobileSearchInput.contains(e.target) && !mobileSearchDropdown.contains(e.target)) {
+                        mobileSearchDropdown.classList.add('hidden');
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>
