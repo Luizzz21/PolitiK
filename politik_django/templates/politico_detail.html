@@ -62,9 +62,9 @@
     <div class="bg-[#2d3748] rounded shadow-xl p-6 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center border-t-4 border-[#1A9E96] relative overflow-hidden">
                 <div class="z-10">
             <h1 class="text-3xl font-black text-white uppercase tracking-tight">{{ politico.nome_civil }}</h1>
-            <div class="flex items-center gap-3 text-sm font-bold text-gray-400 mt-2 tracking-widest uppercase">
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm font-bold text-gray-400 mt-2 tracking-widest uppercase">
                 <span class="text-[#1A9E96]">{{ politico.partido|default:"SEM PARTIDO" }}</span>
-                <span class="w-1.5 h-1.5 bg-gray-500 rounded-full"></span>
+                <span class="w-1.5 h-1.5 bg-gray-500 rounded-full hidden sm:block"></span>
                 <span>{{ politico.uf|default:"BR" }}</span>
                 <span class="w-1.5 h-1.5 bg-gray-500 rounded-full"></span>
                 <span class="{% if max_score > 70 %}text-red-500{% elif max_score > 30 %}text-yellow-500{% else %}text-green-500{% endif %}">SCORE {{ max_score|floatformat:0 }}/100</span>

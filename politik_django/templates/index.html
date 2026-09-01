@@ -70,9 +70,12 @@
     }
 </style>
 
+{% endblock %}
+
+{% block content %}
 <!-- Modal de Cargos -->
-<div id="modal-cargos" class="fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-[200] flex items-center justify-center hidden" onclick="if(event.target === this) this.classList.add('hidden')">
-    <div class="bg-white rounded-lg p-6 max-w-sm w-full shadow-2xl relative">
+<div id="modal-cargos" class="fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-[200] flex items-center justify-center hidden p-4" onclick="if(event.target === this) this.classList.add('hidden')">
+    <div class="bg-white rounded-lg p-6 max-w-sm w-full shadow-2xl relative mx-auto">
         <button onclick="document.getElementById('modal-cargos').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
@@ -88,9 +91,6 @@
     </div>
 </div>
 
-{% endblock %}
-
-{% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
     <header class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
@@ -101,28 +101,26 @@
             <p class="text-sm text-gray-400 mt-1">Inteligência de Dados sobre Gastos Públicos</p>
         </div>
         
-        <div class="flex items-center gap-4 w-full lg:w-auto">
-            <div class="flex gap-2 bg-white p-1.5 rounded flex-wrap sm:flex-nowrap shadow-lg">
-                <select id="filter-escopo" class="px-3 py-1.5 text-sm font-bold text-gray-700 bg-transparent outline-none border-r border-gray-200 min-w-[120px]">
+        <div class="w-full lg:w-auto mt-4 lg:mt-0">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-nowrap gap-2 bg-white p-2 rounded shadow-lg w-full">
+                <select id="filter-escopo" class="w-full px-3 py-2 text-sm font-bold text-gray-700 bg-transparent outline-none lg:border-r border-gray-200 focus:bg-gray-50">
                     <option value="">Nacional (Tudo)</option>
                     <option value="Federal">Federal</option>
                     <option value="Estadual">Estadual</option>
                     <option value="Municipal">Municipal</option>
                 </select>
-                <select id="filter-cargo" class="px-3 py-1.5 text-sm font-bold text-gray-700 bg-transparent outline-none border-r border-gray-200 min-w-[120px]">
+                <select id="filter-cargo" class="w-full px-3 py-2 text-sm font-bold text-gray-700 bg-transparent outline-none lg:border-r border-gray-200 focus:bg-gray-50">
                     <option value="">Todos Cargos</option>
                     {% for cargo in cargos %}<option value="{{ cargo }}">{{ cargo }}</option>{% endfor %}
                 </select>
-                <select id="filter-categoria" class="px-3 py-1.5 text-sm font-bold text-gray-700 bg-transparent outline-none border-r border-gray-200 min-w-[120px]">
+                <select id="filter-categoria" class="w-full px-3 py-2 text-sm font-bold text-gray-700 bg-transparent outline-none lg:border-r border-gray-200 focus:bg-gray-50">
                     <option value="">Categorias</option>
                     {% for cat in categorias %}<option value="{{ cat }}">{{ cat }}</option>{% endfor %}
                 </select>
-                <select id="filter-ano" class="px-3 py-1.5 text-sm font-bold text-gray-700 bg-transparent outline-none min-w-[80px]">
-                    {% for ano in anos %}<option value="{{ ano|stringformat:"d" }}" {% if ano == ano_atual %}selected{% endif %}>{{ ano|stringformat:"d" }}</option>{% endfor %}
+                <select id="filter-ano" class="w-full px-3 py-2 text-sm font-bold text-gray-700 bg-transparent outline-none focus:bg-gray-50">
+                    {% for ano in anos %}<option value="{{ ano|stringformat:'d' }}" {% if ano == ano_atual %}selected{% endif %}>{{ ano|stringformat:'d' }}</option>{% endfor %}
                 </select>
-                <button onclick="DashboardApp.applyFilters()" class="px-4 py-1.5 bg-[#1e9b95] text-white rounded font-bold hover:bg-[#15807d] transition-colors text-sm ml-1">
-                    Filtrar
-                </button>
+                <button onclick="DashboardApp.applyFilters()" class="bg-[#1e9b95] hover:bg-[#15807d] text-white px-4 py-2 rounded text-sm font-bold shadow-md transition-colors w-full sm:col-span-2 lg:w-auto lg:col-span-1">Filtrar</button>
             </div>
         </div>
     </header>
@@ -235,8 +233,8 @@
 
     
     <!-- Modal Informativo do Score de Risco -->
-    <div id="info-score-modal" class="modal-overlay z-[130]">
-        <div class="bg-white rounded-md p-8 max-w-2xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto" id="info-score-card">
+    <div id="info-score-modal" class="modal-overlay z-[130] p-4">
+        <div class="bg-white rounded-md p-4 sm:p-8 max-w-2xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto mx-auto" id="info-score-card">
             <button onclick="DashboardApp.closeInfoModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>

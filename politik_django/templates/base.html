@@ -60,12 +60,12 @@
             <div class="flex justify-between items-center h-16">
                 
                 <!-- Links de Navegação e Logo -->
-                <div class="flex items-center gap-8">
+                <div class="flex items-center gap-4 sm:gap-8 shrink-0">
                     <a href="/" class="flex items-center gap-2 group">
-                        <img src="{% static 'img/logo.png' %}" alt="PolitiK Logo" class="h-8 object-contain bg-white rounded shadow p-0.5">
+                        <img src="{% static 'img/logo.png' %}" alt="PolitiK Logo" class="h-6 sm:h-8 object-contain bg-white rounded shadow p-0.5">
                     </a>
                     
-                    <div class="hidden sm:flex sm:space-x-6 h-16">
+                    <div class="hidden sm:flex sm:space-x-4 lg:space-x-6 h-16">
                         <!-- Lógica Crítica: request.path define qual aba recebe a linha turquesa -->
                         <a href="/" class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold transition-colors {% if request.path == '/' %}border-[#1A9E96] text-white{% else %}border-transparent text-gray-400 hover:text-white hover:border-gray-500{% endif %}">
                             Dashboard
@@ -80,32 +80,32 @@
                             Ranking
                         </a>
                         <a href="/alertas/" class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold transition-colors {% if '/alertas/' in request.path %}border-[#1A9E96] text-white{% else %}border-transparent text-gray-400 hover:text-white hover:border-gray-500{% endif %}">
-                            Central de Alertas
+                            Alertas
                         </a>
                         <a href="/fornecedores/" class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold transition-colors {% if '/fornecedores/' in request.path %}border-[#1A9E96] text-white{% else %}border-transparent text-gray-400 hover:text-white hover:border-gray-500{% endif %}">
                             Fornecedores
                         </a>
                         <a href="/comunidade/" class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold transition-colors {% if '/comunidade/' in request.path %}border-[#f59e0b] text-[#f59e0b]{% else %}border-transparent text-[#fbbf24] hover:text-[#fcd34d] hover:border-[#fcd34d]{% endif %}">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
-                            APIs Estaduais
+                            <svg class="w-4 h-4 mr-1 hidden lg:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                            APIs
                         </a>
                     </div>
                 </div>
 
                 <!-- Barra de Pesquisa Global -->
-                <div class="flex-1 max-w-md ml-8 relative hidden md:block">
+                <div class="flex-1 max-w-md ml-4 lg:ml-8 relative hidden md:block">
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                         </div>
-                        <input type="text" id="global-search-input" placeholder="Pesquisar agente político..." class="block w-full pl-10 pr-3 py-2 border border-gray-600 rounded-md leading-5 bg-[#2d3748] text-gray-300 placeholder-gray-400 focus:outline-none focus:bg-white focus:text-[#373D3F] focus:border-[#1A9E96] focus:ring-2 focus:ring-[#1A9E96] sm:text-sm transition-all" autocomplete="off">
+                        <input type="text" id="global-search-input" placeholder="Pesquisar político..." class="block w-full pl-10 pr-3 py-2 border border-gray-600 rounded-md leading-5 bg-[#2d3748] text-gray-300 placeholder-gray-400 focus:outline-none focus:bg-white focus:text-[#373D3F] focus:border-[#1A9E96] focus:ring-2 focus:ring-[#1A9E96] sm:text-sm transition-all" autocomplete="off">
                     </div>
                     <!-- Menu Suspenso de Resultados -->
                     <div id="global-search-dropdown" class="absolute z-50 w-full bg-white mt-1 rounded-md shadow-2xl border border-gray-200 hidden max-h-72 overflow-y-auto"></div>
                 </div>
 
                 <!-- Notificações e Usuário -->
-                <div class="flex items-center gap-4 ml-8">
+                <div class="flex items-center gap-2 sm:gap-4 ml-2 sm:ml-4 lg:ml-8 shrink-0">
                     <!-- Sino de Notificação -->
                     <div class="relative cursor-pointer group" id="notification-bell">
                         <svg class="w-6 h-6 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -114,27 +114,27 @@
                         <span id="notification-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full hidden">0</span>
                         
                         <!-- Dropdown de Notificações -->
-                        <div id="notification-dropdown" class="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-xl border border-gray-200 hidden z-50">
+                        <div id="notification-dropdown" class="absolute right-0 mt-2 w-72 sm:w-80 bg-white rounded-md shadow-xl border border-gray-200 hidden z-50">
                             <div class="p-3 border-b border-gray-100 font-bold text-gray-700 bg-gray-50 flex justify-between">
-                                Notificações Recentes
+                                Notificações
                             </div>
                             <div id="notification-list" class="max-h-72 overflow-y-auto">
                                 <div class="p-4 text-sm text-gray-500 text-center">Carregando...</div>
                             </div>
                             <div class="p-2 border-t border-gray-100 text-center">
-                                <a href="/alertas/" class="text-xs font-bold text-[#1A9E96] hover:underline">Ver todos os alertas</a>
+                                <a href="/alertas/" class="text-xs font-bold text-[#1A9E96] hover:underline">Ver todos</a>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Auth Container -->
-                    <div id="nav-auth-container" class="flex items-center gap-4">
+                    <div id="nav-auth-container" class="flex items-center gap-2 sm:gap-4">
                         <!-- Injetado via JS -->
                     </div>
 
                     <!-- Mobile Menu Button -->
-                    <div class="sm:hidden flex items-center ml-2">
-                        <button id="mobile-menu-btn" class="text-gray-400 hover:text-white focus:outline-none p-2 rounded-md hover:bg-gray-800">
+                    <div class="sm:hidden flex items-center">
+                        <button id="mobile-menu-btn" class="text-gray-400 hover:text-white focus:outline-none p-1 sm:p-2 rounded-md hover:bg-gray-800">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                         </button>
                     </div>
