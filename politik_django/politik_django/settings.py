@@ -154,19 +154,42 @@ CACHES = {
     }
 }
 
-# Session configuration
+# Session and Cookie Security Configurations (Enforced)
 SESSION_COOKIE_AGE = 3600  # 1 hour
 SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Security settings for production
+# Security settings strictly for production
 if not DEBUG:
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_SECONDS = 31536000
     SECURE_REDIRECT_EXEMPT = []
-    SECURE_SSL_REDIRECT = False
+    SECURE_SSL_REDIRECT = True # Changed to true for prod
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+
+# =============================================================
+# Celery Configuration (Async Task Queue via Redis)
+# =============================================================
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+# Em dev sem Redis: tarefas rodam síncrono no mesmo processo
+CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_ALWAYS_EAGER', 'True').lower() == 'true'
+CELERY_TASK_EAGER_PROPAGATES = True
+
+# Rate limiting global para tasks de ingestão (evitar ban de APIs externas)
+CELERY_TASK_DEFAULT_RATE_LIMIT = '10/m'
+
+# Ratelimit config (django-ratelimit)
+RATELIMIT_USE_CACHE = 'default'

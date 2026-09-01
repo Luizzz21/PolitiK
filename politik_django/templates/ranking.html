@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-    <header class="mb-6 border-b border-gray-600 pb-4 flex flex-col md:flex-row justify-between items-end gap-4">
+    <header class="mb-4 border-b border-gray-600 pb-4 flex flex-col md:flex-row justify-between items-end gap-4">
         <div>
             <h1 class="text-2xl font-black text-white tracking-tight uppercase">Ranking de Políticos</h1>
             <p class="text-sm text-gray-400 mt-1">Acompanhe quem mais gasta e quem apresenta maior risco de irregularidades.</p>
@@ -17,6 +17,20 @@
             </select>
         </div>
     </header>
+
+    <!-- Tabs de Escopo -->
+    <div class="mb-6 flex space-x-1 bg-[#1a1f23] p-1 rounded-lg w-fit border border-gray-700">
+        <button onclick="window.location.href='?escopo='" class="tab-escopo px-6 py-2 text-sm font-bold rounded-md transition-all {% if not current_escopo %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Nacional</button>
+        <button onclick="window.location.href='?escopo=Federal'" class="tab-escopo px-6 py-2 text-sm font-bold rounded-md transition-all {% if current_escopo == 'Federal' %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Federal</button>
+        <button onclick="window.location.href='?escopo=Estadual'" class="tab-escopo px-6 py-2 text-sm font-bold rounded-md transition-all {% if current_escopo == 'Estadual' %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Estadual</button>
+        <button onclick="window.location.href='?escopo=Municipal'" class="tab-escopo px-6 py-2 text-sm font-bold rounded-md transition-all {% if current_escopo == 'Municipal' %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Municipal</button>
+    </div>
+    
+    <!-- Espaço Publicitário - Ranking Banner -->
+    <div class="bg-[#1a1f23] border border-dashed border-gray-600 rounded flex flex-col items-center justify-center text-center p-4 min-h-[90px] text-gray-500 text-xs uppercase tracking-widest font-black mb-6">
+        <span>Anúncio</span>
+        <!-- Código do Google AdSense entrará aqui (ins class="adsbygoogle") -->
+    </div>
 
     <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200">
         <div class="overflow-x-auto">

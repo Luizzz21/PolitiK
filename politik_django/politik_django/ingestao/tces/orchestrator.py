@@ -104,7 +104,7 @@ def save_mandates_to_db(mandates: List[Dict]) -> int:
     """
     Save collected mandates to Django models.
 
-    Creates Politico and Mandato instances.
+    Creates Politico and Mandato instances using the correct model fields.
     Returns the number of successfully saved records.
     """
     try:
@@ -116,36 +116,47 @@ def save_mandates_to_db(mandates: List[Dict]) -> int:
     saved = 0
     for mandate_data in mandates:
         try:
-            cpf = mandate_data.get("cpf", "")
-            if not cpf:
-                # Skip if no CPF
+            nome = mandate_data.get("nome", "")
+            if not nome:
                 continue
 
-            # Get or create politico
+            # Get or create politico using nome_civil (the actual field)
             politico, created = Politico.objects.get_or_create(
-                cpf=cpf,
+                nome_civil=nome.strip().upper(),
                 defaults={
-                    "nome": mandate_data.get("nome", ""),
+                    "partido": mandate_data.get("partido"),
+                    "uf": mandate_data.get("uf"),
                 },
             )
 
             if not created:
-                # Update name if changed
-                if mandate_data.get("nome") and politico.nome != mandate_data["nome"]:
-                    politico.nome = mandate_data["nome"]
+                # Update partido/uf if changed
+                updated = False
+                if mandate_data.get("partido") and politico.partido != mandate_data["partido"]:
+                    politico.partido = mandate_data["partido"]
+                    updated = True
+                if mandate_data.get("uf") and politico.uf != mandate_data["uf"]:
+                    politico.uf = mandate_data["uf"]
+                    updated = True
+                if updated:
                     politico.save()
 
-            # Create or update mandato
+            # Determine cargo and esfera from the data
+            cargo = mandate_data.get("cargo", "Deputado Estadual")
+            esfera = mandate_data.get("esfera", "Estadual")
+            ano = mandate_data.get("ano_exercicio") or mandate_data.get("ano")
+            estado_uf = mandate_data.get("uf")
+
+            # Create or update mandato using the actual model fields
             Mandato.objects.update_or_create(
                 politico=politico,
-                cargo=mandate_data.get("cargo", ""),
-                uf=mandate_data.get("uf", ""),
-                municipio=mandate_data.get("municipio"),
-                ano_exercicio=mandate_data.get("ano_exercicio"),
+                cargo=cargo,
+                ano_inicio=ano,
                 defaults={
-                    "tipo": mandate_data.get("tipo", ""),
-                    "status": mandate_data.get("status", "ativo"),
-                    "fonte": mandate_data.get("fonte", ""),
+                    "esfera": esfera,
+                    "estado_uf": estado_uf,
+                    "municipio": mandate_data.get("municipio"),
+                    "ano_fim": ano,
                 },
             )
             saved += 1

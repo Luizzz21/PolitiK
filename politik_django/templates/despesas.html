@@ -32,22 +32,30 @@
             <h3 class="font-black text-[#373D3F] uppercase tracking-widest text-xs mb-2">Filtros de Busca</h3>
             
             <div>
+                <label class="block text-xs font-bold text-gray-600 mb-1">Escopo</label>
+                <div class="flex flex-col gap-1">
+                    <button onclick="setEscopo('')" id="tab-escopo-todos" class="tab-escopo text-left px-3 py-1.5 text-sm font-bold rounded bg-[#1A9E96] text-white">Nacional</button>
+                    <button onclick="setEscopo('Federal')" id="tab-escopo-federal" class="tab-escopo text-left px-3 py-1.5 text-sm font-bold rounded text-gray-500 hover:bg-gray-200">Federal</button>
+                    <button onclick="setEscopo('Estadual')" id="tab-escopo-estadual" class="tab-escopo text-left px-3 py-1.5 text-sm font-bold rounded text-gray-500 hover:bg-gray-200">Estadual</button>
+                    <button onclick="setEscopo('Municipal')" id="tab-escopo-municipal" class="tab-escopo text-left px-3 py-1.5 text-sm font-bold rounded text-gray-500 hover:bg-gray-200">Municipal</button>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-600 mb-1">Período Específico</label>
+                <div class="flex gap-2">
+                    <input type="date" id="filter-data-inicio" class="w-1/2 px-2 py-2 text-xs border border-gray-300 rounded outline-none focus:border-[#1A9E96]">
+                    <input type="date" id="filter-data-fim" class="w-1/2 px-2 py-2 text-xs border border-gray-300 rounded outline-none focus:border-[#1A9E96]">
+                </div>
+            </div>
+
+            <div>
                 <label class="block text-xs font-bold text-gray-600 mb-1">Ano</label>
                 <select id="filter-ano" class="w-full px-3 py-2 text-sm border border-gray-300 rounded outline-none">
                     <option value="">Todos</option>
                     <option value="2026">2026</option>
                     <option value="2025">2025</option>
                     <option value="2024">2024</option>
-                </select>
-            </div>
-            
-            <div>
-                <label class="block text-xs font-bold text-gray-600 mb-1">Esfera</label>
-                <select id="filter-esfera" class="w-full px-3 py-2 text-sm border border-gray-300 rounded outline-none">
-                    <option value="">Nacional</option>
-                    <option value="Federal">Federal</option>
-                    <option value="Estadual">Estadual</option>
-                    <option value="Municipal">Municipal</option>
                 </select>
             </div>
             
@@ -112,6 +120,28 @@
 <script>
     let currentPage = 1;
     let totalPages = 1;
+    let currentEscopo = '';
+
+    function setEscopo(escopo) {
+        currentEscopo = escopo;
+        document.querySelectorAll('.tab-escopo').forEach(t => {
+            t.classList.remove('bg-[#1A9E96]', 'text-white');
+            t.classList.add('text-gray-500', 'hover:bg-gray-200');
+        });
+        
+        let tabId = 'tab-escopo-todos';
+        if (escopo.toLowerCase() === 'federal') tabId = 'tab-escopo-federal';
+        if (escopo.toLowerCase() === 'estadual') tabId = 'tab-escopo-estadual';
+        if (escopo.toLowerCase() === 'municipal') tabId = 'tab-escopo-municipal';
+        
+        const activeTab = document.getElementById(tabId);
+        if (activeTab) {
+            activeTab.classList.remove('text-gray-500', 'hover:bg-gray-200');
+            activeTab.classList.add('bg-[#1A9E96]', 'text-white');
+        }
+        
+        fetchDespesas(1);
+    }
 
     function formatCurrency(value) {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -131,8 +161,10 @@
             page: page,
             limit: 50,
             ano: document.getElementById('filter-ano').value,
-            esfera: document.getElementById('filter-esfera').value,
-            categoria: document.getElementById('filter-categoria').value
+            escopo: currentEscopo,
+            categoria: document.getElementById('filter-categoria').value,
+            data_inicio: document.getElementById('filter-data-inicio').value,
+            data_fim: document.getElementById('filter-data-fim').value
         });
         
         try {
@@ -142,6 +174,17 @@
             const tbody = document.getElementById('despesas-tbody');
             tbody.innerHTML = '';
             
+            if (data.success === false) {
+                // Timeout fallback / erro customizado amigável
+                tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-500 font-bold">${data.message}</td></tr>`;
+                document.getElementById('total-records').textContent = 0;
+                document.getElementById('page-info').textContent = 'Página 1 de 1';
+                document.getElementById('btn-prev').disabled = true;
+                document.getElementById('btn-next').disabled = true;
+                document.getElementById('loading-overlay').style.display = 'none';
+                return;
+            }
+
             if(data.despesas && data.despesas.length > 0) {
                 data.despesas.forEach(d => {
                     const tr = document.createElement('tr');

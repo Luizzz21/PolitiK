@@ -3,8 +3,8 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="PolitiK - Plataforma de Transparência Pública para monitoramento de gastos políticos">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="description" content="PolitiK - Plataforma de Transparência Pública para monitoramento de gastos políticos e detecção de corrupção.">
     <title>{% block title %}PolitiK - Transparência Pública{% endblock %}</title>
 
     <!-- Fonts -->
@@ -31,11 +31,14 @@
         }
     </script>
     
-    <!-- CSS Global do Tema Dark Slate -->
+    <!-- CSS Global do Tema Dark Slate (Aprofundado para Psicologia Social de Investigação) -->
     <style>
         :root {
-            --color-grafite: #373D3F;
-            --color-turquesa: #1A9E96;
+            /* Fundo escuro profundo (Autoridade, Foco, Investigação) */
+            --color-grafite: #0F172A; 
+            /* Teal escuro e verde esmeralda (Transparência, Dinheiro, Confiança) */
+            --color-turquesa: #10B981; 
+            --color-navbar: #1E293B;
         }
         body {
             background-color: var(--color-grafite) !important;
@@ -43,7 +46,7 @@
         }
         /* Correção de Contraste Global: Fundos claros devem ter texto escuro por padrão */
         .bg-white, .bg-gray-50, .bg-gray-100, .bg-red-50, .bg-orange-50 {
-            color: #1f2937; /* text-gray-800 */
+            color: #0F172A; 
         }
     </style>
     
@@ -52,7 +55,7 @@
 <body class="font-sans antialiased min-h-screen flex flex-col">
     
     <!-- NAVBAR GLOBAL COM BUSCA INTEGRADA E ESTADO DINÂMICO -->
-    <nav class="border-b border-[#373D3F] sticky top-0 z-50 shadow-sm" style="background-color: var(--color-grafite);">
+    <nav class="border-b border-gray-800 sticky top-0 z-50 shadow-md" style="background-color: var(--color-navbar);">
         <div class="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 
@@ -196,7 +199,10 @@
                         const data = await res.json();
                         searchDropdown.innerHTML = '';
                         
-                        if(data && data.politicos && data.politicos.length > 0) {
+                        if (data.success === false) {
+                            searchDropdown.innerHTML = `<div class="px-5 py-4 text-sm text-gray-500">${data.message}</div>`;
+                            searchDropdown.classList.remove('hidden');
+                        } else if(data && data.politicos && data.politicos.length > 0) {
                             data.politicos.forEach(pol => {
                                 const div = document.createElement('div');
                                 div.className = 'px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors';
@@ -215,7 +221,7 @@
                     } catch(e) {
                         console.error("Falha ao consultar a API de busca", e);
                     }
-                }, 300); 
+                }, 350); 
             });
 
             // Fecha o dropdown se clicar fora

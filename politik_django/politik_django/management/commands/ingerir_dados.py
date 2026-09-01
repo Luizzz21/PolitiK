@@ -77,6 +77,17 @@ def get_or_create_fornecedor(cnpj, razao_social):
             'razao_social': str(razao_social)[:250].strip().upper() if razao_social else 'NÃO INFORMADO'
         }
     )
+
+    # Dispara enriquecimento automático via Celery para novos CNPJs
+    if created:
+        try:
+            from politik_django.tasks import enrich_fornecedor_task
+            enrich_fornecedor_task.delay(cnpj_limpo)
+            logger.info(f"[Enrich] CNPJ {cnpj_limpo} novo — task de enriquecimento disparada.")
+        except Exception as e:
+            # Fallback silencioso: não quebra a ingestão se o Celery não estiver rodando
+            logger.warning(f"[Enrich] Não foi possível disparar task para {cnpj_limpo}: {e}")
+
     return fornecedor
 
 @transaction.atomic

@@ -123,8 +123,8 @@ class NegocioRegras:
             return True, f"Empresa com situação cadastral suspeita: {situacao}"
 
         # Verificação 2.1: CNPJ Frio - Empresa com menos de 3 meses faturando alto
-        if fornecedor.data_abertura and data_emissao:
-            dias_abertura = (data_emissao - fornecedor.data_abertura).days
+        if fornecedor.data_inicio_atividade and data_emissao:
+            dias_abertura = (data_emissao - fornecedor.data_inicio_atividade).days
             if 0 <= dias_abertura < 90 and valor_despesa > 5000:
                 return True, f"Empresa recém-criada (aberta há {dias_abertura} dias da emissão) recebendo R$ {valor_despesa:,.2f}"
 
@@ -146,53 +146,69 @@ class NegocioRegras:
         return False, ""
 
     @staticmethod
-    def verificar_triggers_volume(categoria: str, valor: float, descricao: str = "",
+    @staticmethod
+    def _verificar_gatilhos_volume(categoria: str, valor: float, descricao: str,
                                   data_emissao=None, despesa=None) -> Tuple[bool, str, str]:
         """
-        RF05 - Gatilhos de Volume
-        Gera alertas para gastos que ultrapassem limites matemáticos lógicos
-        Retorna (is_triggered, alert_type, message)
+        RF05 - Gatilhos de Volume e Contexto
+        Gera alertas para gastos absurdos (finais de semana, viagens inadequadas, volume impossível)
         """
         if not categoria or valor <= 0:
             return False, "", ""
 
         categoria_upper = categoria.upper()
         descricao_upper = descricao.upper() if descricao else ""
-
-        # Obter limites da configuração
         limites = NegocioRegras._obter_limites_configuracao()
 
-        # 1. Gatilho específico para Combustíveis
-        # Refinado: Volume suspeito = (limite diário) * (dias desde a última nota de combustível)
-        if 'COMBUSTIVEL' in categoria_upper or 'COMBUSTIVEL' in descricao_upper:
-            limite_diario = limites['combustivel_litros_diarios'] * limites['combustivel_preco_medio']
-            dias_acumulados = 1
+        # 1. Combustível: Valor Impossível (Físico)
+        # Uma nota única com valor abusivo ou frota não justificada
+        if 'COMBUSTIVEL' in categoria_upper or 'COMBUSTÍVEL' in categoria_upper:
+            limite_litros = 150 # Litros em um único dia/nota (Impossível para um carro de passeio)
+            preco_medio = limites.get('combustivel_preco_medio', 6.5)
+            limite_nota_absurda = limite_litros * preco_medio # ~ R$ 975,00
             
-            if despesa and despesa.mandato and despesa.data_emissao:
-                from .models import Despesa
-                ultima_despesa = Despesa.objects.filter(
-                    mandato=despesa.mandato,
-                    categoria=despesa.categoria,
-                    data_emissao__lt=despesa.data_emissao
-                ).order_by('-data_emissao').first()
+            if valor > limite_nota_absurda:
+                return True, 'volume', f'Combustível: R$ {valor:.2f} em única nota (Volume fisicamente impossível ou frota não autorizada. Limite sugerido: R$ {limite_nota_absurda:.2f}).'
+
+        # 2. Contexto de Finais de Semana (Sáb/Dom)
+        if data_emissao and hasattr(data_emissao, 'weekday'):
+            if data_emissao.weekday() >= 5: # 5 = Sábado, 6 = Domingo
+                # Categorias que não deveriam ter gastos no Fim de Semana
+                cat_proibidas_fds = ['MATERIAL DE EXPEDIENTE', 'CONSULTORIA', 'LOCAÇÃO DE VEÍCULOS', 'LOCACAO']
+                for cat_p in cat_proibidas_fds:
+                    if cat_p in categoria_upper:
+                        return True, 'anomalia', f'Gasto suspeito em Fim de Semana ({categoria}): R$ {valor:.2f}.'
                 
-                if ultima_despesa and ultima_despesa.data_emissao:
-                    delta = (despesa.data_emissao - ultima_despesa.data_emissao).days
-                    dias_acumulados = max(1, delta)
-                else:
-                    # Se não houver nota anterior, assumimos um acúmulo de 15 dias de tolerância
-                    dias_acumulados = 15
+                # Alimentação exorbitante no Fim de Semana (Banquete)
+                if 'ALIMENTAÇÃO' in categoria_upper or 'ALIMENTACAO' in categoria_upper:
+                    if valor > 300: # Limite muito estrito para refeição de FDS
+                        return True, 'anomalia', f'Alimentação excessiva em Fim de Semana: R$ {valor:.2f}.'
+                
+                # Viagem inadequada (Hospedagem em UF de lazer ou na própria UF no FDS)
+                if 'HOSPEDAGEM' in categoria_upper and despesa and despesa.fornecedor and despesa.mandato:
+                    uf_fornecedor = despesa.fornecedor.uf
+                    uf_mandato = despesa.mandato.estado_uf
+                    # Estados muito turísticos
+                    ufs_turismo = ['RJ', 'BA', 'CE', 'RN', 'AL', 'PE', 'SC']
+                    if uf_fornecedor in ufs_turismo and uf_fornecedor != 'DF' and uf_fornecedor != uf_mandato:
+                        return True, 'anomalia', f'Hospedagem em destino turístico no Fim de Semana ({uf_fornecedor}): R$ {valor:.2f}.'
 
-            limite_total = limite_diario * dias_acumulados
-            if valor > limite_total:
-                return True, 'volume', f'Combustível: R$ {valor:.2f} (Acumulado de {dias_acumulados} dia(s). Limite tolerado: R$ {limite_total:.2f}).'
+        # 3. Viagens Inadequadas (Hospedagem na própria UF para Federais)
+        if 'HOSPEDAGEM' in categoria_upper and despesa and despesa.fornecedor and despesa.mandato:
+            uf_fornecedor = despesa.fornecedor.uf
+            uf_mandato = despesa.mandato.estado_uf
+            cargo_mandato = despesa.mandato.cargo.upper() if despesa.mandato.cargo else ''
+            
+            # Deputado Federal / Senador não deve se hospedar no próprio estado (exceto em viagens pelo interior, mas exige alerta)
+            if uf_fornecedor == uf_mandato and ('FEDERAL' in cargo_mandato or 'SENADOR' in cargo_mandato):
+                return True, 'anomalia', f'Hospedagem na própria base eleitoral ({uf_mandato}): R$ {valor:.2f}.'
 
-        # 2. Gatilho para Emendas Pix
+        # 4. Gatilho para Emendas Pix
         if 'EMENDA' in categoria_upper and 'PIX' in categoria_upper:
             if valor > limites['emendas_pix_mensais']:
                 return True, 'volume', f'Emenda Pix acima do limite mensal: R$ {valor:.2f}'
 
-        # 3. Gatilhos específicos por categoria
+        # 5. Gatilhos fixos de volume excessivo
         gatilhos_categoria = {
             'Material de Expediente': (limites['material_expediente_limite'], 'Material de expediente excessivo'),
             'Consultorias e Pesquisas': (limites['consultorias_limite'], 'Consultoria suspeitamente alta'),
@@ -201,12 +217,12 @@ class NegocioRegras:
             'Salários': (limites['salarios_limite_mensal'], 'Salário acima do limite'),
         }
 
-        if categoria in gatilhos_categoria:
-            limite, mensagem = gatilhos_categoria[categoria]
-            if valor > limite:
-                return True, 'anomalia', f'{mensagem}: R$ {valor:.2f}'
+        for cat, (limite, mensagem) in gatilhos_categoria.items():
+            if cat.upper() in categoria_upper:
+                if valor > limite:
+                    return True, 'volume', f'{mensagem}: R$ {valor:.2f}'
 
-        # 4. Verificação de volume por dia (para despesas diárias)
+        # 6. Limites diários fixos
         if data_emissao:
             limite_diario = NegocioRegras._calcular_limite_diario(categoria, valor)
             if limite_diario and valor > limite_diario:
@@ -219,12 +235,10 @@ class NegocioRegras:
         """
         Calcula limite diário baseado na categoria
         """
-        # Limites diários por categoria (valores aproximados)
         limites_diarios = {
-            'Combustíveis e Lubrificantes': 50 * 6.5,  # 50 litros * R$ 6,5
-            'Alimentação': 200,  # R$ 200/dia (valor razoável)
-            'Hospedagem': 500,   # R$ 500/dia
-            'Locomoção': 300,    # R$ 300/dia
+            'Alimentação': 400,  # Refinado: Custo máximo razoável por dia para refeições de trabalho
+            'Hospedagem': 800,   # Refinado: Custo máximo razoável de diária (sem abusos)
+            'Locomoção': 500,    # Refinado: Uber/Táxi por dia
         }
 
         for cat, limite in limites_diarios.items():
@@ -438,7 +452,7 @@ class NegocioRegras:
                 alertas_gerados.append(alerta)
 
         # 3. RF05 - Verificar triggers de volume
-        is_triggered, tipo_alerta, mensagem = NegocioRegras.verificar_triggers_volume(
+        is_triggered, tipo_alerta, mensagem = NegocioRegras._verificar_gatilhos_volume(
             despesa.categoria,
             float(despesa.valor_liquidado),
             despesa.tipo_verba or despesa.descricao_despesa or '',
@@ -492,22 +506,8 @@ class NegocioRegras:
                     )
                     alertas_gerados.append(alerta)
 
-        # F2.4 - Gasto em Dia Não Útil (Fim de Semana)
-        if despesa.data_emissao:
-            dia_semana = despesa.data_emissao.weekday()
-            # 5 = Sábado, 6 = Domingo
-            if dia_semana in [5, 6] and despesa.categoria not in ['Hospedagem', 'Passagens Aéreas', 'Alimentação', 'Cota Parlamentar']:
-                # Alimentação e hospedagem podem ser válidas. Consultoria/Material em domingo é estranho.
-                alerta, created = Alerta.objects.get_or_create(
-                    mandato=despesa.mandato,
-                    tipo='suspeita',
-                    severidade='media',
-                    titulo='Gasto em Fim de Semana',
-                    descricao=f'Despesa da categoria "{despesa.categoria}" emitida num {"Domingo" if dia_semana == 6 else "Sábado"}.',
-                    valor_real=despesa.valor_liquidado,
-                )
-                alertas_gerados.append(alerta)
-
+        # F2.4 - Gasto em Dia Não Útil (Removido, lógica migrada e refinada no _verificar_gatilhos_volume)
+        
         # F2.5 - Inconsistência Geográfica
         if despesa.fornecedor and despesa.fornecedor.uf and despesa.mandato.estado_uf:
             # Categorias estritamente locais

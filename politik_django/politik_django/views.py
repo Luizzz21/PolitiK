@@ -9,7 +9,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django_ratelimit.decorators import ratelimit
 
-from django.db.models import Sum, Count, Count, Max, Q, Q, Avg
+from django.db.models import Sum, Count, Max, Q, Avg
+from django.db.utils import OperationalError
 from django.utils import timezone
 from datetime import datetime, timedelta
 import json
@@ -32,7 +33,7 @@ User = get_user_model()
 def ranking_view(request):
     """View para o Ranking de Risco"""
     busca = request.GET.get('q', '')
-    esfera = request.GET.get('esfera', '')
+    esfera = request.GET.get('esfera') or request.GET.get('escopo', '')
     
     queryset = Politico.objects.prefetch_related('mandatos').all()
     
@@ -40,7 +41,14 @@ def ranking_view(request):
         queryset = queryset.filter(nome_civil__icontains=busca)
     
     if esfera:
-        queryset = queryset.filter(mandatos__esfera=esfera)
+        if esfera.lower() == 'federal':
+            queryset = queryset.filter(mandatos__esfera__iexact='Federal')
+        elif esfera.lower() == 'estadual':
+            queryset = queryset.filter(mandatos__esfera__iexact='Estadual')
+        elif esfera.lower() == 'municipal':
+            queryset = queryset.filter(mandatos__esfera__iexact='Municipal')
+        else:
+            queryset = queryset.filter(mandatos__esfera=esfera)
         
     politicos_raw = queryset.annotate(
         total_gasto=Sum('mandatos__despesas__valor_liquidado'),
@@ -66,7 +74,7 @@ def ranking_view(request):
         })
 
     
-    return render(request, 'ranking.html', {'politicos': politicos, 'busca': busca, 'esfera_filtro': esfera})
+    return render(request, 'ranking.html', {'politicos': politicos, 'busca': busca, 'esfera_filtro': esfera, 'current_escopo': esfera})
 
 
 def despesas_view(request):
@@ -193,12 +201,20 @@ def pagina_politico(request, politico_id):
     
     # Query parâmetros para filtro
     busca = request.GET.get('q', '')
+    data_inicio = request.GET.get('data_inicio', '')
+    data_fim = request.GET.get('data_fim', '')
     
     despesas_query = Despesa.objects.select_related('fornecedor').filter(mandato__in=mandatos).order_by('-data_emissao')
     if busca:
         from django.db.models import Q
-        despesas_query = despesas_query.filter(Q(fornecedor__nome__icontains=busca) | Q(categoria__icontains=busca))
+        despesas_query = despesas_query.filter(Q(fornecedor__razao_social__icontains=busca) | Q(categoria__icontains=busca))
     
+    # Filter by date if provided
+    if data_inicio:
+        despesas_query = despesas_query.filter(data_emissao__gte=data_inicio)
+    if data_fim:
+        despesas_query = despesas_query.filter(data_emissao__lte=data_fim)
+        
     # Limitar para as últimas 200 despesas para performance na página
     despesas_politico = despesas_query[:200]
     
@@ -235,6 +251,8 @@ def pagina_politico(request, politico_id):
         'emendas': emendas,
         'is_following': is_following,
         'busca': busca,
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
         'max_score': max_score,
         'alertas': alertas,
         'total_gasto': total_gasto,
@@ -325,10 +343,11 @@ def pagina_minha_conta(request):
 # API Endpoints (JSON responses)
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
+@ratelimit(key='ip', rate='30/m', block=True)
 def api_buscar_politicos(request):
     """Buscar políticos com filtros"""
     cargo = request.GET.get('cargo')
-    esfera = request.GET.get('esfera')
+    esfera = request.GET.get('esfera') or request.GET.get('escopo')
     estado = request.GET.get('estado_uf')
     ano = request.GET.get('ano')
     partido = request.GET.get('partido')
@@ -339,7 +358,15 @@ def api_buscar_politicos(request):
     if cargo:
         queryset = queryset.filter(mandatos__cargo=cargo)
     if esfera:
-        queryset = queryset.filter(mandatos__esfera=esfera)
+        # Permite passar escopo (federal, estadual, municipal) ou esfera exata
+        if esfera.lower() == 'federal':
+            queryset = queryset.filter(mandatos__esfera__iexact='Federal')
+        elif esfera.lower() == 'estadual':
+            queryset = queryset.filter(mandatos__esfera__iexact='Estadual')
+        elif esfera.lower() == 'municipal':
+            queryset = queryset.filter(mandatos__esfera__iexact='Municipal')
+        else:
+            queryset = queryset.filter(mandatos__esfera=esfera)
     if estado:
         queryset = queryset.filter(mandatos__estado_uf=estado)
     if partido:
@@ -350,24 +377,32 @@ def api_buscar_politicos(request):
             Q(nome_social__icontains=busca)
         )
 
-    politicos = []
-    for politico in queryset.distinct()[:15]: 
-        politicos.append({
-            'id': politico.id,
-            'nome_civil': politico.nome_civil,
-            'nome_social': politico.nome_social,
-            'partido': politico.partido,
-            'uf': politico.uf,
-            'municipio': politico.municipio,
-        })
+    try:
+        politicos = []
+        for politico in queryset.distinct()[:15]: 
+            politicos.append({
+                'id': politico.id,
+                'nome_civil': politico.nome_civil,
+                'nome_social': politico.nome_social,
+                'partido': politico.partido,
+                'uf': politico.uf,
+                'municipio': politico.municipio,
+            })
 
-    return JsonResponse({
-        'politicos': politicos,
-        'total': len(politicos)
-    })
+        return JsonResponse({
+            'success': True,
+            'politicos': politicos,
+            'total': len(politicos)
+        })
+    except OperationalError:
+        return JsonResponse({
+            'success': False,
+            'message': 'A consulta é muito ampla. Tente refinar sua busca.',
+            'results': []
+        }, status=200)
 
 @csrf_exempt
-@require_http_methods(["GET", "POST"])
+@ratelimit(key='ip', rate='30/m', block=True)
 def api_buscar_despesas(request):
     """Buscar despesas com filtros dinâmicos integrados"""
     mandato_id = request.GET.get('mandato_id')
@@ -379,7 +414,7 @@ def api_buscar_despesas(request):
     min_valor = request.GET.get('min_valor')
     max_valor = request.GET.get('max_valor')
     cargo = request.GET.get('cargo')
-    esfera = request.GET.get('esfera')
+    esfera = request.GET.get('esfera') or request.GET.get('escopo')
 
     queryset = Despesa.objects.select_related('mandato', 'mandato__politico', 'fornecedor')
 
@@ -392,53 +427,75 @@ def api_buscar_despesas(request):
     if min_valor: queryset = queryset.filter(valor_liquidado__gte=min_valor)
     if max_valor: queryset = queryset.filter(valor_liquidado__lte=max_valor)
     if cargo: queryset = queryset.filter(mandato__cargo=cargo)
-    if esfera: queryset = queryset.filter(mandato__esfera=esfera)
+    
+    data_inicio = request.GET.get('data_inicio')
+    data_fim = request.GET.get('data_fim')
+    if data_inicio: queryset = queryset.filter(data_emissao__gte=data_inicio)
+    if data_fim: queryset = queryset.filter(data_emissao__lte=data_fim)
+    
+    if esfera:
+        if esfera.lower() == 'federal':
+            queryset = queryset.filter(mandato__esfera__iexact='Federal')
+        elif esfera.lower() == 'estadual':
+            queryset = queryset.filter(mandato__esfera__iexact='Estadual')
+        elif esfera.lower() == 'municipal':
+            queryset = queryset.filter(mandato__esfera__iexact='Municipal')
+        else:
+            queryset = queryset.filter(mandato__esfera=esfera)
 
     page = int(request.GET.get('page', 1))
     limit = int(request.GET.get('limit', 50))
     offset = (page - 1) * limit
 
-    despesas = queryset[offset:offset + limit]
+    try:
+        despesas = queryset[offset:offset + limit]
 
-    despesas_json = []
-    for despesa in despesas:
-        despesas_json.append({
-            'id': despesa.id,
-            'mandato_id': despesa.mandato_id,
-            'politico_nome': despesa.mandato.politico.nome_civil if despesa.mandato and hasattr(despesa.mandato, 'politico') else 'N/A',
-            'cargo': despesa.mandato.cargo if despesa.mandato else 'N/A',
-            'esfera': despesa.mandato.esfera if despesa.mandato else 'N/A',
-            'categoria': despesa.categoria,
-            'tipo_verba': despesa.tipo_verba,
-            'descricao_despesa': despesa.descricao_despesa,
-            'fornecedor': {
-                'cnpj': despesa.fornecedor.cnpj if hasattr(despesa.fornecedor, 'cnpj') else None,
-                'razao_social': despesa.fornecedor.razao_social if hasattr(despesa.fornecedor, 'razao_social') else None,
-            } if despesa.fornecedor else None,
-            'valor_liquidado': float(despesa.valor_liquidado) if despesa.valor_liquidado else 0.0,
-            'valor_pago': float(despesa.valor_pago) if despesa.valor_pago else None,
-            'data_emissao': despesa.data_emissao.strftime('%Y-%m-%d') if despesa.data_emissao else None,
-            'fonte': despesa.fonte,
-            'ano': despesa.ano,
-            'mes': despesa.mes,
-            'criado_em': despesa.criado_em.isoformat() if despesa.criado_em else None,
+        despesas_json = []
+        for despesa in despesas:
+            despesas_json.append({
+                'id': despesa.id,
+                'mandato_id': despesa.mandato_id,
+                'politico_nome': despesa.mandato.politico.nome_civil if despesa.mandato and hasattr(despesa.mandato, 'politico') else 'N/A',
+                'cargo': despesa.mandato.cargo if despesa.mandato else 'N/A',
+                'esfera': despesa.mandato.esfera if despesa.mandato else 'N/A',
+                'categoria': despesa.categoria,
+                'tipo_verba': despesa.tipo_verba,
+                'descricao_despesa': despesa.descricao_despesa,
+                'fornecedor': {
+                    'cnpj': despesa.fornecedor.cnpj if hasattr(despesa.fornecedor, 'cnpj') else None,
+                    'razao_social': despesa.fornecedor.razao_social if hasattr(despesa.fornecedor, 'razao_social') else None,
+                } if despesa.fornecedor else None,
+                'valor_liquidado': float(despesa.valor_liquidado) if despesa.valor_liquidado else 0.0,
+                'valor_pago': float(despesa.valor_pago) if despesa.valor_pago else None,
+                'data_emissao': despesa.data_emissao.strftime('%Y-%m-%d') if despesa.data_emissao else None,
+                'fonte': despesa.fonte,
+                'ano': despesa.ano,
+                'mes': despesa.mes,
+                'criado_em': despesa.criado_em.isoformat() if despesa.criado_em else None,
+            })
+
+        total = queryset.count()
+
+        return JsonResponse({
+            'success': True,
+            'despesas': despesas_json,
+            'pagination': {
+                'page': page,
+                'limit': limit,
+                'total': total,
+                'pages': (total + limit - 1) // limit,
+            }
         })
-
-    total = queryset.count()
-
-    return JsonResponse({
-        'despesas': despesas_json,
-        'pagination': {
-            'page': page,
-            'limit': limit,
-            'total': total,
-            'pages': (total + limit - 1) // limit,
-        }
-    })
+    except OperationalError:
+        return JsonResponse({
+            'success': False,
+            'message': 'A consulta é muito ampla. Tente refinar sua busca.',
+            'results': []
+        }, status=200)
 
 @csrf_exempt
 @require_http_methods(["GET"])
-@ratelimit(key='ip', rate='10/s', block=True)
+@ratelimit(key='ip', rate='30/m', block=True)
 def api_estatisticas(request):
     """
     Retorna métricas globais e KPIs agregados (RF01, RF02, RNF01).
@@ -447,7 +504,7 @@ def api_estatisticas(request):
     categoria = request.GET.get('categoria')
     fonte = request.GET.get('fonte')
     cargo = request.GET.get('cargo')
-    esfera = request.GET.get('esfera')
+    esfera = request.GET.get('esfera') or request.GET.get('escopo')
     politico_id = request.GET.get('politico_id')
 
     queryset = Despesa.objects.all()
@@ -456,7 +513,17 @@ def api_estatisticas(request):
     if categoria: queryset = queryset.filter(categoria=categoria)
     if fonte: queryset = queryset.filter(fonte=fonte)
     if cargo: queryset = queryset.filter(mandato__cargo=cargo)
-    if esfera: queryset = queryset.filter(mandato__esfera=esfera)
+    
+    if esfera:
+        if esfera.lower() == 'federal':
+            queryset = queryset.filter(mandato__esfera__iexact='Federal')
+        elif esfera.lower() == 'estadual':
+            queryset = queryset.filter(mandato__esfera__iexact='Estadual')
+        elif esfera.lower() == 'municipal':
+            queryset = queryset.filter(mandato__esfera__iexact='Municipal')
+        else:
+            queryset = queryset.filter(mandato__esfera=esfera)
+            
     if politico_id: queryset = queryset.filter(mandato__politico_id=politico_id)
 
     categorias_existentes = queryset.values('categoria').annotate(
@@ -762,6 +829,7 @@ def api_health(request):
 # --- Autenticação JWT (RF07) ---
 @csrf_exempt
 @require_http_methods(["POST"])
+@ratelimit(key='ip', rate='10/m', block=True)
 def api_login(request):
     try:
         data = json.loads(request.body)
@@ -795,6 +863,7 @@ def api_logout(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@ratelimit(key='ip', rate='10/m', block=True)
 def api_express_auth(request):
     try:
         data = json.loads(request.body)

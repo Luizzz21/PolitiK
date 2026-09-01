@@ -208,15 +208,20 @@
             <div class="bg-white rounded shadow-xl p-6">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-200 pb-2 mb-6">
                     <h2 class="text-sm font-bold text-[#373D3F] uppercase tracking-widest">Timeline de Despesas</h2>
-                    <div class="flex items-center gap-2 mt-2 md:mt-0 text-xs">
+                    <form method="GET" action="" class="flex items-center gap-2 mt-2 md:mt-0 text-xs">
+                        <!-- Preservar busca atual se existir -->
+                        {% if busca %}
+                        <input type="hidden" name="q" value="{{ busca }}">
+                        {% endif %}
                         <label class="font-bold text-gray-500">Período:</label>
-                        <input type="date" id="timeline-start" onchange="DetailApp.filterTimeline()" class="border border-gray-300 rounded px-2 py-1 outline-none focus:border-[#1A9E96] text-gray-700 bg-gray-50">
+                        <input type="date" name="data_inicio" id="timeline-start" value="{{ data_inicio }}" class="border border-gray-300 rounded px-2 py-1 outline-none focus:border-[#1A9E96] text-gray-700 bg-gray-50">
                         <span class="text-gray-400">até</span>
-                        <input type="date" id="timeline-end" onchange="DetailApp.filterTimeline()" class="border border-gray-300 rounded px-2 py-1 outline-none focus:border-[#1A9E96] text-gray-700 bg-gray-50">
-                        <button onclick="document.getElementById('timeline-start').value=''; document.getElementById('timeline-end').value=''; DetailApp.filterTimeline();" class="ml-1 text-gray-400 hover:text-red-500 transition-colors" title="Limpar Filtro">
+                        <input type="date" name="data_fim" id="timeline-end" value="{{ data_fim }}" class="border border-gray-300 rounded px-2 py-1 outline-none focus:border-[#1A9E96] text-gray-700 bg-gray-50">
+                        <button type="submit" class="ml-1 px-3 py-1 bg-[#1A9E96] text-white rounded font-bold hover:bg-[#15807d] transition-colors shadow-sm">Buscar</button>
+                        <a href="?" class="ml-1 text-gray-400 hover:text-red-500 transition-colors" title="Limpar Filtro">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                        </button>
-                    </div>
+                        </a>
+                    </form>
                 </div>
                 <div class="relative border-l-2 border-[#1A9E96]/30 ml-3 space-y-8 pb-4">
                     {% for despesa in despesas_politico %}
@@ -415,30 +420,8 @@ const DetailApp = (function() {
         },
 
         
-        filterTimeline: function() {
-            const startVal = document.getElementById('timeline-start').value;
-            const endVal = document.getElementById('timeline-end').value;
-            const items = document.querySelectorAll('.timeline-item');
-            
-            const startDate = startVal ? new Date(startVal) : null;
-            const endDate = endVal ? new Date(endVal) : null;
-            
-            items.forEach(item => {
-                const itemDateStr = item.getAttribute('data-date');
-                if (!itemDateStr) {
-                    item.style.display = 'block';
-                    return;
-                }
-                
-                const itemDate = new Date(itemDateStr);
-                let show = true;
-                
-                if (startDate && itemDate < startDate) show = false;
-                if (endDate && itemDate > endDate) show = false;
-                
-                item.style.display = show ? 'block' : 'none';
-            });
-        },
+        // filterTimeline removido - Filtro agora é server-side para suportar análise massiva de todos os períodos
+
 
         loadPoliticoChart: async function() {
             toggleLoader(true);
