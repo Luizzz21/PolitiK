@@ -174,137 +174,22 @@ def baixar_e_processar_camara(ano):
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
         
+                import io
+        import tempfile
+        import shutil
+
+        # Process the zip file streamingly to prevent memory overload (OOM)
+                import shutil
         with zipfile.ZipFile(zip_path) as zf:
-            csv_file = [f for f in zf.namelist() if f.lower().endswith('.csv')][0]
-            with zf.open(csv_file) as f:
-                try:
-                    text_csv = f.read().decode('utf-8')
-                except UnicodeDecodeError:
-                    text_csv = f.read().decode('ISO-8859-1')
-        
-        if os.path.exists(zip_path):
-            os.remove(zip_path)
-
-        # Remove BOM if present
-            if text_csv.startswith('﻿'):
-                text_csv = text_csv[1:]
-
-        reader = csv.DictReader(io.StringIO(text_csv), delimiter=';')
-        processados = 0
-
-        for linha in reader:
-            if processados >= GLOBAL_LIMITE: break
-
-            # Skip rows without ideCadastro (metadata/header records)
-            if not linha.get('ideCadastro'): continue
-            # Skip rows where nomeParlamentar is actually a record type marker (LID.GOV-CD)
-            nome_parlamentar = linha.get('txNomeParlamentar', '').strip()
-            if not nome_parlamentar or 'LID' in nome_parlamentar[:8]:
-                continue
-
-            politico = get_or_create_politico(linha.get('txNomeParlamentar'), linha.get('sgPartido'), linha.get('sgUF'))
-            mandato = get_or_create_mandato(politico, 'Deputado Federal', 'Federal', linha.get('sgUF'), ano)
-            fornecedor = get_or_create_fornecedor(linha.get('txtCNPJCPF'), linha.get('txtFornecedor'))
-
-            mes = int(linha.get('datEmissao')[5:7]) if linha.get('datEmissao') and len(linha.get('datEmissao')) >= 7 else 1
-            
-            sucesso, msg = processar_despesa(
-                mandato, fornecedor, None, linha.get('txtDescricao'), linha.get('txtFornecedor'),
-                linha.get('vlrLiquido'), linha.get('datEmissao'), linha.get('numLote'),
-                linha.get('urlDocumento'), 'camara', ano, mes
-            )
-            if sucesso: processados += 1
-
-        logger.info(f"Câmara {ano}: {processados} registros salvos.")
-        return processados, 0
-    except Exception as e:
-        logger.error(f"Erro na Câmara {ano}: {e}")
-        return 0, 1
-
-def baixar_e_processar_senado(ano):
-    """Extrai dados da Cota Parlamentar (CEAPS) dos Senadores"""
-    url = f"https://adm.senado.gov.br/adm-dadosabertos/api/v1/senadores/despesas_ceaps/{ano}/csv"
-    logger.info(f"Extraindo Senado Federal: {ano}")
-
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) PolitiK'}
-        r = requests.get(url, headers=headers, stream=True, timeout=60)
-        if r.status_code != 200:
-            logger.error(f"Erro ao baixar Senado {ano}: Status {r.status_code}")
-            return 0, f"Status {r.status_code}"
-            
-        linhas = []
-        for chunk in r.iter_lines(decode_unicode=True):
-            if chunk:
-                linhas.append(chunk.replace('"', ''))
-            
-        reader = csv.DictReader(io.StringIO('\n'.join(linhas)), delimiter=';')
-        processados = 0
-
-        for linha in reader:
-            if processados >= GLOBAL_LIMITE: break
-            
-            # Novos cabeçalhos da API de Dados Abertos
-            nome_senador = linha.get('NOME_SENADOR') or linha.get('SENADOR')
-            if not nome_senador: continue
-
-            politico = get_or_create_politico(nome_senador)
-            mandato = get_or_create_mandato(politico, 'Senador', 'Federal', None, ano)
-            
-            cnpj_cpf = linha.get('CPF_CNPJ_FORNECEDOR') or linha.get('CNPJ_CPF')
-            nome_forn = linha.get('NOME_FORNECEDOR') or linha.get('FORNECEDOR')
-            fornecedor = get_or_create_fornecedor(cnpj_cpf, nome_forn)
-
-            data_despesa = linha.get('DATA')
-            
-            # O formato antigo era DD/MM/YYYY, o novo parece ser YYYY-MM-DD
-            if data_despesa and len(data_despesa) >= 10:
-                if '-' in data_despesa:
-                    data_emissao = data_despesa[:10] # Já no formato YYYY-MM-DD
-                    mes = int(data_emissao[5:7])
-                else:
-                    data_emissao = f"{data_despesa[6:10]}-{data_despesa[3:5]}-{data_despesa[0:2]}"
-                    mes = int(data_despesa[3:5])
-            else:
-                data_emissao = f"{ano}-01-01"
-                mes = 1
-
-            sucesso, msg = processar_despesa(
-                mandato, fornecedor, None, linha.get('TIPO_DESPESA'), linha.get('DETALHAMENTO'),
-                linha.get('VALOR_REEMBOLSADO'), data_emissao, linha.get('DOCUMENTO'),
-                None, 'senado', ano, mes
-            )
-            if sucesso: processados += 1
-
-        logger.info(f"Senado {ano}: {processados} registros salvos.")
-        return processados, 0
-    except Exception as e:
-        logger.error(f"Erro no Senado {ano}: {e}")
-        return 0, 1
-
-def baixar_e_processar_executivo(ano, mes="01"):
-    """Extrai dados de Cartão Corporativo do Governo Federal (Presidência/Ministérios)"""
-    url = f"https://portaldatransparencia.gov.br/download-de-dados/cpgf/{ano}{mes}"
-    logger.info(f"Extraindo Cartões Corporativos do Executivo: {ano}/{mes}")
-
-    try:
-        zip_path = f"cpgf_{ano}_{mes}.zip"
-        
-        response = requests.get(url, stream=True)
-        response.raise_for_status()
-        with open(zip_path, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
-        
-        with zipfile.ZipFile(zip_path) as zf:
-            csv_file = [f for f in zf.namelist() if f.lower().endswith('.csv')][0]
-            with zf.open(csv_file) as f:
-                text_csv3 = f.read().decode('ISO-8859-1')
+            csv_filename = [f for f in zf.namelist() if f.lower().endswith('.csv')][0]
+            with zf.open(csv_filename) as source, open('temp_executivo.csv', 'wb') as target:
+                shutil.copyfileobj(source, target)
                 
         if os.path.exists(zip_path):
             os.remove(zip_path)
 
-        reader = csv.DictReader(io.StringIO(text_csv3), delimiter=';')
+        csv_file_obj3 = open('temp_executivo.csv', 'r', encoding='ISO-8859-1')
+        reader = csv.DictReader(csv_file_obj3, delimiter=';')
         processados = 0
 
         for linha in reader:
