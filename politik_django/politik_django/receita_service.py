@@ -128,8 +128,8 @@ class ReceitaService:
                 # Endereço (só preenche se vazio)
                 if not fornecedor.logradouro:
                     fornecedor.logradouro = data.get('logradouro')
-                if not fornecedor.numero:
-                    fornecedor.numero = data.get('numero')
+                if not fornecedor.numero and data.get('numero'):
+                    fornecedor.numero = data.get('numero')[:20]
                 if not fornecedor.complemento:
                     fornecedor.complemento = data.get('complemento')
                 if not fornecedor.bairro:
@@ -145,7 +145,7 @@ class ReceitaService:
                     ddd = data.get('ddd_telefone_1', '')
                     tel = data.get('telefone_1', '') if 'telefone_1' in data else ''
                     if ddd:
-                        fornecedor.telefone = f"({ddd}) {tel}"
+                        fornecedor.telefone = f"({ddd}) {tel}"[:20]
                 if not fornecedor.email:
                     fornecedor.email = data.get('email')
 
@@ -225,8 +225,8 @@ class ReceitaService:
                 # Endereço (só preenche se vazio)
                 if not fornecedor.logradouro:
                     fornecedor.logradouro = data.get('logradouro')
-                if not fornecedor.numero:
-                    fornecedor.numero = data.get('numero')
+                if not fornecedor.numero and data.get('numero'):
+                    fornecedor.numero = str(data.get('numero'))[:20]
                 if not fornecedor.bairro:
                     fornecedor.bairro = data.get('bairro')
                 if not fornecedor.municipio:
@@ -237,8 +237,8 @@ class ReceitaService:
                     fornecedor.cep = data.get('cep', '').replace('.', '').replace('-', '')[:8]
                 if not fornecedor.email:
                     fornecedor.email = data.get('email')
-                if not fornecedor.telefone:
-                    fornecedor.telefone = data.get('telefone')
+                if not fornecedor.telefone and data.get('telefone'):
+                    fornecedor.telefone = str(data.get('telefone'))[:20]
 
                 logger.info(f"ReceitaWS: CNPJ {fornecedor.cnpj} enriquecido com sucesso (fallback).")
                 return True
