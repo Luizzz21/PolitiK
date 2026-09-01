@@ -64,11 +64,11 @@ WSGI_APPLICATION = 'politik_django.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'politik_db',
-        'USER': 'politik_user',
-        'PASSWORD': 'politik_password_123',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': os.environ.get('POSTGRES_DB', 'politik_db'),
+        'USER': os.environ.get('POSTGRES_USER', 'politik_user'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'politik_password_123'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
+        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
     }
 }
 
