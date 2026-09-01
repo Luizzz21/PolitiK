@@ -1017,3 +1017,8 @@ def fornecedores_view(request):
     return render(request, 'fornecedores.html', context)
 
 
+
+ d e f   c o m u n i d a d e _ v i e w ( r e q u e s t ) : 
+         r e t u r n   r e n d e r ( r e q u e s t ,   ' c o m u n i d a d e . h t m l ' ) 
+  
+ 

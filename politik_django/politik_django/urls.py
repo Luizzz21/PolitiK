@@ -17,6 +17,7 @@ urlpatterns = [
     path('fornecedor/<str:cnpj>/', views.fornecedor_detail, name='fornecedor_detail'),
     path('alertas/', views.pagina_alertas, name='pagina_alertas'),
     path('minha-conta/', views.pagina_minha_conta, name='pagina_minha_conta'),
+    path('comunidade/', views.comunidade_view, name='comunidade'),
 
     # API Endpoints - Consultas
     path('api/politicos/', views.api_buscar_politicos, name='api_buscar_politicos'),
