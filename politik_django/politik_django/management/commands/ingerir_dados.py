@@ -164,7 +164,8 @@ def baixar_e_processar_camara(ano):
     """Extrai dados da Cota Parlamentar (CEAP) dos Deputados Federais"""
     url = f"https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip"
     logger.info(f"Extraindo Câmara dos Deputados: {ano}")
-
+    
+    processados = 0
     try:
         zip_path = f"camara_{ano}.zip"
         
@@ -174,22 +175,27 @@ def baixar_e_processar_camara(ano):
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
         
+        import tempfile
+        import shutil
+
+        # Process streamingly to prevent memory overload (OOM)
         with zipfile.ZipFile(zip_path) as zf:
-            csv_file = [f for f in zf.namelist() if f.lower().endswith('.csv')][0]
-            with zf.open(csv_file) as f:
-                try:
-                    text_csv = f.read().decode('utf-8')
-                except UnicodeDecodeError:
-                    text_csv = f.read().decode('ISO-8859-1')
+            csv_filename = [f for f in zf.namelist() if f.lower().endswith('.csv')][0]
+            with zf.open(csv_filename) as source, open('temp_camara.csv', 'wb') as target:
+                shutil.copyfileobj(source, target)
         
         if os.path.exists(zip_path):
             os.remove(zip_path)
 
-        # Remove BOM if present
-            if text_csv.startswith('﻿'):
-                text_csv = text_csv[1:]
-
-        reader = csv.DictReader(io.StringIO(text_csv), delimiter=';')
+        try:
+            csv_file_obj = open('temp_camara.csv', 'r', encoding='utf-8-sig')
+            csv_file_obj.readline()
+            csv_file_obj.seek(0)
+        except UnicodeDecodeError:
+            csv_file_obj.close()
+            csv_file_obj = open('temp_camara.csv', 'r', encoding='ISO-8859-1')
+            
+        reader = csv.DictReader(csv_file_obj, delimiter=';')
         processados = 0
 
         for linha in reader:
@@ -215,6 +221,10 @@ def baixar_e_processar_camara(ano):
             )
             if sucesso: processados += 1
 
+        try:
+            csv_file_obj.close()
+            if os.path.exists('temp_camara.csv'): os.remove('temp_camara.csv')
+        except: pass
         logger.info(f"Câmara {ano}: {processados} registros salvos.")
         return processados, 0
     except Exception as e:
@@ -296,15 +306,17 @@ def baixar_e_processar_executivo(ano, mes="01"):
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
         
+        import shutil
         with zipfile.ZipFile(zip_path) as zf:
-            csv_file = [f for f in zf.namelist() if f.lower().endswith('.csv')][0]
-            with zf.open(csv_file) as f:
-                text_csv3 = f.read().decode('ISO-8859-1')
+            csv_filename = [f for f in zf.namelist() if f.lower().endswith('.csv')][0]
+            with zf.open(csv_filename) as source, open('temp_executivo.csv', 'wb') as target:
+                shutil.copyfileobj(source, target)
                 
         if os.path.exists(zip_path):
             os.remove(zip_path)
 
-        reader = csv.DictReader(io.StringIO(text_csv3), delimiter=';')
+        csv_file_obj3 = open('temp_executivo.csv', 'r', encoding='ISO-8859-1')
+        reader = csv.DictReader(csv_file_obj3, delimiter=';')
         processados = 0
 
         for linha in reader:
@@ -333,6 +345,10 @@ def baixar_e_processar_executivo(ano, mes="01"):
             )
             if sucesso: processados += 1
 
+        try:
+            csv_file_obj3.close()
+            if os.path.exists('temp_executivo.csv'): os.remove('temp_executivo.csv')
+        except: pass
         logger.info(f"Executivo (CPGF) {ano}/{mes}: {processados} registros salvos.")
         return processados, 0
     except Exception as e:
