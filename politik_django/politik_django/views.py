@@ -1,4 +1,4 @@
-﻿"""
+"""
 PolitiK - Django Views for Political Transparency Platform
 APIs following RF01-RF07 requirements
 """
@@ -79,6 +79,9 @@ def ranking_view(request):
 
 def despesas_view(request):
     return render(request, 'despesas.html')
+
+def presidencia_view(request):
+    return render(request, 'presidencia.html')
 
 def index(request):
     """Main dashboard view (RF06 - Dynamic Filters)"""
@@ -428,6 +431,12 @@ def api_buscar_despesas(request):
     if max_valor: queryset = queryset.filter(valor_liquidado__lte=max_valor)
     if cargo: queryset = queryset.filter(mandato__cargo=cargo)
     
+    sigilo = request.GET.get('sigilo')
+    if sigilo == 'true':
+        queryset = queryset.filter(fornecedor__isnull=True, fonte='transparencia')
+    elif sigilo == 'false':
+        queryset = queryset.exclude(fornecedor__isnull=True, fonte='transparencia')
+    
     data_inicio = request.GET.get('data_inicio')
     data_fim = request.GET.get('data_fim')
     if data_inicio: queryset = queryset.filter(data_emissao__gte=data_inicio)
@@ -452,6 +461,19 @@ def api_buscar_despesas(request):
 
         despesas_json = []
         for despesa in despesas:
+            if despesa.fornecedor:
+                fornecedor_data = {
+                    'cnpj': despesa.fornecedor.cnpj if hasattr(despesa.fornecedor, 'cnpj') else None,
+                    'razao_social': despesa.fornecedor.razao_social if hasattr(despesa.fornecedor, 'razao_social') else None,
+                }
+            elif despesa.fonte == 'transparencia':
+                fornecedor_data = {
+                    'cnpj': '00000000000000',
+                    'razao_social': 'Informação protegida por sigilo'
+                }
+            else:
+                fornecedor_data = None
+
             despesas_json.append({
                 'id': despesa.id,
                 'mandato_id': despesa.mandato_id,
@@ -461,10 +483,7 @@ def api_buscar_despesas(request):
                 'categoria': despesa.categoria,
                 'tipo_verba': despesa.tipo_verba,
                 'descricao_despesa': despesa.descricao_despesa,
-                'fornecedor': {
-                    'cnpj': despesa.fornecedor.cnpj if hasattr(despesa.fornecedor, 'cnpj') else None,
-                    'razao_social': despesa.fornecedor.razao_social if hasattr(despesa.fornecedor, 'razao_social') else None,
-                } if despesa.fornecedor else None,
+                'fornecedor': fornecedor_data,
                 'valor_liquidado': float(despesa.valor_liquidado) if despesa.valor_liquidado else 0.0,
                 'valor_pago': float(despesa.valor_pago) if despesa.valor_pago else None,
                 'data_emissao': despesa.data_emissao.strftime('%Y-%m-%d') if despesa.data_emissao else None,

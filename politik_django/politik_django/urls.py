@@ -13,6 +13,7 @@ urlpatterns = [
     path('politico/<int:politico_id>/', views.pagina_politico, name='pagina_politico'),
     path('ranking/', views.ranking_view, name='ranking'),
     path('despesas/', views.despesas_view, name='despesas'),
+    path('presidencia/', views.presidencia_view, name='presidencia'),
     path('fornecedores/', views.fornecedores_view, name='fornecedores'),
     path('fornecedor/<str:cnpj>/', views.fornecedor_detail, name='fornecedor_detail'),
     path('alertas/', views.pagina_alertas, name='pagina_alertas'),
