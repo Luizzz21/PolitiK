@@ -1,4 +1,4 @@
-"""
+﻿"""
 PolitiK - Django Views for Political Transparency Platform
 APIs following RF01-RF07 requirements
 """
@@ -25,7 +25,7 @@ from .models import (
 )
 from .business_rules import NegocioRegras
 
-# Carrega o modelo de usuário correto (Custom User Model) definido no settings.py
+# Carrega o modelo de usuÃ¡rio correto (Custom User Model) definido no settings.py
 User = get_user_model()
 
 # Frontend Views
@@ -60,7 +60,7 @@ def ranking_view(request):
     for p in politicos_raw:
         # Tenta pegar o mandato principal (o mais recente)
         mandato_principal = p.mandatos.first()
-        cargo_str = mandato_principal.cargo if mandato_principal else 'Agente Público'
+        cargo_str = mandato_principal.cargo if mandato_principal else 'Agente PÃºblico'
         esfera_str = mandato_principal.esfera if mandato_principal else '-'
         
         politicos.append({
@@ -132,7 +132,7 @@ def index(request):
     return render(request, 'index.html', context)
 
 def fornecedor_detail(request, cnpj):
-    """Perfil individual do fornecedor e análise de risco (Frente 3.4)"""
+    """Perfil individual do fornecedor e anÃ¡lise de risco (Frente 3.4)"""
     fornecedor = get_object_or_404(Fornecedor, cnpj=cnpj)
     
     # Busca dados na Receita Federal (BrasilAPI) se estiverem vazios
@@ -161,19 +161,19 @@ def fornecedor_detail(request, cnpj):
                 fornecedor.bairro = data.get('bairro')
                 fornecedor.save()
             elif resp.status_code == 404:
-                # CNPJ not found or invalid type, mark as DADOS INDISPONÍVEIS so we don't query again
-                fornecedor.cnae_fiscal = "DADOS INDISPONÍVEIS (RECEITA FEDERAL)"
+                # CNPJ not found or invalid type, mark as DADOS INDISPONÃVEIS so we don't query again
+                fornecedor.cnae_fiscal = "DADOS INDISPONÃVEIS (RECEITA FEDERAL)"
                 fornecedor.save()
         except Exception as e:
-            # Em caso de timeout ou erro de rede, não travamos a página do usuário
+            # Em caso de timeout ou erro de rede, nÃ£o travamos a pÃ¡gina do usuÃ¡rio
             pass
             
-    # Agregações de despesas
+    # AgregaÃ§Ãµes de despesas
     despesas = Despesa.objects.filter(fornecedor=fornecedor).select_related('mandato__politico')
     
     total_recebido = despesas.aggregate(total=Sum('valor_liquidado'))['total'] or 0.0
     
-    # Maiores pagadores (políticos)
+    # Maiores pagadores (polÃ­ticos)
     pagadores = despesas.values(
         'mandato__politico__id', 
         'mandato__politico__nome_civil', 
@@ -192,14 +192,14 @@ def fornecedor_detail(request, cnpj):
     return render(request, 'fornecedor_detail.html', context)
 
 def pagina_politico(request, politico_id):
-    """Detailed view for a specific politician (Dossiê)"""
+    """Detailed view for a specific politician (DossiÃª)"""
     politico = get_object_or_404(Politico, id=politico_id)
     mandatos = Mandato.objects.filter(politico=politico)
     
     # Campanhas Eleitorais
     campanhas = CampanhaEleitoral.objects.filter(politico=politico).order_by('-ano')
     
-    # Query parâmetros para filtro
+    # Query parÃ¢metros para filtro
     busca = request.GET.get('q', '')
     data_inicio = request.GET.get('data_inicio', '')
     data_fim = request.GET.get('data_fim', '')
@@ -215,7 +215,7 @@ def pagina_politico(request, politico_id):
     if data_fim:
         despesas_query = despesas_query.filter(data_emissao__lte=data_fim)
         
-    # Limitar para as últimas 200 despesas para performance na página
+    # Limitar para as Ãºltimas 200 despesas para performance na pÃ¡gina
     despesas_politico = despesas_query[:200]
     
     # Despesas de campanha do politico
@@ -321,7 +321,7 @@ def pagina_alertas(request):
     return render(request, 'alertas.html', context)
 
 def pagina_minha_conta(request):
-    """Painel do usuário logado: lista os políticos que acompanha"""
+    """Painel do usuÃ¡rio logado: lista os polÃ­ticos que acompanha"""
     user, error = authenticate_request(request)
     if not user:
         return redirect('index')
@@ -345,7 +345,7 @@ def pagina_minha_conta(request):
 @require_http_methods(["GET", "POST"])
 @ratelimit(key='ip', rate='30/m', block=True)
 def api_buscar_politicos(request):
-    """Buscar políticos com filtros"""
+    """Buscar polÃ­ticos com filtros"""
     cargo = request.GET.get('cargo')
     esfera = request.GET.get('esfera') or request.GET.get('escopo')
     estado = request.GET.get('estado_uf')
@@ -397,14 +397,14 @@ def api_buscar_politicos(request):
     except OperationalError:
         return JsonResponse({
             'success': False,
-            'message': 'A consulta é muito ampla. Tente refinar sua busca.',
+            'message': 'A consulta Ã© muito ampla. Tente refinar sua busca.',
             'results': []
         }, status=200)
 
 @csrf_exempt
 @ratelimit(key='ip', rate='30/m', block=True)
 def api_buscar_despesas(request):
-    """Buscar despesas com filtros dinâmicos integrados"""
+    """Buscar despesas com filtros dinÃ¢micos integrados"""
     mandato_id = request.GET.get('mandato_id')
     ano = request.GET.get('ano')
     mes = request.GET.get('mes')
@@ -489,7 +489,7 @@ def api_buscar_despesas(request):
     except OperationalError:
         return JsonResponse({
             'success': False,
-            'message': 'A consulta é muito ampla. Tente refinar sua busca.',
+            'message': 'A consulta Ã© muito ampla. Tente refinar sua busca.',
             'results': []
         }, status=200)
 
@@ -498,7 +498,7 @@ def api_buscar_despesas(request):
 @ratelimit(key='ip', rate='30/m', block=True)
 def api_estatisticas(request):
     """
-    Retorna métricas globais e KPIs agregados (RF01, RF02, RNF01).
+    Retorna mÃ©tricas globais e KPIs agregados (RF01, RF02, RNF01).
     """
     ano = request.GET.get('ano')
     categoria = request.GET.get('categoria')
@@ -555,7 +555,7 @@ def api_estatisticas(request):
             'total': float(f['total'] or 0)
         })
 
-    # Calcula Top Políticos dinâmico (Frente 3)
+    # Calcula Top PolÃ­ticos dinÃ¢mico (Frente 3)
     top_politicos_query = queryset.values(
         'mandato__politico__id',
         'mandato__politico__nome_civil',
@@ -614,7 +614,7 @@ def api_atualizar_alerta(request):
         return JsonResponse({'success': False, 'message': f'Erro interno: {str(e)}'}, status=400)
 
 
-# --- SISTEMA DE VÍNCULO (SEGUIR POLÍTICO) ---
+# --- SISTEMA DE VÃNCULO (SEGUIR POLÃTICO) ---
 @csrf_exempt
 @require_http_methods(["POST", "GET"])
 @jwt_required
@@ -645,7 +645,7 @@ def api_notificacoes(request):
     return JsonResponse({'success': True, 'notificacoes': data})
 
 def api_assinaturas(request):
-    """Gerenciar assinaturas (seguir/parar de seguir políticos)"""
+    """Gerenciar assinaturas (seguir/parar de seguir polÃ­ticos)"""
     if request.method == "GET":
         try:
             user, error = authenticate_request(request)
@@ -695,7 +695,7 @@ def api_assinaturas(request):
 
             mandato_id = data.get('mandato_id')
             if not mandato_id:
-                return JsonResponse({'success': False, 'message': 'mandato_id é obrigatório'}, status=400)
+                return JsonResponse({'success': False, 'message': 'mandato_id Ã© obrigatÃ³rio'}, status=400)
 
             mandato = get_object_or_404(Mandato, id=mandato_id)
 
@@ -715,14 +715,14 @@ def api_assinaturas(request):
                     assinatura.save()
                 return JsonResponse({
                     'success': True,
-                    'message': 'Você já está acompanhando este político',
+                    'message': 'VocÃª jÃ¡ estÃ¡ acompanhando este polÃ­tico',
                     'assinatura_id': assinatura.id,
                     'created': False
                 })
 
             return JsonResponse({
                 'success': True,
-                'message': 'Agora você está acompanhando este político',
+                'message': 'Agora vocÃª estÃ¡ acompanhando este polÃ­tico',
                 'assinatura_id': assinatura.id,
                 'created': True
             })
@@ -733,7 +733,7 @@ def api_assinaturas(request):
 @require_http_methods(["DELETE", "POST"])
 @jwt_required
 def api_remover_assinatura(request, assinatura_id):
-    """Remover assinatura (parar de seguir político)"""
+    """Remover assinatura (parar de seguir polÃ­tico)"""
     try:
         user, error = authenticate_request(request)
         if not user:
@@ -754,24 +754,24 @@ def api_remover_assinatura(request, assinatura_id):
 @require_http_methods(["POST"])
 @jwt_required
 def api_acompanhar_politico(request):
-    """Associa ou desassocia um usuário a um político"""
+    """Associa ou desassocia um usuÃ¡rio a um polÃ­tico"""
     try:
         user, error = authenticate_request(request)
         if not user:
-            return JsonResponse({'success': False, 'message': 'Usuário não autenticado'}, status=401)
+            return JsonResponse({'success': False, 'message': 'UsuÃ¡rio nÃ£o autenticado'}, status=401)
             
         data = json.loads(request.body)
         politico_id = data.get('politico_id')
         
         if not politico_id:
-            return JsonResponse({'success': False, 'message': 'ID do político é obrigatório'}, status=400)
+            return JsonResponse({'success': False, 'message': 'ID do polÃ­tico Ã© obrigatÃ³rio'}, status=400)
 
         politico = get_object_or_404(Politico, id=politico_id)
         
         mandato_recente = Mandato.objects.filter(politico=politico).order_by('-ano_inicio').first()
         
         if not mandato_recente:
-            return JsonResponse({'success': False, 'message': 'Político não possui mandatos registrados'}, status=400)
+            return JsonResponse({'success': False, 'message': 'PolÃ­tico nÃ£o possui mandatos registrados'}, status=400)
 
         assinatura, created = Assinatura.objects.get_or_create(
             usuario=user,
@@ -787,14 +787,14 @@ def api_acompanhar_politico(request):
 
         return JsonResponse({
             'success': True,
-            'message': f'Você {status_msg} este político.',
+            'message': f'VocÃª {status_msg} este polÃ­tico.',
             'ativo': assinatura.ativo
         })
 
     except Exception as e:
         return JsonResponse({'success': False, 'message': f'Erro interno: {str(e)}'}, status=400)
 
-# Utility API endpoints (públicos - RF03 Filtros Dinâmicos)
+# Utility API endpoints (pÃºblicos - RF03 Filtros DinÃ¢micos)
 def api_categorias(request):
     categorias = Despesa.CATEGORIA_ABSOLUTA_CHOICES
     return JsonResponse({
@@ -826,7 +826,7 @@ def api_health(request):
         'stats': stats,
     })
 
-# --- Autenticação JWT (RF07) ---
+# --- AutenticaÃ§Ã£o JWT (RF07) ---
 @csrf_exempt
 @require_http_methods(["POST"])
 @ratelimit(key='ip', rate='10/m', block=True)
@@ -849,7 +849,7 @@ def api_login(request):
             set_jwt_cookies(response, access_token, refresh_token)
             return response
         else:
-            return JsonResponse({'success': False, 'message': 'Credenciais inválidas'}, status=401)
+            return JsonResponse({'success': False, 'message': 'Credenciais invÃ¡lidas'}, status=401)
     except Exception as e:
         print(traceback.format_exc())
         return JsonResponse({'success': False, 'message': f'Erro interno: {str(e)}'}, status=400)
@@ -872,7 +872,7 @@ def api_express_auth(request):
         password = data.get('password', '')
 
         if not email or not password:
-            return JsonResponse({'success': False, 'message': 'Email e senha são obrigatórios.'}, status=400)
+            return JsonResponse({'success': False, 'message': 'Email e senha sÃ£o obrigatÃ³rios.'}, status=400)
 
         user, created = User.objects.get_or_create(
             email=email,
@@ -885,7 +885,7 @@ def api_express_auth(request):
         else:
             user = authenticate(username=email, password=password)
             if not user:
-                return JsonResponse({'success': False, 'message': 'Este email já está cadastrado com outra senha.'}, status=401)
+                return JsonResponse({'success': False, 'message': 'Este email jÃ¡ estÃ¡ cadastrado com outra senha.'}, status=401)
 
         access_token = create_access_token(user)
         refresh_token = create_refresh_token(user)
@@ -910,19 +910,19 @@ from .models import ClienteAPI
 
 @csrf_exempt
 def api_b2b_fornecedor_risk(request, cnpj):
-    """Endpoint B2B Avançado: Venda de dados de Risco/PEP e análise eleitoral"""
+    """Endpoint B2B AvanÃ§ado: Venda de dados de Risco/PEP e anÃ¡lise eleitoral"""
     api_key = request.headers.get('X-API-KEY')
     if not api_key:
-        return JsonResponse({'error': 'Acesso Negado. Forneça o header X-API-KEY.'}, status=401)
+        return JsonResponse({'error': 'Acesso Negado. ForneÃ§a o header X-API-KEY.'}, status=401)
     
     try:
         cliente = ClienteAPI.objects.get(api_key=api_key, is_active=True)
     except ClienteAPI.DoesNotExist:
-        return JsonResponse({'error': 'API Key inválida ou inativa.'}, status=403)
+        return JsonResponse({'error': 'API Key invÃ¡lida ou inativa.'}, status=403)
         
     # Rate limit
     if cliente.requisicoes_mes >= cliente.limite_requisicoes:
-        return JsonResponse({'error': 'Limite de requisições excedido. Faça upgrade do seu plano.'}, status=429)
+        return JsonResponse({'error': 'Limite de requisiÃ§Ãµes excedido. FaÃ§a upgrade do seu plano.'}, status=429)
         
     cliente.requisicoes_mes += 1
     cliente.save()
@@ -935,7 +935,7 @@ def api_b2b_fornecedor_risk(request, cnpj):
         # Breakdown por ano para capturar anos eleitorais (2022, 2024, 2026)
         gastos_por_ano = list(despesas.values('ano').annotate(total=Sum('valor_liquidado')).order_by('-ano'))
         
-        # Filtro de gastos sensíveis (ex: Publicidade em anos de eleição)
+        # Filtro de gastos sensÃ­veis (ex: Publicidade em anos de eleiÃ§Ã£o)
         gastos_publicidade = despesas.filter(categoria__icontains='publicidade').aggregate(Sum('valor_liquidado'))['valor_liquidado__sum'] or 0
         
         # Pagadores
@@ -963,14 +963,14 @@ def api_b2b_fornecedor_risk(request, cnpj):
         }
         return JsonResponse({'status': 'success', 'data': data}, status=200)
     except Fornecedor.DoesNotExist:
-        return JsonResponse({'status': 'not_found', 'message': 'Este CNPJ não possui histórico de recebimento de verba política na nossa base.'}, status=404)
+        return JsonResponse({'status': 'not_found', 'message': 'Este CNPJ nÃ£o possui histÃ³rico de recebimento de verba polÃ­tica na nossa base.'}, status=404)
 
 from django.core.paginator import Paginator
 from django.db.models.functions import Coalesce
 from django.db.models import F, DecimalField
 
 def fornecedores_view(request):
-    """Página que lista as empresas beneficiadas ordenadas por volume de dinheiro recebido."""
+    """PÃ¡gina que lista as empresas beneficiadas ordenadas por volume de dinheiro recebido."""
     busca = request.GET.get('q', '')
     filtro_uf = request.GET.get('uf', '')
     filtro_situacao = request.GET.get('situacao', '')
@@ -994,12 +994,12 @@ def fornecedores_view(request):
         total_recebido=F('total_mandato') + F('total_campanha')
     ).filter(total_recebido__gt=0).order_by('-total_recebido')
     
-    # Paginação (20 por página)
+    # PaginaÃ§Ã£o (20 por pÃ¡gina)
     paginator = Paginator(queryset, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    # Opções para os filtros
+    # OpÃ§Ãµes para os filtros
     ufs = Fornecedor.objects.exclude(uf__isnull=True).exclude(uf='').values_list('uf', flat=True).distinct().order_by('uf')
     situacoes = [c[1].upper() for c in Fornecedor.SITUACAO_CADASTRAL_CHOICES]
     
@@ -1018,7 +1018,7 @@ def fornecedores_view(request):
 
 
 
- d e f   c o m u n i d a d e _ v i e w ( r e q u e s t ) : 
-         r e t u r n   r e n d e r ( r e q u e s t ,   ' c o m u n i d a d e . h t m l ' ) 
-  
- 
+def comunidade_view(request):
+    return render(request, 'comunidade.html')
+
+
