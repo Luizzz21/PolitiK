@@ -184,6 +184,10 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
+# Configuração para não travar o processo local caso o Redis esteja desligado
+broker_connection_retry_on_startup = False
+broker_connection_max_retries = 0
+
 # Desativa EAGER por padrão para desenvolvimento e prod. Usar True só em testes unitários.
 CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_ALWAYS_EAGER', 'False').lower() == 'true'
 CELERY_TASK_EAGER_PROPAGATES = True

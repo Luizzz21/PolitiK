@@ -96,7 +96,7 @@ def processar_despesa(mandato, fornecedor, categoria, tipo_verba, descricao,
                       url_documento, fonte, ano, mes):
     try:
         if isinstance(valor_liquidado, str):
-            valor_liquidado = valor_liquidado.replace(',', '.')
+            valor_liquidado = valor_liquidado.strip().replace(',', '.')
         valor = float(valor_liquidado) if valor_liquidado else 0.0
         
         if valor <= 0:
@@ -105,7 +105,7 @@ def processar_despesa(mandato, fornecedor, categoria, tipo_verba, descricao,
         if not categoria or categoria == 'Outros':
             categoria = NegocioRegras.obter_categoria_absoluta(tipo_verba or descricao or '')
 
-        trigger_volume, tipo_alerta, mensagem_volume = NegocioRegras.verificar_triggers_volume(
+        trigger_volume, tipo_alerta, mensagem_volume = NegocioRegras._verificar_gatilhos_volume(
             categoria=categoria, 
             valor=valor, 
             descricao=descricao or tipo_verba or ''
@@ -218,19 +218,16 @@ def baixar_e_processar_senado(ano):
     logger.info(f"Extraindo Senado Federal: {ano}")
 
     try:
-        import subprocess
-        csv_path = f"senado_{ano}.csv"
-        subprocess.run(["powershell", "-Command", f"Invoke-WebRequest -Uri '{url}' -OutFile '{csv_path}'"], check=True)
-        
-        with open(csv_path, 'r', encoding='utf-8', errors='replace') as f:
-            text_csv2 = f.read()
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) PolitiK'}
+        r = requests.get(url, headers=headers, stream=True, timeout=60)
+        if r.status_code != 200:
+            logger.error(f"Erro ao baixar Senado {ano}: Status {r.status_code}")
+            return 0, f"Status {r.status_code}"
             
-        if os.path.exists(csv_path):
-            os.remove(csv_path)
-            
-        linhas = text_csv2.split('\n')
-        # Limpa aspas extras que possam quebrar o parser
-        linhas = [linha.replace('"', '') for linha in linhas]
+        linhas = []
+        for chunk in r.iter_lines(decode_unicode=True):
+            if chunk:
+                linhas.append(chunk.replace('"', ''))
             
         reader = csv.DictReader(io.StringIO('\n'.join(linhas)), delimiter=';')
         processados = 0
