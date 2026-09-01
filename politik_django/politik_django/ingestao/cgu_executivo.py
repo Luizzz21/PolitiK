@@ -145,6 +145,10 @@ class CGUExecutivoCollector:
             viajante = item.get("beneficiario", {}).get("nome", "NÃO INFORMADO")
             cargo = item.get("cargo", {}).get("descricao", "Servidor/Comitiva")
             
+            if viajante.strip().upper() == "SIGILOSO":
+                viajante = "GASTOS SIGILOSOS (COMPILADO)"
+                cargo = "Segurança / Comitiva"
+
             # Se for Lula ou Janja ou membros do primeiro escalão, cria um "mandato"
             politico, _ = Politico.objects.get_or_create(
                 nome_civil=viajante,

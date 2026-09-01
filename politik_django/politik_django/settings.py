@@ -181,6 +181,29 @@ CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+
+# ==============================================================================
+# CELERY BEAT SCHEDULE (AGENDAMENTO AUTOMÁTICO/PERIÓDICO)
+# ==============================================================================
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'ingest_camara_daily': {
+        'task': 'politik_django.ingest_camara',
+        'schedule': crontab(hour=2, minute=0), # Todo dia às 02:00
+        'kwargs': {'ano': 2026}
+    },
+    'ingest_senado_daily': {
+        'task': 'politik_django.ingest_senado',
+        'schedule': crontab(hour=3, minute=0), # Todo dia às 03:00
+        'kwargs': {'ano': 2026}
+    },
+    'ingest_cgu_daily': {
+        'task': 'politik_django.ingest_cgu',
+        'schedule': crontab(hour=4, minute=0), # Todo dia às 04:00
+        'kwargs': {'ano': 2026}
+    },
+}
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
