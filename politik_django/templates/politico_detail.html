@@ -5,7 +5,7 @@
 {% block content %}
 <!-- Overlay do Lazy Login com Abas (Tabs) -->
 <div id="lazy-login-overlay" class="fixed inset-0 bg-gray-900/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity">
-    <div class="bg-white rounded-md p-8 max-w-md w-full shadow-2xl relative border-t-4 border-[#1A9E96]">
+    <div class="bg-[#161f2d] rounded-3xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(0,0,0,0.8)] relative border border-gray-700/50">
         <button onclick="window.location.href='/'" class="absolute top-4 right-4 text-gray-400 hover:text-[#1A9E96] text-xs font-bold uppercase flex items-center gap-1">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
             Voltar
@@ -25,7 +25,7 @@
         <!-- Abas de Navegação (Tabs) -->
         <div class="flex border-b border-gray-200 mb-6">
             <button onclick="DetailApp.switchTab('register')" id="tab-btn-register" class="flex-1 py-2 text-sm font-bold border-b-2 transition-colors border-[#1A9E96] text-[#1A9E96]">Criar Conta Grátis</button>
-            <button onclick="DetailApp.switchTab('login')" id="tab-btn-login" class="flex-1 py-2 text-sm font-bold border-b-2 transition-colors border-transparent text-gray-400 hover:text-gray-600">Já tenho conta</button>
+            <button onclick="DetailApp.switchTab('login')" id="tab-btn-login" class="flex-1 py-2 text-sm font-bold border-b-2 transition-colors border-transparent text-gray-400 hover:text-gray-400">Já tenho conta</button>
         </div>
 
         <!-- Alerta de Erro Global para o Modal -->
@@ -33,16 +33,16 @@
 
         <!-- Formulário de Cadastro (Register Tab) -->
         <form id="form-register" onsubmit="event.preventDefault(); DetailApp.submitRegister();" class="space-y-4">
-            <input type="text" id="reg-nome" placeholder="Como podemos te chamar?" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-900" required>
-            <input type="email" id="reg-email" placeholder="Seu e-mail" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-900" required>
-            <input type="password" id="reg-password" placeholder="Crie uma senha (mínimo 6 caracteres)" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-900" required minlength="6">
+            <input type="text" id="reg-nome" placeholder="Como podemos te chamar?" class="w-full px-4 py-3 bg-gray-800/50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-100" required>
+            <input type="email" id="reg-email" placeholder="Seu e-mail" class="w-full px-4 py-3 bg-gray-800/50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-100" required>
+            <input type="password" id="reg-password" placeholder="Crie uma senha (mínimo 6 caracteres)" class="w-full px-4 py-3 bg-gray-800/50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-100" required minlength="6">
             <button type="submit" class="w-full py-4 bg-[#1A9E96] text-white rounded font-black hover:bg-[#15807d] transition-colors text-sm uppercase tracking-widest shadow-lg mt-2">Liberar Acesso</button>
         </form>
 
         <!-- Formulário de Login (Login Tab) -->
         <form id="form-login" onsubmit="event.preventDefault(); DetailApp.submitLogin();" class="space-y-4 hidden">
-            <input type="email" id="login-email" placeholder="E-mail cadastrado" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-900" required>
-            <input type="password" id="login-password" placeholder="Sua senha" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-900" required>
+            <input type="email" id="login-email" placeholder="E-mail cadastrado" class="w-full px-4 py-3 bg-gray-800/50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-100" required>
+            <input type="password" id="login-password" placeholder="Sua senha" class="w-full px-4 py-3 bg-gray-800/50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-100" required>
             <button type="submit" class="w-full py-4 bg-[#373D3F] text-white rounded font-black hover:bg-gray-800 transition-colors text-sm uppercase tracking-widest shadow-lg mt-2">Entrar</button>
         </form>
     </div>
@@ -59,16 +59,16 @@
     </div>
 
     <!-- Header do Dossiê -->
-    <div class="bg-[#2d3748] rounded shadow-xl p-6 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center border-t-4 border-[#1A9E96] relative overflow-hidden">
+    <div class="bg-[#161f2d] rounded-[32px] shadow-2xl p-8 mb-6 border border-gray-700/50 relative overflow-hidden group hover:border-gray-600/80 transition-colors flex flex-col md:flex-row justify-between items-start md:items-center border-t-4 border-[#1A9E96] relative overflow-hidden">
                 <div class="z-10">
             <h1 class="text-3xl font-black text-white uppercase tracking-tight">{{ politico.nome_civil }}</h1>
             <div class="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm font-bold text-gray-400 mt-2 tracking-widest uppercase">
                 <span class="text-[#1A9E96]">{{ politico.partido|default:"SEM PARTIDO" }}</span>
-                <span class="w-1.5 h-1.5 bg-gray-500 rounded-full hidden sm:block"></span>
+                <span class="w-1.5 h-1.5 bg-gray-800/500 rounded-full hidden sm:block"></span>
                 <span>{{ politico.uf|default:"BR" }}</span>
-                <span class="w-1.5 h-1.5 bg-gray-500 rounded-full"></span>
+                <span class="w-1.5 h-1.5 bg-gray-800/500 rounded-full"></span>
                 <span class="{% if max_score > 70 %}text-red-500{% elif max_score > 30 %}text-yellow-500{% else %}text-green-500{% endif %}">SCORE {{ max_score|floatformat:0 }}/100</span>
-                <span class="w-1.5 h-1.5 bg-gray-500 rounded-full"></span>
+                <span class="w-1.5 h-1.5 bg-gray-800/500 rounded-full"></span>
                 <span class="text-[#1A9E96] bg-[#1A9E96]/20 px-2 py-0.5 rounded font-black">TOTAL GASTO: R$ <span id="total-gasto-fmt" data-val="{{ total_gasto_raw }}">{{ total_gasto }}</span></span>
             </div>
         </div>
@@ -87,13 +87,13 @@
         </button>
 
         <!-- SVG Decorativo de fundo -->
-        <svg class="absolute -right-6 -top-6 w-48 h-48 text-[#1A9E96] opacity-10 pointer-events-none" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        <div class="absolute -top-32 -right-32 w-96 h-96 bg-[#1A9E96]/10 rounded-full blur-3xl pointer-events-none group-hover:bg-[#1A9E96]/20 transition-all duration-700"></div><svg class="absolute -right-6 -top-6 w-48 h-48 text-[#1A9E96] opacity-10 pointer-events-none" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <!-- Histórico de Mandatos -->
         <div class="lg:col-span-1 space-y-6">
-            <div class="bg-[#2d3748] rounded shadow-xl p-6">
+            <div class="bg-[#161f2d] rounded-3xl shadow-xl p-6 border border-gray-700/50">
                 <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest border-b border-gray-600 pb-2 mb-5">Histórico de Mandatos</h2>
                 <div class="space-y-5">
                     {% for mandato in mandatos %}
@@ -112,7 +112,7 @@
             </div>
 
             <!-- Espaço para Anúncio -->
-            <div class="bg-gray-100 border-2 border-dashed border-gray-300 rounded shadow-sm p-6 flex flex-col items-center justify-center text-center min-h-[300px]">
+            <div class="bg-gray-800/30 border-2 border-dashed border-gray-700 rounded shadow-sm p-6 flex flex-col items-center justify-center text-center min-h-[300px]">
                 <span class="text-gray-400 text-sm font-bold uppercase tracking-widest mb-2">Espaço Publicitário</span>
                 <span class="text-xs text-gray-400">Anúncio aparecerá aqui em breve.</span>
             </div>
@@ -123,20 +123,20 @@
             
             <!-- Gráficos -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-white rounded shadow-xl p-6">
-                    <h2 class="text-sm font-bold text-gray-600 uppercase tracking-widest border-b border-gray-100 pb-2 mb-4">Gastos por Categoria</h2>
+                <div class="bg-[#1E293B] rounded-3xl shadow-2xl p-6 border border-gray-700/50 hover:bg-[#233146] transition-colors">
+                    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest border-b border-gray-700/50 pb-2 mb-4">Gastos por Categoria</h2>
                     <div style="position: relative; height: 260px; width: 100%;">
-                        <div id="loader-politico" class="absolute inset-0 flex items-center justify-center bg-white/90 z-10 hidden">
+                        <div id="loader-politico" class="absolute inset-0 flex items-center justify-center bg-[#1E293B]/90 z-10 hidden">
                             <div class="w-6 h-6 border-2 border-gray-200 border-t-[#1A9E96] rounded-full animate-spin"></div>
                         </div>
                         <canvas id="chart-politico-cat"></canvas>
                     </div>
                 </div>
                 
-                <div class="bg-white rounded shadow-xl p-6">
-                    <h2 class="text-sm font-bold text-gray-600 uppercase tracking-widest border-b border-gray-100 pb-2 mb-4">Execução Histórica Mensal</h2>
+                <div class="bg-[#1E293B] rounded-3xl shadow-2xl p-6 border border-gray-700/50 hover:bg-[#233146] transition-colors">
+                    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest border-b border-gray-700/50 pb-2 mb-4">Execução Histórica Mensal</h2>
                     <div style="position: relative; height: 260px; width: 100%;">
-                        <div id="loader-politico-line" class="absolute inset-0 flex items-center justify-center bg-white/90 z-10 hidden">
+                        <div id="loader-politico-line" class="absolute inset-0 flex items-center justify-center bg-[#1E293B]/90 z-10 hidden">
                             <div class="w-6 h-6 border-2 border-gray-200 border-t-[#1A9E96] rounded-full animate-spin"></div>
                         </div>
                         <canvas id="chart-politico-line"></canvas>
@@ -146,8 +146,8 @@
 
             
             <!-- Composição do Score -->
-            <details class="bg-white rounded shadow-xl mb-6 border-t-4 border-red-500 group">
-                <summary class="p-6 text-sm font-black text-gray-700 uppercase tracking-widest cursor-pointer hover:bg-gray-50 flex justify-between items-center outline-none">
+            <details class="bg-[#1E293B] rounded-3xl shadow-2xl mb-6 border border-gray-700/50 hover:bg-[#233146] transition-colors border-t-4 border-red-500 group">
+                <summary class="p-6 text-sm font-black text-gray-300 uppercase tracking-widest cursor-pointer hover:bg-gray-800/50 flex justify-between items-center outline-none">
                     Composição do Score de Risco
                     <svg class="w-5 h-5 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </summary>
@@ -174,7 +174,7 @@
                                     </span>
                                     <h3 class="text-sm font-bold {% if alerta.severidade == 'critica' %}text-red-700{% elif alerta.severidade == 'alta' %}text-orange-700{% else %}text-yellow-700{% endif %}">{{ alerta.titulo }}</h3>
                                 </div>
-                                <p class="text-xs text-gray-600">{{ alerta.descricao }}</p>
+                                <p class="text-xs text-gray-400">{{ alerta.descricao }}</p>
                                 {% if alerta.referencia_cnpj %}
                                 <p class="text-[10px] font-bold mt-1">
                                     Envolvido: <a href="/fornecedor/{{ alerta.referencia_cnpj }}/" class="text-[#1A9E96] hover:text-[#15807d] hover:underline cursor-pointer">CNPJ {{ alerta.referencia_cnpj }} ➔ Acessar Dossiê da Empresa</a>
@@ -205,7 +205,7 @@
             </details>
 
 <!-- Timeline -->
-            <div class="bg-white rounded shadow-xl p-6">
+            <div class="bg-[#1E293B] rounded-3xl shadow-2xl p-6 border border-gray-700/50 hover:bg-[#233146] transition-colors">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-200 pb-2 mb-6">
                     <h2 class="text-sm font-bold text-[#373D3F] uppercase tracking-widest">Timeline de Despesas</h2>
                     <form method="GET" action="" class="flex items-center gap-2 mt-2 md:mt-0 text-xs">
@@ -214,9 +214,9 @@
                         <input type="hidden" name="q" value="{{ busca }}">
                         {% endif %}
                         <label class="font-bold text-gray-500">Período:</label>
-                        <input type="date" name="data_inicio" id="timeline-start" value="{{ data_inicio }}" class="border border-gray-300 rounded px-2 py-1 outline-none focus:border-[#1A9E96] text-gray-700 bg-gray-50">
+                        <input type="date" name="data_inicio" id="timeline-start" value="{{ data_inicio }}" class="border border-gray-700 rounded px-2 py-1 outline-none focus:border-[#1A9E96] text-gray-300 bg-gray-800/50">
                         <span class="text-gray-400">até</span>
-                        <input type="date" name="data_fim" id="timeline-end" value="{{ data_fim }}" class="border border-gray-300 rounded px-2 py-1 outline-none focus:border-[#1A9E96] text-gray-700 bg-gray-50">
+                        <input type="date" name="data_fim" id="timeline-end" value="{{ data_fim }}" class="border border-gray-700 rounded px-2 py-1 outline-none focus:border-[#1A9E96] text-gray-300 bg-gray-800/50">
                         <button type="submit" class="ml-1 px-3 py-1 bg-[#1A9E96] text-white rounded font-bold hover:bg-[#15807d] transition-colors shadow-sm">Buscar</button>
                         <a href="?" class="ml-1 text-gray-400 hover:text-red-500 transition-colors" title="Limpar Filtro">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -318,12 +318,12 @@ const DetailApp = (function() {
 
             if (tabName === 'register') {
                 btnReg.className = "flex-1 py-2 text-sm font-bold border-b-2 transition-colors border-[#1A9E96] text-[#1A9E96]";
-                btnLog.className = "flex-1 py-2 text-sm font-bold border-b-2 transition-colors border-transparent text-gray-400 hover:text-gray-600";
+                btnLog.className = "flex-1 py-2 text-sm font-bold border-b-2 transition-colors border-transparent text-gray-400 hover:text-gray-400";
                 formReg.classList.remove('hidden');
                 formLog.classList.add('hidden');
             } else {
                 btnLog.className = "flex-1 py-2 text-sm font-bold border-b-2 transition-colors border-[#1A9E96] text-[#1A9E96]";
-                btnReg.className = "flex-1 py-2 text-sm font-bold border-b-2 transition-colors border-transparent text-gray-400 hover:text-gray-600";
+                btnReg.className = "flex-1 py-2 text-sm font-bold border-b-2 transition-colors border-transparent text-gray-400 hover:text-gray-400";
                 formLog.classList.remove('hidden');
                 formReg.classList.add('hidden');
             }
