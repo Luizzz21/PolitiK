@@ -324,6 +324,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--ano', nargs='+', type=int, help='Anos para importar (ex: 2024 2025)')
         parser.add_argument('--limite', type=int, default=1000, help='Limite de registros por fonte (default 1000, 0 para sem limite)')
+        parser.add_argument('--fontes', type=str, help='Fontes separadas por virgula (ex: camara,senado,executivo)')
 
     def handle(self, *args, **options):
         logger.info("=" * 60)
@@ -332,6 +333,11 @@ class Command(BaseCommand):
         
         anos_historico = options['ano'] or [2024, 2025, 2026] 
         limite = options['limite']
+        fontes = options.get('fontes')
+        if fontes:
+            fontes = fontes.split(',')
+        else:
+            fontes = ['camara', 'senado', 'executivo']
         
         # Guardar limite globalmente para as funcoes poderem ler (hack rápido para não mudar a assinatura de todas)
         global GLOBAL_LIMITE
@@ -342,17 +348,21 @@ class Command(BaseCommand):
             for ano in anos_historico:
                 logger.info(f"--- Iniciando Extração do Ano: {ano} ---")
                 
-                p_camara, _ = baixar_e_processar_camara(ano)
-                p_senado, _ = baixar_e_processar_senado(ano)
-                
-                # Executivo é dividido por mês. Puxar até o mês atual se for ano corrente.
-                current_year = 2026 # Contexto simulado
-                max_month = 8 if ano == current_year else 12
+                p_camara = 0
+                p_senado = 0
                 p_executivo_total = 0
-                for mes in range(1, max_month + 1):
-                    mes_str = f"{mes:02d}"
-                    p_exec, _ = baixar_e_processar_executivo(ano, mes_str)
-                    p_executivo_total += p_exec
+
+                if 'camara' in fontes:
+                    p_camara, _ = baixar_e_processar_camara(ano)
+                if 'senado' in fontes:
+                    p_senado, _ = baixar_e_processar_senado(ano)
+                if 'executivo' in fontes:
+                    current_year = 2026 # Contexto simulado
+                    max_month = 8 if ano == current_year else 12
+                    for mes in range(1, max_month + 1):
+                        mes_str = f"{mes:02d}"
+                        p_exec, _ = baixar_e_processar_executivo(ano, mes_str)
+                        p_executivo_total += p_exec
                 
                 total_geral += (p_camara + p_senado + p_executivo_total)
                 time.sleep(2)
