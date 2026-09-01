@@ -341,6 +341,11 @@ const DetailApp = (function() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ nome, email, password: pass })
                 });
+                if (res.status === 403) {
+                    errDiv.textContent = 'Bloqueado por muitas tentativas. Aguarde 1 minuto.';
+                    errDiv.classList.remove('hidden');
+                    return;
+                }
                 const data = await res.json();
 
                 if (data.success) {
@@ -368,6 +373,11 @@ const DetailApp = (function() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: email, password: pass })
                 });
+                if (res.status === 403) {
+                    errDiv.textContent = 'Bloqueado por muitas tentativas. Aguarde 1 minuto.';
+                    errDiv.classList.remove('hidden');
+                    return;
+                }
                 const data = await res.json();
 
                 if (data.success) {

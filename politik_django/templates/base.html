@@ -431,6 +431,11 @@ const AuthApp = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ nome: nome, email: email, password: pass })
             });
+            if (res.status === 403) {
+                errDiv.textContent = 'Muitas tentativas. Aguarde 1 minuto.';
+                errDiv.classList.remove('hidden');
+                return;
+            }
             const data = await res.json();
             if (data.success) {
                 localStorage.setItem('politik_user', data.user.username);

@@ -848,7 +848,7 @@ def api_health(request):
 # --- AutenticaÃ§Ã£o JWT (RF07) ---
 @csrf_exempt
 @require_http_methods(["POST"])
-@ratelimit(key='ip', rate='10/m', block=True)
+@ratelimit(key='ip', rate='60/m', block=True)
 def api_login(request):
     try:
         data = json.loads(request.body)
@@ -882,7 +882,7 @@ def api_logout(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@ratelimit(key='ip', rate='10/m', block=True)
+@ratelimit(key='ip', rate='60/m', block=True)
 def api_express_auth(request):
     try:
         data = json.loads(request.body)
