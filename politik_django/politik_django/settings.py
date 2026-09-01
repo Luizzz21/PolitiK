@@ -181,6 +181,12 @@ CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+# Desativa EAGER por padrão para desenvolvimento e prod. Usar True só em testes unitários.
+CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_ALWAYS_EAGER', 'False').lower() == 'true'
+CELERY_TASK_EAGER_PROPAGATES = True
 
 # ==============================================================================
 # CELERY BEAT SCHEDULE (AGENDAMENTO AUTOMÁTICO/PERIÓDICO)
@@ -208,13 +214,6 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour=5, minute=0), # Todo dia às 05:00
     },
 }
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = TIME_ZONE
-
-# Em dev sem Redis: tarefas rodam síncrono no mesmo processo
-CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_ALWAYS_EAGER', 'True').lower() == 'true'
-CELERY_TASK_EAGER_PROPAGATES = True
-
 # Rate limiting global para tasks de ingestão (evitar ban de APIs externas)
 CELERY_TASK_DEFAULT_RATE_LIMIT = '10/m'
 

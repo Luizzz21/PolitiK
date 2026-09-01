@@ -214,7 +214,7 @@ def baixar_e_processar_camara(ano):
 
 def baixar_e_processar_senado(ano):
     """Extrai dados da Cota Parlamentar (CEAPS) dos Senadores"""
-    url = f"https://www.senado.leg.br/transparencia/CSV/ceaps/despesas_ceaps_{ano}.csv"
+    url = f"https://adm.senado.gov.br/adm-dadosabertos/api/v1/senadores/despesas_ceaps/{ano}/csv"
     logger.info(f"Extraindo Senado Federal: {ano}")
 
     try:
@@ -222,14 +222,15 @@ def baixar_e_processar_senado(ano):
         csv_path = f"senado_{ano}.csv"
         subprocess.run(["powershell", "-Command", f"Invoke-WebRequest -Uri '{url}' -OutFile '{csv_path}'"], check=True)
         
-        with open(csv_path, 'r', encoding='ISO-8859-1') as f:
+        with open(csv_path, 'r', encoding='utf-8', errors='replace') as f:
             text_csv2 = f.read()
             
         if os.path.exists(csv_path):
             os.remove(csv_path)
+            
         linhas = text_csv2.split('\n')
-        if len(linhas) > 1 and "SENADO FEDERAL" in linhas[0]:
-            linhas = linhas[1:]
+        # Limpa aspas extras que possam quebrar o parser
+        linhas = [linha.replace('"', '') for linha in linhas]
             
         reader = csv.DictReader(io.StringIO('\n'.join(linhas)), delimiter=';')
         processados = 0
@@ -237,20 +238,30 @@ def baixar_e_processar_senado(ano):
         for linha in reader:
             if processados >= GLOBAL_LIMITE: break
             
-            nome_senador = linha.get('SENADOR')
+            # Novos cabeçalhos da API de Dados Abertos
+            nome_senador = linha.get('NOME_SENADOR') or linha.get('SENADOR')
             if not nome_senador: continue
 
             politico = get_or_create_politico(nome_senador)
             mandato = get_or_create_mandato(politico, 'Senador', 'Federal', None, ano)
-            fornecedor = get_or_create_fornecedor(linha.get('CNPJ_CPF'), linha.get('FORNECEDOR'))
+            
+            cnpj_cpf = linha.get('CPF_CNPJ_FORNECEDOR') or linha.get('CNPJ_CPF')
+            nome_forn = linha.get('NOME_FORNECEDOR') or linha.get('FORNECEDOR')
+            fornecedor = get_or_create_fornecedor(cnpj_cpf, nome_forn)
 
             data_despesa = linha.get('DATA')
-            mes = int(data_despesa[3:5]) if data_despesa and len(data_despesa) >= 10 else 1
             
+            # O formato antigo era DD/MM/YYYY, o novo parece ser YYYY-MM-DD
             if data_despesa and len(data_despesa) >= 10:
-                data_emissao = f"{data_despesa[6:10]}-{data_despesa[3:5]}-{data_despesa[0:2]}"
+                if '-' in data_despesa:
+                    data_emissao = data_despesa[:10] # Já no formato YYYY-MM-DD
+                    mes = int(data_emissao[5:7])
+                else:
+                    data_emissao = f"{data_despesa[6:10]}-{data_despesa[3:5]}-{data_despesa[0:2]}"
+                    mes = int(data_despesa[3:5])
             else:
                 data_emissao = f"{ano}-01-01"
+                mes = 1
 
             sucesso, msg = processar_despesa(
                 mandato, fornecedor, None, linha.get('TIPO_DESPESA'), linha.get('DETALHAMENTO'),
