@@ -93,12 +93,12 @@
                 </div>
 
                 <!-- Barra de Pesquisa Global -->
-                <div class="flex-1 max-w-md ml-4 lg:ml-8 relative hidden md:block">
+                <div class="flex-1 max-w-md mx-2 sm:ml-4 lg:ml-8 relative block">
                     <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <div class="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none">
                             <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                         </div>
-                        <input type="text" id="global-search-input" placeholder="Pesquisar político..." class="block w-full pl-10 pr-3 py-2 border border-gray-600 rounded-md leading-5 bg-[#2d3748] text-gray-300 placeholder-gray-400 focus:outline-none focus:bg-white focus:text-[#373D3F] focus:border-[#1A9E96] focus:ring-2 focus:ring-[#1A9E96] sm:text-sm transition-all" autocomplete="off">
+                        <input type="text" id="global-search-input" placeholder="Pesquisar..." class="block w-full pl-8 sm:pl-10 pr-2 sm:pr-3 py-1.5 sm:py-2 border border-gray-600 rounded-md leading-5 bg-[#2d3748] text-gray-300 placeholder-gray-400 focus:outline-none focus:bg-white focus:text-[#373D3F] focus:border-[#1A9E96] focus:ring-2 focus:ring-[#1A9E96] text-xs sm:text-sm transition-all" autocomplete="off">
                     </div>
                     <!-- Menu Suspenso de Resultados -->
                     <div id="global-search-dropdown" class="absolute z-50 w-full bg-white mt-1 rounded-md shadow-2xl border border-gray-200 hidden max-h-72 overflow-y-auto"></div>
@@ -153,11 +153,6 @@
                 <a href="/alertas/" class="block px-3 py-2 rounded-md text-base font-bold text-gray-300 hover:text-white hover:bg-gray-800">Alertas</a>
                 <a href="/fornecedores/" class="block px-3 py-2 rounded-md text-base font-bold text-gray-300 hover:text-white hover:bg-gray-800">Fornecedores</a>
                 <a href="/comunidade/" class="block px-3 py-2 rounded-md text-base font-bold text-yellow-500 hover:text-yellow-400 hover:bg-gray-800">APIs Estaduais</a>
-            </div>
-            <!-- Mobile Search -->
-            <div class="px-4 py-4 border-t border-gray-800 relative">
-                <input type="text" id="mobile-search-input" placeholder="Pesquisar político..." class="block w-full px-3 py-2 border border-gray-600 rounded-md bg-[#2d3748] text-gray-300 placeholder-gray-400 focus:outline-none focus:bg-white focus:text-[#373D3F]">
-                <div id="mobile-search-dropdown" class="absolute z-50 w-[90%] bg-white mt-1 rounded-md shadow-2xl border border-gray-200 hidden max-h-72 overflow-y-auto left-4 right-4"></div>
             </div>
         </div>
     </nav>
@@ -440,45 +435,6 @@ document.addEventListener('DOMContentLoaded', () => AuthApp.init());
             if(mobileBtn && mobileMenu) {
                 mobileBtn.addEventListener('click', () => {
                     mobileMenu.classList.toggle('hidden');
-                });
-            }
-
-            // Mobile Search Setup
-            const mobileSearchInput = document.getElementById('mobile-search-input');
-            const mobileSearchDropdown = document.getElementById('mobile-search-dropdown');
-            if (mobileSearchInput && mobileSearchDropdown) {
-                let mDebounceTimer;
-                mobileSearchInput.addEventListener('input', (e) => {
-                    clearTimeout(mDebounceTimer);
-                    const query = e.target.value.trim();
-                    if (query.length < 2) {
-                        mobileSearchDropdown.classList.add('hidden');
-                        return;
-                    }
-                    mDebounceTimer = setTimeout(async () => {
-                        try {
-                            const res = await fetch('/api/pesquisa/?q=' + encodeURIComponent(query));
-                            const data = await res.json();
-                            if (data.success && data.resultados.length > 0) {
-                                mobileSearchDropdown.innerHTML = data.resultados.map(r => 
-                                    '<a href="/politico/' + r.id + '/" class="block px-4 py-3 border-b border-gray-50 hover:bg-gray-50">' +
-                                        '<div class="font-bold text-gray-800">' + r.nome + '</div>' +
-                                        '<div class="text-xs text-gray-500 uppercase tracking-widest mt-1">' + r.cargo + ' - ' + r.estado + ' (' + r.partido + ')</div>' +
-                                    '</a>'
-                                ).join('');
-                                mobileSearchDropdown.classList.remove('hidden');
-                            } else {
-                                mobileSearchDropdown.innerHTML = '<div class="p-4 text-sm text-gray-500 font-bold text-center">Nenhum resultado encontrado</div>';
-                                mobileSearchDropdown.classList.remove('hidden');
-                            }
-                        } catch (e) { console.error(e); }
-                    }, 300);
-                });
-
-                document.addEventListener('click', (e) => {
-                    if (!mobileSearchInput.contains(e.target) && !mobileSearchDropdown.contains(e.target)) {
-                        mobileSearchDropdown.classList.add('hidden');
-                    }
                 });
             }
         });
