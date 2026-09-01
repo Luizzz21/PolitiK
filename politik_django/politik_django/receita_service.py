@@ -34,36 +34,48 @@ class ReceitaService:
     RECEITAWS_URL = "https://receitaws.com.br/v1/cnpj/"
 
     @classmethod
-    def enriquecer_fornecedor(cls, fornecedor: Fornecedor, forcar_atualizacao: bool = False) -> bool:
+    def enriquecer_fornecedor(cls, fornecedor: Fornecedor, forcar_atualizacao: bool = False) -> tuple[bool, bool]:
         """
         Enriquece o Fornecedor com dados cadastrais da Receita Federal.
         Tenta BrasilAPI primeiro; se falhar, tenta ReceitaWS.
 
         Returns:
-            True se o enriquecimento foi bem-sucedido.
+            (sucesso, usou_receitaws)
         """
         if not fornecedor.cnpj:
-            return False
+            return False, False
 
         # Evita bater na API se os dados foram atualizados há menos de 30 dias
         if not forcar_atualizacao and fornecedor.ultima_atualizacao_receita:
             dias_desde_atualizacao = (timezone.now() - fornecedor.ultima_atualizacao_receita).days
             if dias_desde_atualizacao < 30:
-                return True
+                return True, False
 
         # Tenta BrasilAPI primeiro (sem rate limit severo)
         sucesso = cls._fetch_brasilapi(fornecedor)
+        usou_receitaws = False
 
         # Fallback: ReceitaWS
         if not sucesso:
             logger.info(f"BrasilAPI falhou para {fornecedor.cnpj}, tentando ReceitaWS...")
             sucesso = cls._fetch_receitaws(fornecedor)
+            usou_receitaws = True
+        else:
+            logger.info(f"BrasilAPI: CNPJ {fornecedor.cnpj} enriquecido com sucesso.")
 
         if sucesso:
             fornecedor.ultima_atualizacao_receita = timezone.now()
+            
+            # Corrige telefone/numero para respeitar o limite de 20 caracteres
+            if fornecedor.telefone and len(fornecedor.telefone) > 20:
+                fornecedor.telefone = fornecedor.telefone[:20]
+            if fornecedor.numero and len(fornecedor.numero) > 20:
+                fornecedor.numero = fornecedor.numero[:20]
+                
             fornecedor.save()
+            return True, usou_receitaws
 
-        return sucesso
+        return False, usou_receitaws
 
     @classmethod
     def _fetch_brasilapi(cls, fornecedor: Fornecedor) -> bool:

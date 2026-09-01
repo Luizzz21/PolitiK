@@ -233,7 +233,7 @@ def enrich_fornecedor_task(self, cnpj):
             logger.warning(f"[Celery] CNPJ {cnpj} não encontrado no banco.")
             return False
 
-        sucesso = ReceitaService.enriquecer_fornecedor(fornecedor, forcar_atualizacao=True)
+        sucesso, usou_receitaws = ReceitaService.enriquecer_fornecedor(fornecedor, forcar_atualizacao=True)
 
         if sucesso:
             logger.info(

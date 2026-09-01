@@ -31,7 +31,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING(f"Iniciando enriquecimento de {fornecedores.count()} fornecedores..."))
 
         for i, fornecedor in enumerate(fornecedores):
-            sucesso = ReceitaService.enriquecer_fornecedor(fornecedor, forcar_atualizacao=True)
+            sucesso, usou_receitaws = ReceitaService.enriquecer_fornecedor(fornecedor, forcar_atualizacao=True)
             
             if sucesso:
                 self.stdout.write(self.style.SUCCESS(f"[+] CNPJ {fornecedor.cnpj} ({fornecedor.razao_social}) atualizado com sucesso! (Capital: {fornecedor.capital_social})"))
@@ -40,8 +40,12 @@ class Command(BaseCommand):
 
             # Rate Limit Receita WS: 3 requests por minuto -> dorme 20 segundos
             if i < fornecedores.count() - 1:
-                self.stdout.write(f"Aguardando rate limit (20s)...")
-                time.sleep(21)
+                if usou_receitaws:
+                    self.stdout.write(f"Aguardando rate limit da ReceitaWS (20s)...")
+                    time.sleep(21)
+                else:
+                    time.sleep(1) # Proteção leve pro BrasilAPI
+
 
         self.stdout.write(self.style.SUCCESS("Lote de enriquecimento finalizado!"))
 

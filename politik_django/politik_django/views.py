@@ -986,10 +986,14 @@ def fornecedores_view(request):
     if filtro_situacao:
         queryset = queryset.filter(situacao_cadastral=filtro_situacao)
         
-    # Anota o total recebido (Cota Parlamentar + Fundo Eleitoral)
+    from django.db.models import Subquery, OuterRef
+    mandato_sq = Despesa.objects.filter(fornecedor=OuterRef('pk')).values('fornecedor').annotate(s=Sum('valor_liquidado')).values('s')
+    campanha_sq = DespesaCampanha.objects.filter(fornecedor=OuterRef('pk')).values('fornecedor').annotate(s=Sum('valor')).values('s')
+    
+    # Anota o total recebido (Cota Parlamentar + Fundo Eleitoral) evitando Produto Cartesiano
     queryset = queryset.annotate(
-        total_mandato=Coalesce(Sum('despesas__valor_liquidado'), 0.0, output_field=DecimalField()),
-        total_campanha=Coalesce(Sum('despesas_campanha__valor'), 0.0, output_field=DecimalField())
+        total_mandato=Coalesce(Subquery(mandato_sq[:1]), 0.0, output_field=DecimalField()),
+        total_campanha=Coalesce(Subquery(campanha_sq[:1]), 0.0, output_field=DecimalField())
     ).annotate(
         total_recebido=F('total_mandato') + F('total_campanha')
     ).filter(total_recebido__gt=0).order_by('-total_recebido')
