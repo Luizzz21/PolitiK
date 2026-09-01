@@ -249,3 +249,20 @@ def enrich_fornecedor_task(self, cnpj):
     except Exception as e:
         logger.error(f"[Celery] Erro ao enriquecer CNPJ {cnpj}: {e}")
         raise
+
+@app.task(
+    bind=True,
+    name='politik_django.enrich_all_fornecedores',
+)
+def enrich_all_fornecedores_task(self):
+    """
+    Roda o script diário de enriquecimento em lote para todos os CNPJs vazios.
+    """
+    from django.core.management import call_command
+    logger.info("[Celery] Iniciando rotina em lote de enriquecimento de CNPJs.")
+    try:
+        call_command('enriquecer_fornecedores')
+        logger.info("[Celery] Rotina em lote de CNPJs concluída.")
+    except Exception as e:
+        logger.error(f"[Celery] Erro fatal na rotina de CNPJs: {e}")
+        raise

@@ -203,6 +203,10 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour=4, minute=0), # Todo dia às 04:00
         'kwargs': {'ano': 2026}
     },
+    'enriquecer_cnpjs_diariamente': {
+        'task': 'politik_django.enrich_all_fornecedores',
+        'schedule': crontab(hour=5, minute=0), # Todo dia às 05:00
+    },
 }
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
