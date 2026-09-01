@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+
+{% block title %}PolitiK - Explorador de Despesas{% endblock %}
+
+{% block extra_head %}
+<style>
+    .loader {
+        border: 3px solid #f3f4f6;
+        border-top: 3px solid var(--color-turquesa);
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <header class="mb-6 border-b border-gray-600 pb-4 flex flex-col md:flex-row justify-between items-end gap-4">
+        <div>
+            <h1 class="text-2xl font-black text-white tracking-tight uppercase">Gastos da <span class="text-[#1A9E96] font-light">Presidência</span></h1>
+            <p class="text-sm text-gray-400 mt-1">Consulte e audite gastos com Cartão Corporativo (CPGF), incluindo informações sigilosas.</p>
+        </div>
+    </header>
+
+    <div class="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded shadow-sm text-yellow-800">
+        <h3 class="text-sm font-bold">Sobre gastos sigilosos</h3>
+        <p class="mt-2 text-sm">O Governo Federal permite o uso de sigilo bancário em despesas ligadas à Presidência e Ministérios sob alegação de segurança nacional. Nestes casos, o recebedor do dinheiro é ocultado. A PolitiK exibe essas informações como <span class="font-bold">"Informação protegida por sigilo"</span>.</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-xl overflow-hidden flex flex-col lg:flex-row min-h-[600px]">
+        
+        <!-- Sidebar Filtros -->
+        <div class="w-full lg:w-64 bg-gray-50 border-r border-gray-200 p-5 flex flex-col gap-4">
+            <h3 class="font-black text-[#373D3F] uppercase tracking-widest text-xs mb-2">Filtros de Busca</h3>
+            
+            <div>
+                <label class="block text-xs font-bold text-gray-600 mb-1">Visibilidade</label>
+                <select id="filter-sigilo" class="w-full p-2 border border-gray-300 rounded text-sm bg-white font-bold text-gray-700">
+                    <option value="">Todas</option>
+                    <option value="true">Apenas Sigilosas</option>
+                    <option value="false">Apenas Abertas</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-600 mb-1">Período Específico</label>
+                <div class="flex gap-2">
+                    <input type="date" id="filter-data-inicio" class="w-1/2 px-2 py-2 text-xs border border-gray-300 rounded outline-none focus:border-[#1A9E96]">
+                    <input type="date" id="filter-data-fim" class="w-1/2 px-2 py-2 text-xs border border-gray-300 rounded outline-none focus:border-[#1A9E96]">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-600 mb-1">Ano</label>
+                <select id="filter-ano" class="w-full px-3 py-2 text-sm border border-gray-300 rounded outline-none">
+                    <option value="">Todos</option>
+                    <option value="2026">2026</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-xs font-bold text-gray-600 mb-1">Categoria</label>
+                <select id="filter-categoria" class="w-full px-3 py-2 text-sm border border-gray-300 rounded outline-none">
+                    <option value="">Todas</option>
+                    <option value="Alimentação">Alimentação</option>
+                    <option value="Combustível">Combustível</option>
+                    <option value="Passagens">Passagens</option>
+                    <option value="Hospedagem">Hospedagem</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Locação">Locação</option>
+                </select>
+            </div>
+
+            <button onclick="fetchDespesas(1)" class="w-full mt-4 bg-[#1A9E96] text-white py-2 rounded font-bold hover:bg-[#15807d] transition-colors shadow">
+                Aplicar Filtros
+            </button>
+        </div>
+        
+        <!-- Area Tabela -->
+        <div class="flex-1 flex flex-col min-w-0">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-white">
+                <div class="text-sm text-gray-500 font-bold"><span id="total-records">0</span> registros encontrados</div>
+                <div class="flex gap-2">
+                    <button onclick="exportCSV()" class="px-3 py-1.5 text-xs font-bold bg-[#373D3F] hover:bg-[#1A9E96] transition-colors text-white rounded shadow cursor-pointer">Baixar CSV</button>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto flex-1 bg-white relative min-h-[300px]">
+                <div id="loading-overlay" class="absolute inset-0 bg-white/80 z-10 flex items-center justify-center">
+                    <div class="loader"></div>
+                </div>
+                
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Data</th>
+                            <th class="px-4 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Político</th>
+                            <th class="px-4 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Fornecedor</th>
+                            <th class="px-4 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Categoria</th>
+                            <th class="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider">Valor (R$)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="despesas-tbody" class="divide-y divide-gray-100">
+                        <!-- Preenchido via JS -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Paginacao -->
+            <div class="p-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+                <button onclick="prevPage()" id="btn-prev" class="px-4 py-2 border border-gray-300 rounded text-sm font-bold bg-white text-gray-700 disabled:opacity-50 hover:bg-gray-50 transition-colors">Anterior</button>
+                <span class="text-sm font-bold text-gray-600" id="page-info">Página 1 de 1</span>
+                <button onclick="nextPage()" id="btn-next" class="px-4 py-2 border border-gray-300 rounded text-sm font-bold bg-white text-gray-700 disabled:opacity-50 hover:bg-gray-50 transition-colors">Próxima</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentPage = 1;
+    let totalPages = 1;
+
+    function formatCurrency(value) {
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    }
+    
+    function formatDate(dateStr) {
+        if(!dateStr) return '-';
+        const [y, m, d] = dateStr.split('-');
+        return `${d}/${m}/${y}`;
+    }
+
+    async function fetchDespesas(page = 1) {
+        document.getElementById('loading-overlay').style.display = 'flex';
+        currentPage = page;
+        
+        const params = new URLSearchParams({
+            page: page,
+            limit: 50,
+            ano: document.getElementById('filter-ano').value,
+            cargo: 'Executivo',
+            esfera: 'Federal',
+            sigilo: document.getElementById('filter-sigilo') ? document.getElementById('filter-sigilo').value : '',
+            categoria: document.getElementById('filter-categoria').value,
+            data_inicio: document.getElementById('filter-data-inicio').value,
+            data_fim: document.getElementById('filter-data-fim').value
+        });
+        
+        try {
+            const res = await fetch('/api/despesas/?' + params.toString());
+            const data = await res.json();
+            
+            const tbody = document.getElementById('despesas-tbody');
+            tbody.innerHTML = '';
+            
+            if (data.success === false) {
+                // Timeout fallback / erro customizado amigável
+                tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-500 font-bold">${data.message}</td></tr>`;
+                document.getElementById('total-records').textContent = 0;
+                document.getElementById('page-info').textContent = 'Página 1 de 1';
+                document.getElementById('btn-prev').disabled = true;
+                document.getElementById('btn-next').disabled = true;
+                document.getElementById('loading-overlay').style.display = 'none';
+                return;
+            }
+
+            if(data.despesas && data.despesas.length > 0) {
+                data.despesas.forEach(d => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-50 transition-colors';
+                    tr.innerHTML = `
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-bold">${formatDate(d.data_emissao)}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="text-sm font-bold text-[#373D3F]">${d.politico_nome}</div>
+                            <div class="text-[10px] uppercase font-black tracking-wider text-gray-400 mt-0.5">${d.cargo}</div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="text-sm font-bold text-gray-700 truncate max-w-[200px]" title="${d.fornecedor ? d.fornecedor.razao_social : 'N/A'}">
+                                ${d.fornecedor && d.fornecedor.cnpj ? '<a href="/fornecedor/' + d.fornecedor.cnpj + '/" class="hover:text-[#1A9E96] transition-colors underline decoration-[#1A9E96]/30">' + d.fornecedor.razao_social + '</a>' : (d.fornecedor ? d.fornecedor.razao_social : 'N/A')}
+                            </div>
+                            <div class="text-[10px] font-black text-gray-400 mt-0.5 tracking-wider">${d.fornecedor && d.fornecedor.cnpj ? d.fornecedor.cnpj : ''}</div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <span class="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-bold">${d.categoria}</span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-black text-[#1A9E96]">
+                            ${formatCurrency(d.valor_liquidado)}
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-500 font-bold">Nenhuma despesa encontrada para os filtros.</td></tr>';
+            }
+            
+            document.getElementById('total-records').textContent = new Intl.NumberFormat('pt-BR').format(data.pagination.total);
+            totalPages = data.pagination.pages || 1;
+            document.getElementById('page-info').textContent = `Página ${currentPage} de ${totalPages}`;
+            
+            document.getElementById('btn-prev').disabled = currentPage <= 1;
+            document.getElementById('btn-next').disabled = currentPage >= totalPages;
+            
+        } catch(e) {
+            console.error(e);
+        } finally {
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
+    }
+    
+    function prevPage() { if(currentPage > 1) fetchDespesas(currentPage - 1); }
+    function nextPage() { if(currentPage < totalPages) fetchDespesas(currentPage + 1); }
+    
+    function exportCSV() {
+        const params = new URLSearchParams({
+            ano: document.getElementById('filter-ano').value,
+            esfera: document.getElementById('filter-esfera').value,
+            categoria: document.getElementById('filter-categoria').value
+        });
+        window.location.href = '/api/export/despesas/csv/?' + params.toString();
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => fetchDespesas(1));
+</script>
+{% endblock %}
+
