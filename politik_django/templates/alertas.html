@@ -59,7 +59,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
                     <div class="bg-[#1e293b] p-4 rounded-md border border-gray-700 shadow-inner">
                         <span class="block text-gray-500 font-bold mb-1 uppercase tracking-wider text-[10px]">Agente Político</span>
-                        <span class="text-gray-200 font-bold text-sm">{{ alerta.mandato.politico.nome_civil }}</span>
+                        <a href="{% url 'pagina_politico' alerta.mandato.politico.id %}" class="text-gray-200 font-bold text-sm hover:text-[#1e9b95] transition-colors underline decoration-[#1e9b95] decoration-2 underline-offset-2">{{ alerta.mandato.politico.nome_civil }}</a>
                         <span class="text-gray-400 block mt-0.5 text-[10px] uppercase">{{ alerta.mandato.politico.partido|default:"Sem Partido" }}</span>
                     </div>
                     <div class="bg-[#1e293b] p-4 rounded-md border border-gray-700 shadow-inner">
@@ -73,7 +73,11 @@
                     </div>
                     <div class="bg-[#1e293b] p-4 rounded-md border border-gray-700 shadow-inner">
                         <span class="block text-gray-500 font-bold mb-1 uppercase tracking-wider text-[10px]">Referência Cruzada</span>
-                        <span class="text-[#1e9b95] font-mono font-bold">{{ alerta.referencia_cnpj|default:"Análise de Volume" }}</span>
+                        {% if alerta.referencia_cnpj %}
+                            <a href="{% url 'fornecedor_detail' alerta.referencia_cnpj %}" class="text-[#1e9b95] font-mono font-bold hover:text-white transition-colors underline decoration-[#1e9b95] decoration-2 underline-offset-2 cnpj-format">{{ alerta.referencia_cnpj }}</a>
+                        {% else %}
+                            <span class="text-[#1e9b95] font-mono font-bold">Análise de Volume</span>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -145,6 +149,16 @@ function getCSRFToken() {
         .find(row => row.startsWith('csrftoken='))
         ?.split('=')[1];
 }
+
+// Formatar CNPJs na tela
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.cnpj-format').forEach(el => {
+        let text = el.innerText.replace(/\D/g, '');
+        if(text.length === 14) {
+            el.innerText = text.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+        }
+    });
+});
 </script>
 {% endblock %}
 {% endblock %}
