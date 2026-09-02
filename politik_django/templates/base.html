@@ -55,6 +55,53 @@
 
     <!-- Google AdSense Auto Ads -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1352244867214827" crossorigin="anonymous"></script>
+
+    <!-- Fullscreen Charts Style & Script -->
+    <style>
+    .card-fullscreen {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 99999 !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow-y: auto !important;
+    }
+    .card-fullscreen > div[style*="height"] {
+        height: 100% !important;
+        flex-grow: 1 !important;
+    }
+    .card-fullscreen .chart-container {
+        height: 100% !important;
+        flex-grow: 1 !important;
+        min-height: 0 !important;
+    }
+    </style>
+    <script>
+    function toggleFullscreen(btn) {
+        const card = btn.closest('.bg-white, .bg-\\[\\#1E293B\\]');
+        if (!card) return;
+        const expandIcon = btn.querySelector('.icon-expand');
+        const compressIcon = btn.querySelector('.icon-compress');
+        
+        if (card.classList.contains('card-fullscreen')) {
+            card.classList.remove('card-fullscreen');
+            if(expandIcon) expandIcon.classList.remove('hidden');
+            if(compressIcon) compressIcon.classList.add('hidden');
+            document.body.style.overflow = '';
+        } else {
+            card.classList.add('card-fullscreen');
+            if(expandIcon) expandIcon.classList.add('hidden');
+            if(compressIcon) compressIcon.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+        setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 100);
+    }
+    </script>
 </head>
 <body class="font-sans antialiased min-h-screen flex flex-col">
     

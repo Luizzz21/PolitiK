@@ -200,7 +200,13 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         
         <div class="lg:col-span-2 bg-white rounded p-6 shadow-xl">
-            <h2 class="text-sm font-bold text-gray-600 uppercase tracking-widest border-b border-gray-100 pb-2 mb-4">Execução Histórica</h2>
+<div class="flex justify-between items-start border-b border-gray-100 pb-2 mb-4 w-full">
+    <h2 class="text-sm font-bold text-gray-600 uppercase tracking-widest ">Execução Histórica</h2>
+    <button type="button" onclick="toggleFullscreen(this)" class="text-gray-400 hover:text-[#1A9E96] transition-colors focus:outline-none p-1 ml-2" title="Tela Cheia">
+        <svg class="w-5 h-5 icon-expand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+        <svg class="w-5 h-5 icon-compress hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 14h4m0 0v4m0-4l-5 5m15-5h-4m0 0v4m0-4l5 5M4 10h4m0 0V6m0 4l-5-5m15 5h-4m0 0V6m0 4l5-5"></path></svg>
+    </button>
+</div>
             <div class="chart-container" id="container-linha">
                 <div class="chart-loader hidden" id="loader-linha"><div class="spinner"></div></div>
                 <canvas id="chart-mensal"></canvas>
@@ -208,7 +214,13 @@
         </div>
 
         <div class="lg:col-span-1 bg-white rounded p-6 shadow-xl">
-            <h2 class="text-sm font-bold text-gray-600 uppercase tracking-widest border-b border-gray-100 pb-2 mb-4">Alocação</h2>
+<div class="flex justify-between items-start border-b border-gray-100 pb-2 mb-4 w-full">
+    <h2 class="text-sm font-bold text-gray-600 uppercase tracking-widest ">Alocação</h2>
+    <button type="button" onclick="toggleFullscreen(this)" class="text-gray-400 hover:text-[#1A9E96] transition-colors focus:outline-none p-1 ml-2" title="Tela Cheia">
+        <svg class="w-5 h-5 icon-expand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+        <svg class="w-5 h-5 icon-compress hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 14h4m0 0v4m0-4l-5 5m15-5h-4m0 0v4m0-4l5 5M4 10h4m0 0V6m0 4l-5-5m15 5h-4m0 0V6m0 4l5-5"></path></svg>
+    </button>
+</div>
             <div class="chart-container" id="container-pizza">
                 <div class="chart-loader hidden" id="loader-pizza"><div class="spinner"></div></div>
                 <canvas id="chart-categoria"></canvas>
@@ -218,7 +230,13 @@
 
     <!-- Gráfico Inferior: Top Fornecedores -->
     <div class="w-full bg-white rounded p-6 shadow-xl mb-8">
-        <h2 class="text-sm font-bold text-gray-600 uppercase tracking-widest border-b border-gray-100 pb-2 mb-4">Top 5 Entidades Beneficiadas (Volume Financeiro)</h2>
+<div class="flex justify-between items-start border-b border-gray-100 pb-2 mb-4 w-full">
+    <h2 class="text-sm font-bold text-gray-600 uppercase tracking-widest ">Top 5 Entidades Beneficiadas (Volume Financeiro)</h2>
+    <button type="button" onclick="toggleFullscreen(this)" class="text-gray-400 hover:text-[#1A9E96] transition-colors focus:outline-none p-1 ml-2" title="Tela Cheia">
+        <svg class="w-5 h-5 icon-expand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+        <svg class="w-5 h-5 icon-compress hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 14h4m0 0v4m0-4l-5 5m15-5h-4m0 0v4m0-4l5 5M4 10h4m0 0V6m0 4l-5-5m15 5h-4m0 0V6m0 4l5-5"></path></svg>
+    </button>
+</div>
         <div class="chart-container" id="container-fornecedores" style="height: 250px;">
             <div class="chart-loader hidden" id="loader-fornecedores"><div class="spinner"></div></div>
             <canvas id="chart-fornecedores"></canvas>

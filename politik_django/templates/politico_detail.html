@@ -119,7 +119,13 @@
             <!-- Gráficos -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="bg-[#1E293B] rounded-3xl shadow-2xl p-6 border border-gray-700/50 hover:bg-[#233146] transition-colors">
-                    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest border-b border-gray-700/50 pb-2 mb-4">Gastos por Categoria</h2>
+<div class="flex justify-between items-start border-b border-gray-700/50 pb-2 mb-4 w-full">
+    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest ">Gastos por Categoria</h2>
+    <button type="button" onclick="toggleFullscreen(this)" class="text-gray-400 hover:text-[#1A9E96] transition-colors focus:outline-none p-1 ml-2" title="Tela Cheia">
+        <svg class="w-5 h-5 icon-expand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+        <svg class="w-5 h-5 icon-compress hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 14h4m0 0v4m0-4l-5 5m15-5h-4m0 0v4m0-4l5 5M4 10h4m0 0V6m0 4l-5-5m15 5h-4m0 0V6m0 4l5-5"></path></svg>
+    </button>
+</div>
                     <div style="position: relative; height: 260px; width: 100%;">
                         <div id="loader-politico" class="absolute inset-0 flex items-center justify-center bg-[#1E293B]/90 z-10 hidden">
                             <div class="w-6 h-6 border-2 border-gray-600 border-t-[#1A9E96] rounded-full animate-spin"></div>
@@ -129,7 +135,13 @@
                 </div>
                 
                 <div class="bg-[#1E293B] rounded-3xl shadow-2xl p-6 border border-gray-700/50 hover:bg-[#233146] transition-colors">
-                    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest border-b border-gray-700/50 pb-2 mb-4">Execução Histórica Mensal</h2>
+<div class="flex justify-between items-start border-b border-gray-700/50 pb-2 mb-4 w-full">
+    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest ">Execução Histórica Mensal</h2>
+    <button type="button" onclick="toggleFullscreen(this)" class="text-gray-400 hover:text-[#1A9E96] transition-colors focus:outline-none p-1 ml-2" title="Tela Cheia">
+        <svg class="w-5 h-5 icon-expand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+        <svg class="w-5 h-5 icon-compress hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 14h4m0 0v4m0-4l-5 5m15-5h-4m0 0v4m0-4l5 5M4 10h4m0 0V6m0 4l-5-5m15 5h-4m0 0V6m0 4l5-5"></path></svg>
+    </button>
+</div>
                     <div style="position: relative; height: 260px; width: 100%;">
                         <div id="loader-politico-line" class="absolute inset-0 flex items-center justify-center bg-[#1E293B]/90 z-10 hidden">
                             <div class="w-6 h-6 border-2 border-gray-600 border-t-[#1A9E96] rounded-full animate-spin"></div>
