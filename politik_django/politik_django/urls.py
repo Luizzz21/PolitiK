@@ -46,5 +46,6 @@ urlpatterns = [
     path('api/auth/login/', views.api_login, name='api_login'),
     path('api/auth/logout/', views.api_logout, name='api_logout'),
     path('api/auth/express/', views.api_express_auth, name='api_express_auth'),
+    path('api/auth/reset/', views.api_reset_password, name='api_reset_password'),
     path('api/v1/fornecedor-risco/<str:cnpj>/', views.api_b2b_fornecedor_risk, name='api_b2b_fornecedor_risk'),
 ]

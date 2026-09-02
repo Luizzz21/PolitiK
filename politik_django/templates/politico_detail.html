@@ -18,12 +18,12 @@
             <div class="w-16 h-16 bg-[#e0f2f1] text-[#1A9E96] rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
             </div>
-            <h2 class="text-2xl font-black text-[#373D3F] uppercase tracking-tight">Dossiê Restrito</h2>
-            <p class="text-sm text-gray-500 mt-2">Identifique-se para visualizar gastos detalhados, cruzamento de fornecedores e alertas deste agente.</p>
+            <h2 class="text-2xl font-black text-gray-100 uppercase tracking-tight">Dossiê Restrito</h2>
+            <p class="text-sm text-gray-400 mt-2">Identifique-se para visualizar gastos detalhados, cruzamento de fornecedores e alertas deste agente.</p>
         </div>
 
         <!-- Abas de Navegação (Tabs) -->
-        <div class="flex border-b border-gray-200 mb-6">
+        <div class="flex border-b border-gray-600 mb-6">
             <button onclick="DetailApp.switchTab('register')" id="tab-btn-register" class="flex-1 py-2 text-sm font-bold border-b-2 transition-colors border-[#1A9E96] text-[#1A9E96]">Criar Conta Grátis</button>
             <button onclick="DetailApp.switchTab('login')" id="tab-btn-login" class="flex-1 py-2 text-sm font-bold border-b-2 transition-colors border-transparent text-gray-400 hover:text-gray-400">Já tenho conta</button>
         </div>
@@ -33,16 +33,16 @@
 
         <!-- Formulário de Cadastro (Register Tab) -->
         <form id="form-register" onsubmit="event.preventDefault(); DetailApp.submitRegister();" class="space-y-4">
-            <input type="text" id="reg-nome" placeholder="Como podemos te chamar?" class="w-full px-4 py-3 bg-gray-800/50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-100" required>
-            <input type="email" id="reg-email" placeholder="Seu e-mail" class="w-full px-4 py-3 bg-gray-800/50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-100" required>
-            <input type="password" id="reg-password" placeholder="Crie uma senha (mínimo 6 caracteres)" class="w-full px-4 py-3 bg-gray-800/50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-100" required minlength="6">
+            <input type="text" id="reg-nome" placeholder="Como podemos te chamar?" class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-100" required>
+            <input type="email" id="reg-email" placeholder="Seu e-mail" class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-100" required>
+            <input type="password" id="reg-password" placeholder="Crie uma senha (mínimo 6 caracteres)" class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-100" required minlength="6">
             <button type="submit" class="w-full py-4 bg-[#1A9E96] text-white rounded font-black hover:bg-[#15807d] transition-colors text-sm uppercase tracking-widest shadow-lg mt-2">Liberar Acesso</button>
         </form>
 
         <!-- Formulário de Login (Login Tab) -->
         <form id="form-login" onsubmit="event.preventDefault(); DetailApp.submitLogin();" class="space-y-4 hidden">
-            <input type="email" id="login-email" placeholder="E-mail cadastrado" class="w-full px-4 py-3 bg-gray-800/50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-100" required>
-            <input type="password" id="login-password" placeholder="Sua senha" class="w-full px-4 py-3 bg-gray-800/50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-100" required>
+            <input type="email" id="login-email" placeholder="E-mail cadastrado" class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-100" required>
+            <input type="password" id="login-password" placeholder="Sua senha" class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded text-sm outline-none focus:border-[#1A9E96] text-gray-100" required>
             <button type="submit" class="w-full py-4 bg-[#373D3F] text-white rounded font-black hover:bg-gray-800 transition-colors text-sm uppercase tracking-widest shadow-lg mt-2">Entrar</button>
         </form>
     </div>
@@ -101,12 +101,12 @@
                         <div class="absolute w-3 h-3 bg-[#1A9E96] rounded-full -left-[7px] top-1.5"></div>
                         <p class="text-sm font-black text-white uppercase">{{ mandato.cargo }}</p>
                         <p class="text-xs font-bold text-gray-400 uppercase mt-0.5">{{ mandato.esfera }} • {{ mandato.estado_uf|default:"BR" }}</p>
-                        <p class="text-xs text-gray-500 mt-1.5 bg-[#373D3F] inline-block px-2 py-1 rounded">
+                        <p class="text-xs text-gray-400 mt-1.5 bg-[#373D3F] inline-block px-2 py-1 rounded">
                             {{ mandato.ano_inicio|stringformat:"i"|default:"-" }} a {{ mandato.ano_fim|stringformat:"i"|default:"Presente" }}
                         </p>
                     </div>
                     {% empty %}
-                    <p class="text-sm text-gray-500">Nenhum mandato estruturado encontrado.</p>
+                    <p class="text-sm text-gray-400">Nenhum mandato estruturado encontrado.</p>
                     {% endfor %}
                 </div>
             </div>
@@ -127,7 +127,7 @@
                     <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest border-b border-gray-700/50 pb-2 mb-4">Gastos por Categoria</h2>
                     <div style="position: relative; height: 260px; width: 100%;">
                         <div id="loader-politico" class="absolute inset-0 flex items-center justify-center bg-[#1E293B]/90 z-10 hidden">
-                            <div class="w-6 h-6 border-2 border-gray-200 border-t-[#1A9E96] rounded-full animate-spin"></div>
+                            <div class="w-6 h-6 border-2 border-gray-600 border-t-[#1A9E96] rounded-full animate-spin"></div>
                         </div>
                         <canvas id="chart-politico-cat"></canvas>
                     </div>
@@ -137,7 +137,7 @@
                     <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest border-b border-gray-700/50 pb-2 mb-4">Execução Histórica Mensal</h2>
                     <div style="position: relative; height: 260px; width: 100%;">
                         <div id="loader-politico-line" class="absolute inset-0 flex items-center justify-center bg-[#1E293B]/90 z-10 hidden">
-                            <div class="w-6 h-6 border-2 border-gray-200 border-t-[#1A9E96] rounded-full animate-spin"></div>
+                            <div class="w-6 h-6 border-2 border-gray-600 border-t-[#1A9E96] rounded-full animate-spin"></div>
                         </div>
                         <canvas id="chart-politico-line"></canvas>
                     </div>
@@ -162,7 +162,7 @@
                         </div>
                     </div>
                 {% else %}
-                    <p class="text-xs text-gray-500 mb-4">O Score de <strong>{{ max_score }}</strong> foi gerado automaticamente pela Inteligência Artificial com base nas seguintes anomalias e infrações financeiras rastreadas:</p>
+                    <p class="text-xs text-gray-400 mb-4">O Score de <strong>{{ max_score }}</strong> foi gerado automaticamente pela Inteligência Artificial com base nas seguintes anomalias e infrações financeiras rastreadas:</p>
                     
                     <div class="space-y-3">
                         {% for alerta in alertas %}
@@ -198,7 +198,7 @@
                             </div>
                         </div>
                         {% empty %}
-                        <p class="text-xs text-gray-500 italic">Score manual ou anomalia arquivada.</p>
+                        <p class="text-xs text-gray-400 italic">Score manual ou anomalia arquivada.</p>
                         {% endfor %}
                     </div>
                 {% endif %}
@@ -206,14 +206,14 @@
 
 <!-- Timeline -->
             <div class="bg-[#1E293B] rounded-3xl shadow-2xl p-6 border border-gray-700/50 hover:bg-[#233146] transition-colors">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-200 pb-2 mb-6">
-                    <h2 class="text-sm font-bold text-[#373D3F] uppercase tracking-widest">Timeline de Despesas</h2>
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-700 pb-2 mb-6">
+                    <h2 class="text-sm font-bold text-gray-100 uppercase tracking-widest">Timeline de Despesas</h2>
                     <form method="GET" action="" class="flex items-center gap-2 mt-2 md:mt-0 text-xs">
                         <!-- Preservar busca atual se existir -->
                         {% if busca %}
                         <input type="hidden" name="q" value="{{ busca }}">
                         {% endif %}
-                        <label class="font-bold text-gray-500">Período:</label>
+                        <label class="font-bold text-gray-400">Período:</label>
                         <input type="date" name="data_inicio" id="timeline-start" value="{{ data_inicio }}" class="border border-gray-700 rounded px-2 py-1 outline-none focus:border-[#1A9E96] text-gray-300 bg-gray-800/50">
                         <span class="text-gray-400">até</span>
                         <input type="date" name="data_fim" id="timeline-end" value="{{ data_fim }}" class="border border-gray-700 rounded px-2 py-1 outline-none focus:border-[#1A9E96] text-gray-300 bg-gray-800/50">
@@ -233,13 +233,13 @@
                             <span class="text-sm font-black text-red-600">R$ {{ despesa.valor_liquidado|floatformat:2 }}</span>
                         </div>
                         
-                        <h3 class="text-sm font-bold text-[#373D3F] leading-tight">{{ despesa.descricao_despesa|default:"Sem especificação detalhada" }}</h3>
+                        <h3 class="text-sm font-bold text-gray-100 leading-tight">{{ despesa.descricao_despesa|default:"Sem especificação detalhada" }}</h3>
                         
-                        <div class="mt-2 text-xs text-gray-500 font-medium">
+                        <div class="mt-2 text-xs text-gray-300 font-medium">
                             <span class="uppercase tracking-widest font-black text-gray-400 mr-2">{{ despesa.categoria }}</span>
                             Pago a: 
                             {% if despesa.fornecedor %}
-                                <a href="/fornecedor/{{ despesa.fornecedor.cnpj }}/" class="text-[#373D3F] font-bold hover:text-[#1A9E96] transition-colors underline decoration-gray-300 hover:decoration-[#1A9E96]">{{ despesa.fornecedor.razao_social }}</a>
+                                <a href="/fornecedor/{{ despesa.fornecedor.cnpj }}/" class="text-gray-100 font-bold hover:text-[#1A9E96] transition-colors underline decoration-gray-300 hover:decoration-[#1A9E96]">{{ despesa.fornecedor.razao_social }}</a>
                             {% else %}
                                 Fornecedor não identificado
                             {% endif %}
@@ -361,7 +361,33 @@ const DetailApp = (function() {
             }
         },
 
-        submitLogin: async function() {
+        forgotPassword: async function() {
+        const email = document.getElementById('login-email').value;
+        const errDiv = document.getElementById('lazy-login-error');
+        if(!email) {
+            errDiv.textContent = 'Digite seu e-mail acima e clique em "Esqueceu a senha?".';
+            errDiv.classList.remove('hidden');
+            return;
+        }
+        try {
+            const res = await fetch('/api/auth/reset/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message);
+            } else {
+                errDiv.textContent = data.message || 'Erro ao redefinir senha.';
+                errDiv.classList.remove('hidden');
+            }
+        } catch (e) {
+            errDiv.textContent = 'Erro de conexão com o servidor.';
+            errDiv.classList.remove('hidden');
+        }
+    },
+    submitLogin: async function() {
             const email = document.getElementById('login-email').value;
             const pass = document.getElementById('login-password').value;
             const errDiv = document.getElementById('modal-error');

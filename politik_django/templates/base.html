@@ -396,6 +396,9 @@
                 <input type="email" id="auth-email" placeholder="Seu e-mail" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96]" required>
                 <input type="password" id="auth-password" placeholder="Senha" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded text-sm outline-none focus:border-[#1A9E96]" required minlength="6">
                 <button type="submit" class="w-full py-3 bg-[#1A9E96] text-white rounded font-bold hover:bg-[#15807d] transition-colors text-sm uppercase tracking-wider">Entrar / Cadastrar</button>
+                <div class="text-center mt-2">
+                    <button type="button" onclick="AuthApp.forgotPassword()" class="text-xs text-[#1A9E96] hover:underline font-bold">Esqueceu a senha?</button>
+                </div>
             </form>
         </div>
     </div>
@@ -445,6 +448,32 @@ const AuthApp = {
                 window.location.reload();
             } else {
                 errDiv.textContent = data.message || 'Erro ao validar dados.';
+                errDiv.classList.remove('hidden');
+            }
+        } catch (e) {
+            errDiv.textContent = 'Erro de conexão com o servidor.';
+            errDiv.classList.remove('hidden');
+        }
+    },
+    forgotPassword: async function() {
+        const email = document.getElementById('auth-email').value;
+        const errDiv = document.getElementById('global-auth-error');
+        if(!email) {
+            errDiv.textContent = 'Digite seu e-mail acima e clique em "Esqueceu a senha?".';
+            errDiv.classList.remove('hidden');
+            return;
+        }
+        try {
+            const res = await fetch('/api/auth/reset/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message);
+            } else {
+                errDiv.textContent = data.message || 'Erro ao redefinir senha.';
                 errDiv.classList.remove('hidden');
             }
         } catch (e) {

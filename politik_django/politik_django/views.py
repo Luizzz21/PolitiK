@@ -912,6 +912,34 @@ def api_logout(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 @ratelimit(key='ip', rate='60/m', block=True)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@ratelimit(key='ip', rate='10/m', block=True)
+def api_reset_password(request):
+    try:
+        data = json.loads(request.body)
+        email = data.get('email', '').strip()
+        if not email:
+            return JsonResponse({'success': False, 'message': 'E-mail é obrigatório.'}, status=400)
+        
+        user = User.objects.filter(email=email).first()
+        if not user:
+            return JsonResponse({'success': False, 'message': 'E-mail não encontrado.'}, status=404)
+        
+        # Gera uma senha aleatória simples (6 números)
+        import random
+        nova_senha = str(random.randint(100000, 999999))
+        user.set_password(nova_senha)
+        user.save()
+        
+        return JsonResponse({
+            'success': True, 
+            'message': f'Senha redefinida com sucesso!\n\nSua nova senha temporária é: {nova_senha}\n\nFaça login e altere-a imediatamente em "Minha Conta".'
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Erro interno: {str(e)}'}, status=500)
+
 def api_express_auth(request):
     try:
         data = json.loads(request.body)
