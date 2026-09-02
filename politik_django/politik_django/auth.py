@@ -16,6 +16,7 @@ from typing import Tuple, Optional, TYPE_CHECKING
 
 import jwt
 from django.conf import settings
+from django.core.cache import cache
 from django.contrib.auth import get_user_model
 from django.middleware.csrf import CsrfViewMiddleware
 from django.utils import timezone

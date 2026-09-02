@@ -84,6 +84,7 @@ def despesas_view(request):
 def presidencia_view(request):
     return render(request, 'presidencia.html')
 
+@cache_page(60 * 15)
 def index(request):
     """Main dashboard view (RF06 - Dynamic Filters)"""
     
@@ -647,6 +648,9 @@ def api_atualizar_alerta(request):
         alerta_id = data.get('alerta_id')
         resolvido = data.get('resolvido', False)
 
+        if not request.user.is_staff:
+            return JsonResponse({'success': False, 'message': 'Permissão negada'}, status=403)
+
         alerta = get_object_or_404(Alerta, id=alerta_id)
         alerta.resolvido = resolvido
         if resolvido:
@@ -878,6 +882,7 @@ def api_health(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 @ratelimit(key='ip', rate='60/m', block=True)
+@ratelimit(key='post:username', rate='10/m', block=True)
 def api_login(request):
     try:
         data = json.loads(request.body)
@@ -906,7 +911,7 @@ def api_login(request):
 @require_http_methods(["POST"])
 def api_logout(request):
     response = JsonResponse({'success': True, 'message': 'Logout realizado com sucesso'})
-    clear_jwt_cookies(response)
+    clear_jwt_cookies(response, request)
     return response
 
 @csrf_exempt
@@ -916,6 +921,7 @@ def api_logout(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 @ratelimit(key='ip', rate='10/m', block=True)
+@ratelimit(key='post:email', rate='3/m', block=True)
 def api_reset_password(request):
     try:
         data = json.loads(request.body)
@@ -925,7 +931,7 @@ def api_reset_password(request):
         
         user = User.objects.filter(email=email).first()
         if not user:
-            return JsonResponse({'success': False, 'message': 'E-mail não encontrado.'}, status=404)
+            return JsonResponse({'success': True, 'message': 'Se o e-mail existir, uma nova senha provisória foi gerada e enviada.'}, status=200)
         
         # Gera uma senha aleatória simples (6 números)
         import random
