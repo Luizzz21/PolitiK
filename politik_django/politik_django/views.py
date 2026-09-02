@@ -126,13 +126,15 @@ def index(request):
     }
 
     # Calcula Top Gastadores (Ranking)
-    from django.db.models import Value
+    from django.db.models import Value, DecimalField
     from django.db.models.functions import Coalesce
+    from decimal import Decimal
     
     top_gastadores = mandatos_qs.annotate(
         total_gasto=Coalesce(
             Sum('despesas__valor_liquidado', filter=Q(despesas__ano=ano_atual)), 
-            Value(0.0)
+            Value(Decimal('0.0')),
+            output_field=DecimalField()
         )
     ).filter(total_gasto__gt=0).order_by('-total_gasto')[:5]
 
