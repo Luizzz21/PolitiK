@@ -11,7 +11,7 @@
         </div>
         <div class="flex items-center gap-2 w-full md:w-auto">
             <span class="text-sm font-bold text-gray-400 hidden sm:inline">Ordenar por:</span>
-            <select id="sort-by" class="px-3 py-2 text-sm font-bold text-[#373D3F] bg-white border border-gray-300 rounded shadow-sm outline-none cursor-pointer" onchange="window.location.href='?sort=' + this.value">
+            <select id="sort-by" class="px-3 py-2 text-sm font-bold text-[#373D3F] bg-white border border-gray-300 rounded shadow-sm outline-none cursor-pointer" onchange="let u = new URL(window.location); u.searchParams.set('sort', this.value); window.location.href = u.toString();">
                 <option value="-total_gasto" {% if current_sort == '-total_gasto' %}selected{% endif %}>Maior Volume de Gasto</option>
                 <option value="-score_risco" {% if current_sort == '-score_risco' %}selected{% endif %}>Maior Score de Risco</option>
                 <option value="politico__nome_civil" {% if current_sort == 'politico__nome_civil' %}selected{% endif %}>Ordem Alfabética</option>
@@ -21,10 +21,10 @@
 
     <!-- Tabs de Escopo -->
     <div class="mb-6 grid grid-cols-2 sm:flex sm:space-x-1 bg-[#1a1f23] p-1 rounded-lg w-full sm:w-fit border border-gray-700 gap-1 sm:gap-0">
-        <button onclick="window.location.href='?escopo='" class="tab-escopo px-2 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-md transition-all {% if not current_escopo %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Nacional</button>
-        <button onclick="window.location.href='?escopo=Federal'" class="tab-escopo px-2 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-md transition-all {% if current_escopo == 'Federal' %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Federal</button>
-        <button onclick="window.location.href='?escopo=Estadual'" class="tab-escopo px-2 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-md transition-all {% if current_escopo == 'Estadual' %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Estadual</button>
-        <button onclick="window.location.href='?escopo=Municipal'" class="tab-escopo px-2 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-md transition-all {% if current_escopo == 'Municipal' %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Municipal</button>
+        <button onclick="let u = new URL(window.location); u.searchParams.delete('escopo'); window.location.href = u.toString();" class="tab-escopo px-2 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-md transition-all {% if not current_escopo %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Nacional</button>
+        <button onclick="let u = new URL(window.location); u.searchParams.set('escopo', 'Federal'); window.location.href = u.toString();" class="tab-escopo px-2 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-md transition-all {% if current_escopo == 'Federal' %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Federal</button>
+        <button onclick="let u = new URL(window.location); u.searchParams.set('escopo', 'Estadual'); window.location.href = u.toString();" class="tab-escopo px-2 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-md transition-all {% if current_escopo == 'Estadual' %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Estadual</button>
+        <button onclick="let u = new URL(window.location); u.searchParams.set('escopo', 'Municipal'); window.location.href = u.toString();" class="tab-escopo px-2 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-md transition-all {% if current_escopo == 'Municipal' %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Municipal</button>
     </div>
     
     

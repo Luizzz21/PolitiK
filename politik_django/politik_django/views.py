@@ -51,10 +51,22 @@ def ranking_view(request):
         else:
             queryset = queryset.filter(mandatos__esfera=esfera)
         
+    sort_param = request.GET.get('sort', '-total_gasto')
+    
+    # Map front-end sort values to valid model fields/annotations
+    sort_mapping = {
+        '-total_gasto': '-total_gasto',
+        '-score_risco': '-max_score',
+        'politico__nome_civil': 'nome_civil',
+        'nome_civil': 'nome_civil'
+    }
+    
+    order_by_field = sort_mapping.get(sort_param, '-total_gasto')
+
     politicos_raw = queryset.annotate(
         total_gasto=Sum('mandatos__despesas__valor_liquidado'),
         max_score=Max('mandatos__score_risco')
-    ).filter(total_gasto__gt=0).order_by('-total_gasto')[:100]
+    ).filter(total_gasto__gt=0).order_by(order_by_field)[:100]
 
 
     politicos = []
@@ -75,7 +87,7 @@ def ranking_view(request):
         })
 
     
-    return render(request, 'ranking.html', {'politicos': politicos, 'busca': busca, 'esfera_filtro': esfera, 'current_escopo': esfera})
+    return render(request, 'ranking.html', {'politicos': politicos, 'busca': busca, 'esfera_filtro': esfera, 'current_escopo': esfera, 'current_sort': sort_param})
 
 
 def despesas_view(request):
