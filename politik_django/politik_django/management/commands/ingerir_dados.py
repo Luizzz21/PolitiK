@@ -16,6 +16,8 @@ from datetime import datetime
 import time
 
 from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.db import reset_queries, connection
 
 # Importação dos modelos e regras
 from politik_django.models import Politico, Mandato, Fornecedor, Despesa, Alerta
@@ -220,6 +222,9 @@ def baixar_e_processar_camara(ano):
                 linha.get('urlDocumento'), 'camara', ano, mes
             )
             if sucesso: processados += 1
+            if processados % 1000 == 0:
+                reset_queries()
+                connection.close_if_unusable_or_obsolete() # FIX OOM Leak 2
 
         try:
             csv_file_obj.close()
@@ -243,12 +248,14 @@ def baixar_e_processar_senado(ano):
             logger.error(f"Erro ao baixar Senado {ano}: Status {r.status_code}")
             return 0, f"Status {r.status_code}"
             
-        linhas = []
-        for chunk in r.iter_lines(decode_unicode=True):
-            if chunk:
-                linhas.append(chunk.replace('"', ''))
-            
-        reader = csv.DictReader(io.StringIO('\n'.join(linhas)), delimiter=';')
+        def _linha_generator():
+            for chunk in r.iter_lines(decode_unicode=True):
+                if chunk:
+                    if isinstance(chunk, bytes):
+                        chunk = chunk.decode('utf-8', errors='ignore')
+                    yield chunk.replace('"', '')
+
+        reader = csv.DictReader(_linha_generator(), delimiter=';')
         processados = 0
 
         for linha in reader:
@@ -285,6 +292,9 @@ def baixar_e_processar_senado(ano):
                 None, 'senado', ano, mes
             )
             if sucesso: processados += 1
+            if processados % 1000 == 0:
+                reset_queries()
+                connection.close_if_unusable_or_obsolete() # FIX OOM Leak 2
 
         logger.info(f"Senado {ano}: {processados} registros salvos.")
         return processados, 0
@@ -344,6 +354,9 @@ def baixar_e_processar_executivo(ano, mes="01"):
                 None, 'transparencia', ano, int(mes)
             )
             if sucesso: processados += 1
+            if processados % 1000 == 0:
+                reset_queries()
+                connection.close_if_unusable_or_obsolete() # FIX OOM Leak 2
 
         try:
             csv_file_obj3.close()
@@ -379,6 +392,8 @@ class Command(BaseCommand):
         # Guardar limite globalmente para as funcoes poderem ler (hack rápido para não mudar a assinatura de todas)
         global GLOBAL_LIMITE
         GLOBAL_LIMITE = limite if limite > 0 else float('inf')
+        settings.DEBUG = False # FIX OOM Leak 1
+        reset_queries()
         
         total_geral = 0
         try:
@@ -407,7 +422,7 @@ class Command(BaseCommand):
             logger.info("=" * 60)
             logger.info("Fase de Agregação de Anomalias (Score e Concentração)...")
             
-            mandatos_afetados = Mandato.objects.all()
+            mandatos_afetados = Mandato.objects.all().iterator(chunk_size=1000) # FIX OOM Leak 3
             for mandato in mandatos_afetados:
                 # Checa Concentração
                 is_conc, msg, val, cnpj = NegocioRegras.verificar_concentracao_fornecedor(mandato)
