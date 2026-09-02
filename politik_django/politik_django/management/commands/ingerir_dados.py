@@ -223,6 +223,7 @@ def baixar_e_processar_camara(ano):
             )
             if sucesso: processados += 1
             if processados % 1000 == 0:
+                logger.info(f'... processados {processados} registros...')
                 reset_queries()
                 connection.close_if_unusable_or_obsolete() # FIX OOM Leak 2
 
@@ -293,6 +294,7 @@ def baixar_e_processar_senado(ano):
             )
             if sucesso: processados += 1
             if processados % 1000 == 0:
+                logger.info(f'... processados {processados} registros...')
                 reset_queries()
                 connection.close_if_unusable_or_obsolete() # FIX OOM Leak 2
 
@@ -355,6 +357,7 @@ def baixar_e_processar_executivo(ano, mes="01"):
             )
             if sucesso: processados += 1
             if processados % 1000 == 0:
+                logger.info(f'... processados {processados} registros...')
                 reset_queries()
                 connection.close_if_unusable_or_obsolete() # FIX OOM Leak 2
 
