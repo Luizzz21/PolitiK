@@ -105,17 +105,17 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-nowrap gap-2 bg-white p-2 rounded shadow-lg w-full">
                 <select id="filter-escopo" class="w-full lg:w-auto min-w-0 lg:min-w-[160px] lg:shrink-0 px-3 py-2 text-sm font-bold text-gray-700 bg-transparent outline-none lg:border-r border-gray-200 focus:bg-gray-50">
                     <option value="">Nacional (Tudo)</option>
-                    <option value="Federal">Federal</option>
-                    <option value="Estadual">Estadual</option>
-                    <option value="Municipal">Municipal</option>
+                    <option value="Federal" {% if escopo_selecionado == "Federal" %}selected{% endif %}>Federal</option>
+                    <option value="Estadual" {% if escopo_selecionado == "Estadual" %}selected{% endif %}>Estadual</option>
+                    <option value="Municipal" {% if escopo_selecionado == "Municipal" %}selected{% endif %}>Municipal</option>
                 </select>
                 <select id="filter-cargo" class="w-full lg:w-auto min-w-0 lg:min-w-[160px] lg:shrink-0 px-3 py-2 text-sm font-bold text-gray-700 bg-transparent outline-none lg:border-r border-gray-200 focus:bg-gray-50">
                     <option value="">Todos Cargos</option>
-                    {% for cargo in cargos %}<option value="{{ cargo }}">{{ cargo }}</option>{% endfor %}
+                    {% for cargo in cargos %}<option value="{{ cargo }}" {% if cargo == cargo_selecionado %}selected{% endif %}>{{ cargo }}</option>{% endfor %}
                 </select>
                 <select id="filter-categoria" class="w-full lg:w-auto min-w-0 lg:min-w-[160px] lg:shrink-0 px-3 py-2 text-sm font-bold text-gray-700 bg-transparent outline-none lg:border-r border-gray-200 focus:bg-gray-50">
                     <option value="">Categorias</option>
-                    {% for cat in categorias %}<option value="{{ cat }}">{{ cat }}</option>{% endfor %}
+                    {% for cat in categorias %}<option value="{{ cat }}" {% if cat == categoria_selecionada %}selected{% endif %}>{{ cat }}</option>{% endfor %}
                 </select>
                 <select id="filter-ano" class="w-full lg:w-auto min-w-0 lg:min-w-[100px] lg:shrink-0 px-3 py-2 text-sm font-bold text-gray-700 bg-transparent outline-none focus:bg-gray-50">
                     {% for ano in anos %}<option value="{{ ano|stringformat:'d' }}" {% if ano == ano_atual %}selected{% endif %}>{{ ano|stringformat:'d' }}</option>{% endfor %}
@@ -437,7 +437,18 @@ const DashboardApp = (function() {
         },
 
         applyFilters: function() { 
-            this.loadCharts(); 
+            const ano = document.getElementById('filter-ano').value;
+            const cargo = document.getElementById('filter-cargo').value;
+            const categoria = document.getElementById('filter-categoria').value;
+            const escopo = document.getElementById('filter-escopo').value;
+            
+            let queryParams = new URLSearchParams();
+            if (ano) queryParams.append('ano', ano);
+            if (cargo) queryParams.append('cargo', cargo);
+            if (categoria) queryParams.append('categoria', categoria);
+            if (escopo) queryParams.append('escopo', escopo);
+            
+            window.location.href = '/?' + queryParams.toString();
         },
 
         loadCharts: async function() {

@@ -85,21 +85,39 @@ def presidencia_view(request):
 
 def index(request):
     """Main dashboard view (RF06 - Dynamic Filters)"""
+    
+    ano_str = request.GET.get('ano')
     try:
-        ano_atual_config = Configuracao, DespesaCampanha, EmendaParlamentar, CampanhaEleitoral.objects.get(chave='ANO_ATUAL')
-        ano_atual = int(ano_atual_config.valor_numerico)
-    except:
+        ano_atual = int(ano_str) if ano_str else datetime.now().year
+    except ValueError:
         ano_atual = datetime.now().year
 
+    cargo_filtro = request.GET.get('cargo', '')
+    categoria_filtro = request.GET.get('categoria', '')
+    escopo_filtro = request.GET.get('escopo', '')
+
+    despesas_qs = Despesa.objects.filter(ano=ano_atual)
+    mandatos_qs = Mandato.objects.all()
+
+    if cargo_filtro:
+        despesas_qs = despesas_qs.filter(mandato__cargo=cargo_filtro)
+        mandatos_qs = mandatos_qs.filter(cargo=cargo_filtro)
+    if escopo_filtro:
+        despesas_qs = despesas_qs.filter(mandato__esfera=escopo_filtro)
+        mandatos_qs = mandatos_qs.filter(esfera=escopo_filtro)
+    if categoria_filtro:
+        despesas_qs = despesas_qs.filter(categoria=categoria_filtro)
+
+    from django.db.models import Q
     stats = {
         'total_politicos': Politico.objects.count(),
         'total_mandatos': Mandato.objects.count(),
         'total_fornecedores': Fornecedor.objects.count(),
-        'total_despesas_ano': Despesa.objects.filter(ano=ano_atual).aggregate(
+        'total_despesas_ano': despesas_qs.aggregate(
             total=Sum('valor_liquidado'),
             count=Count('id')
         ),
-        'despesas_por_categoria': Despesa.objects.filter(ano=ano_atual).values(
+        'despesas_por_categoria': despesas_qs.values(
             'categoria'
         ).annotate(total=Sum('valor_liquidado')).order_by('-total'),
         'alertas_ativos': Alerta.objects.filter(resolvido=False).count(),
@@ -109,8 +127,14 @@ def index(request):
     }
 
     # Calcula Top Gastadores (Ranking)
-    top_gastadores = Mandato.objects.annotate(
-        total_gasto=Sum('despesas__valor_liquidado')
+    from django.db.models import Sum, Value
+    from django.db.models.functions import Coalesce
+    
+    top_gastadores = mandatos_qs.annotate(
+        total_gasto=Coalesce(
+            Sum('despesas__valor_liquidado', filter=Q(despesas__ano=ano_atual)), 
+            Value(0.0)
+        )
     ).filter(total_gasto__gt=0).order_by('-total_gasto')[:5]
 
     cargos = set(Mandato.objects.values_list('cargo', flat=True))
@@ -124,6 +148,9 @@ def index(request):
     context = {
         'stats': stats,
         'top_gastadores': top_gastadores,
+        'cargo_selecionado': cargo_filtro,
+        'categoria_selecionada': categoria_filtro,
+        'escopo_selecionado': escopo_filtro,
         'cargos': sorted(cargos),
         'esferas': sorted(esferas),
         'anos': sorted(anos),
