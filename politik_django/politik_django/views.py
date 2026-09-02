@@ -6,6 +6,7 @@ APIs following RF01-RF07 requirements
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.cache import cache_page
 from django.views.decorators.http import require_http_methods
 from django_ratelimit.decorators import ratelimit
 
@@ -542,6 +543,7 @@ def api_buscar_despesas(request):
 @csrf_exempt
 @require_http_methods(["GET"])
 @ratelimit(key='ip', rate='30/m', block=True)
+@cache_page(60 * 15)  # Cache de 15 minutos
 def api_estatisticas(request):
     """
     Retorna mÃ©tricas globais e KPIs agregados (RF01, RF02, RNF01).
@@ -952,6 +954,7 @@ def api_express_auth(request):
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.cache import cache_page
 from .models import ClienteAPI
 
 @csrf_exempt
