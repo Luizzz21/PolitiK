@@ -946,6 +946,10 @@ def api_reset_password(request):
     except Exception as e:
         return JsonResponse({'success': False, 'message': f'Erro interno: {str(e)}'}, status=500)
 
+@csrf_exempt
+@require_http_methods(["POST"])
+@ratelimit(key='ip', rate='60/m', block=True)
+@ratelimit(key='post:email', rate='10/m', block=True)
 def api_express_auth(request):
     try:
         data = json.loads(request.body)
