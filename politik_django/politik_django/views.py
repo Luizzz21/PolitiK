@@ -108,7 +108,6 @@ def index(request):
     if categoria_filtro:
         despesas_qs = despesas_qs.filter(categoria=categoria_filtro)
 
-    from django.db.models import Q
     stats = {
         'total_politicos': Politico.objects.count(),
         'total_mandatos': Mandato.objects.count(),
@@ -127,7 +126,7 @@ def index(request):
     }
 
     # Calcula Top Gastadores (Ranking)
-    from django.db.models import Sum, Value
+    from django.db.models import Value
     from django.db.models.functions import Coalesce
     
     top_gastadores = mandatos_qs.annotate(
@@ -236,8 +235,7 @@ def pagina_politico(request, politico_id):
     
     despesas_query = Despesa.objects.select_related('fornecedor').filter(mandato__in=mandatos).order_by('-data_emissao')
     if busca:
-        from django.db.models import Q
-        despesas_query = despesas_query.filter(Q(fornecedor__razao_social__icontains=busca) | Q(categoria__icontains=busca))
+            despesas_query = despesas_query.filter(Q(fornecedor__razao_social__icontains=busca) | Q(categoria__icontains=busca))
     
     # Filter by date if provided
     if data_inicio:
@@ -1072,3 +1070,13 @@ def comunidade_view(request):
     return render(request, 'comunidade.html')
 
 
+
+
+def privacidade_view(request):
+    return render(request, 'privacidade.html', {})
+
+def termos_view(request):
+    return render(request, 'termos.html', {})
+
+def sobre_view(request):
+    return render(request, 'sobre.html', {})

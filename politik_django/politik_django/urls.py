@@ -19,6 +19,9 @@ urlpatterns = [
     path('alertas/', views.pagina_alertas, name='pagina_alertas'),
     path('minha-conta/', views.pagina_minha_conta, name='pagina_minha_conta'),
     path('comunidade/', views.comunidade_view, name='comunidade'),
+    path('privacidade/', views.privacidade_view, name='privacidade'),
+    path('termos/', views.termos_view, name='termos'),
+    path('sobre/', views.sobre_view, name='sobre'),
 
     # API Endpoints - Consultas
     path('api/politicos/', views.api_buscar_politicos, name='api_buscar_politicos'),

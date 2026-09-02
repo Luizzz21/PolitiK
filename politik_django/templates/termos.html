@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Termos de Uso | PolitiK{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto py-10 px-4 text-gray-300">
+    <h1 class="text-3xl font-black text-white mb-6 uppercase tracking-tight">Termos de Uso</h1>
+    
+    <div class="space-y-6 text-sm leading-relaxed">
+        <p>Bem-vindo ao <strong>PolitiK</strong> (https://politik.digital). Ao acessar e utilizar este site, você concorda com os seguintes Termos de Uso.</p>
+
+        <h2 class="text-xl font-bold text-[#1e9b95] uppercase">1. Natureza dos Dados</h2>
+        <p>O PolitiK é uma plataforma independente de inteligência de dados que agrega e analisa informações de fontes públicas governamentais (ex: Câmara dos Deputados, Senado Federal, Portal da Transparência, Receita Federal).</p>
+        <p><strong>Isenção de Responsabilidade:</strong> Não garantimos a precisão absoluta, integridade ou atualização em tempo real dos dados, pois dependemos da estabilidade e veracidade das fontes originais do Governo Federal.</p>
+
+        <h2 class="text-xl font-bold text-[#1e9b95] uppercase">2. Uso Permitido</h2>
+        <p>O conteúdo da plataforma é disponibilizado para fins informativos e de transparência cívica. É proibido:</p>
+        <ul class="list-disc pl-5 space-y-2">
+            <li>Utilizar os dados para fins ilegais, difamatórios ou discriminatórios.</li>
+            <li>Realizar raspagem de dados (web scraping) agressiva que comprometa a estabilidade dos nossos servidores.</li>
+        </ul>
+
+        <h2 class="text-xl font-bold text-[#1e9b95] uppercase">3. Motor de Anomalias (Score de Risco)</h2>
+        <p>O Score de Risco calculado pelo PolitiK é um modelo estatístico e matemático baseado em padrões de gastos e cruzamento de dados públicos (QSA, CNAE). <strong>Um score alto não constitui acusação formal de crime ou irregularidade</strong>, sendo apenas um indicativo analítico de desvio de padrão financeiro.</p>
+
+        <h2 class="text-xl font-bold text-[#1e9b95] uppercase">4. Contato</h2>
+        <p>Dúvidas sobre os Termos de Uso devem ser enviadas para: <strong>opolitik.contato@gmail.com</strong></p>
+
+        <p class="text-xs text-gray-500 mt-10">Última atualização: Setembro de 2026</p>
+    </div>
+</div>
+{% endblock %}
