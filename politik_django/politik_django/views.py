@@ -36,7 +36,7 @@ def ranking_view(request):
     busca = request.GET.get('q', '')
     esfera = request.GET.get('esfera') or request.GET.get('escopo', '')
     
-    queryset = Politico.objects.prefetch_related('mandatos').all()
+    queryset = Politico.objects.prefetch_related('mandatos').exclude(nome_civil__iexact='SIGILOSO').all()
     
     if busca:
         queryset = queryset.filter(nome_civil__icontains=busca)
