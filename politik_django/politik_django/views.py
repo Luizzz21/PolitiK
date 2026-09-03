@@ -36,7 +36,7 @@ def ranking_view(request):
     busca = request.GET.get('q', '')
     esfera = request.GET.get('esfera') or request.GET.get('escopo', '')
     
-    queryset = Politico.objects.prefetch_related('mandatos').exclude(nome_civil__iexact='SIGILOSO').all()
+    queryset = Politico.objects.prefetch_related('mandatos').all()
     
     if busca:
         queryset = queryset.filter(nome_civil__icontains=busca)
@@ -617,7 +617,7 @@ def api_estatisticas(request):
         })
 
     # Calcula Top PolÃ­ticos dinÃ¢mico (Frente 3)
-    top_politicos_query = queryset.exclude(mandato__politico__nome_civil__iexact="SIGILOSO").values(
+    top_politicos_query = queryset.values(
         'mandato__politico__id',
         'mandato__politico__nome_civil',
         'mandato__cargo',
