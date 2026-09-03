@@ -1068,6 +1068,7 @@ from django.core.paginator import Paginator
 from django.db.models.functions import Coalesce
 from django.db.models import F, DecimalField
 
+@cache_page(60 * 30)  # Cache de 30 minutos
 def fornecedores_view(request):
     """PÃ¡gina que lista as empresas beneficiadas ordenadas por volume de dinheiro recebido."""
     busca = request.GET.get('q', '')

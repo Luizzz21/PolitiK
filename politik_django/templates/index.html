@@ -39,7 +39,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: rgba(255, 255, 255, 0.9);
+        background: rgba(15, 23, 42, 0.85);
         z-index: 10;
     }
     .spinner {
@@ -75,7 +75,7 @@
             {% for item in cargos_count %}
             <div class="flex justify-between items-center border-b border-gray-50 pb-2 last:border-0 last:pb-0">
                 <span class="text-sm text-gray-400 font-medium">{{ item.cargo }}</span>
-                <span class="text-xs font-bold text-[#1A9E96] bg-[#e0f2f1] px-2 py-0.5 rounded-full">{{ item.count }}</span>
+                <span class="text-xs font-bold text-[#1A9E96] bg-[#0F172A] px-2 py-0.5 rounded-full border border-[#1A9E96]/30">{{ item.count }}</span>
             </div>
             {% endfor %}
         </div>
@@ -146,7 +146,7 @@
             <div class="min-w-0">
                 <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 group-hover:text-[#1e9b95] transition-colors">Liquidado ({{ ano_atual|stringformat:"d" }})</p>
                 <div class="flex items-center gap-2">
-                    <p class="text-2xl font-black text-white truncate group-hover:text-[#1e9b95] transition-colors" id="kpi-volume" data-raw="{{ stats.total_despesas_ano.total|default:'0'|stringformat:'f' }}">Carregando...</p>
+                    <p class="text-2xl font-black text-white truncate group-hover:text-[#1e9b95] transition-colors" id="kpi-volume" style="font-size: clamp(0.875rem, 3.5vw, 1.5rem);" data-raw="{{ stats.total_despesas_ano.total|default:'0'|stringformat:'f' }}">Carregando...</p>
                 </div>
             </div>
         </div>
@@ -627,7 +627,7 @@ const DashboardApp = (function() {
                     } else {
                         containerGastadores.innerHTML = statsData.top_politicos.map(p => {
                             let borderColor = p.score >= 70 ? 'border-red-500' : (p.score >= 30 ? 'border-yellow-500' : 'border-[#1A9E96]');
-                            let badgeClass = p.score >= 70 ? 'bg-red-100 text-red-700' : (p.score >= 30 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700');
+                            let badgeClass = p.score >= 70 ? 'bg-red-900/60 text-red-300 border border-red-700' : (p.score >= 30 ? 'bg-yellow-900/60 text-yellow-300 border border-yellow-700' : 'bg-[#0F172A] text-[#1A9E96] border border-[#1A9E96]/40');
                             
                             let imageHtml = p.foto 
                                 ? `<img src="${p.foto}" alt="${p.nome}" class="w-full h-full object-cover">`
@@ -638,11 +638,11 @@ const DashboardApp = (function() {
                                 <div class="w-16 h-16 rounded-full bg-[#0F172A] flex items-center justify-center overflow-hidden mb-3 border-2 ${borderColor}">
                                     ${imageHtml}
                                 </div>
-                                <h3 class="text-sm font-black text-[#373D3F] group-hover:text-[#1A9E96] line-clamp-1 transition-colors">${p.nome}</h3>
+                                <h3 class="text-sm font-black text-white group-hover:text-[#1A9E96] line-clamp-1 transition-colors">${p.nome}</h3>
                                 <p class="text-[10px] text-gray-500 uppercase tracking-wider mb-2 font-bold">${p.cargo} - ${p.esfera}</p>
                                 <div class="mt-auto pt-3 border-t border-gray-700/50 w-full">
                                     <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">Volume</p>
-                                    <p class="text-sm font-black text-[#373D3F] mb-2">${formatCurrencyFull(p.total)}</p>
+                                    <p class="text-sm font-black text-[#1A9E96] mb-2">${formatCurrencyFull(p.total)}</p>
                                     <div class="flex items-center justify-center gap-1">
                                         <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${badgeClass}">
                                             Score ${p.score}/100

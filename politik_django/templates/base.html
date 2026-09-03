@@ -83,7 +83,7 @@
     </style>
     <script>
     function toggleFullscreen(btn) {
-        const card = btn.closest('.bg-white, .bg-\\[\\#1E293B\\]');
+        const card = btn.closest('[class*="bg-[#1E293B]"], [class*="bg-\\["]') || btn.closest('div[class*="rounded"]');
         if (!card) return;
         const expandIcon = btn.querySelector('.icon-expand');
         const compressIcon = btn.querySelector('.icon-compress');
