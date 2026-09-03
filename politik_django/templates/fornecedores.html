@@ -2,6 +2,11 @@
 
 {% block title %}PolitiK - Empresas Beneficiadas{% endblock %}
 
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="bg-[#2d3748] rounded-md shadow p-6 mb-8 border-t-4 border-[#1A9E96]">
@@ -36,7 +41,62 @@
         </div>
     </div>
     
-    <div class="bg-[#1E293B] rounded-md shadow-xl overflow-hidden mt-6">
+    
+<!-- Charts Section -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+  <!-- Bar chart data injected from Django -->
+  <div class="bg-[#1E293B] rounded-2xl p-5 border border-gray-700/50">
+    <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Top 10 — Volume Recebido</h3>
+    <div style="position:relative;min-height:280px"><canvas id="chart-forn-bar"></canvas></div>
+  </div>
+  <div class="bg-[#1E293B] rounded-2xl p-5 border border-gray-700/50">
+    <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Situação Cadastral</h3>
+    <div style="position:relative;min-height:280px"><canvas id="chart-forn-situacao"></canvas></div>
+  </div>
+</div>
+
+<script>
+Chart.defaults.color = '#9ca3af';
+const fornTop10 = [
+  {% for f in page_obj %}{% if forloop.counter <= 10 %}
+  { nome: "{{ f.razao_social|truncatechars:25|escapejs }}", total: {{ f.total_recebido|floatformat:2|default:'0'|stringformat:"f"|safe }} },
+  {% endif %}{% endfor %}
+];
+const fornSituacoes = {};
+{% for f in page_obj %}{% if forloop.counter <= 50 %}
+fornSituacoes["{{ f.situacao_cadastral|default:'N/D'|escapejs }}"] = (fornSituacoes["{{ f.situacao_cadastral|default:'N/D'|escapejs }}"] || 0) + 1;
+{% endif %}{% endfor %}
+
+new Chart(document.getElementById('chart-forn-bar'), {
+  type: 'bar',
+  data: {
+    labels: fornTop10.map(f => f.nome),
+    datasets: [{ label: 'Volume (R$)', data: fornTop10.map(f => f.total),
+      backgroundColor: '#1A9E96', borderRadius: 4 }]
+  },
+  options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', callback: v => 'R$' + (v/1e6).toFixed(1) + 'M' } },
+      y: { grid: { display: false }, ticks: { color: '#9ca3af', font: { size: 10 } } }
+    }
+  }
+});
+
+new Chart(document.getElementById('chart-forn-situacao'), {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(fornSituacoes),
+    datasets: [{ data: Object.values(fornSituacoes),
+      backgroundColor: ['#1A9E96','#10B981','#f59e0b','#ef4444','#6366f1'],
+      borderColor: '#1E293B', borderWidth: 3 }]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af', padding: 12, font: { size: 11 } } } } }
+});
+</script>
+
+<div class="bg-[#1E293B] rounded-md shadow-xl overflow-hidden mt-6">
         <div class="overflow-x-auto">
             <table class="w-full text-left text-sm text-gray-600">
                 <thead class="bg-[#0F172A] text-gray-400 font-bold uppercase tracking-wider text-[10px] border-b border-gray-700/50">
