@@ -36,10 +36,10 @@
         </div>
     </div>
     
-    <div class="bg-white rounded-md shadow-xl overflow-hidden mt-6">
+    <div class="bg-[#1E293B] rounded-md shadow-xl overflow-hidden mt-6">
         <div class="overflow-x-auto">
             <table class="w-full text-left text-sm text-gray-600">
-                <thead class="bg-gray-50 text-gray-500 font-bold uppercase tracking-wider text-[10px] border-b border-gray-200">
+                <thead class="bg-[#0F172A] text-gray-400 font-bold uppercase tracking-wider text-[10px] border-b border-gray-700/50">
                     <tr>
                         <th class="px-6 py-4">CNPJ</th>
                         <th class="px-6 py-4">Razão Social</th>
@@ -50,8 +50,8 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     {% for f in page_obj %}
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{{ f.cnpj }}</td>
+                    <tr class="hover:bg-[#0F172A] transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap font-medium text-white">{{ f.cnpj }}</td>
                         <td class="px-6 py-4 font-bold text-[#373D3F]">{{ f.razao_social }}</td>
                         <td class="px-6 py-4">{{ f.uf|default:"-" }}</td>
                         <td class="px-6 py-4 text-right font-black text-[#1A9E96]">R$ {{ f.total_recebido|floatformat:2 }}</td>
@@ -73,15 +73,15 @@
         
         <!-- Paginação -->
         {% if page_obj.has_other_pages %}
-        <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50">
-            <span class="text-sm text-gray-500">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        <div class="px-6 py-4 border-t border-gray-700/50 flex items-center justify-between bg-[#0F172A]">
+            <span class="text-sm text-gray-400">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
             <div class="flex gap-1">
                 {% if page_obj.has_previous %}
-                <a href="?page={{ page_obj.previous_page_number }}&q={{ busca }}&uf={{ filtro_uf }}&situacao={{ filtro_situacao }}" class="px-3 py-1 bg-white border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-100">Anterior</a>
+                <a href="?page={{ page_obj.previous_page_number }}&q={{ busca }}&uf={{ filtro_uf }}&situacao={{ filtro_situacao }}" class="px-3 py-1 bg-[#1E293B] border border-gray-700/50 rounded text-sm text-gray-300 hover:bg-[#0F172A]">Anterior</a>
                 {% endif %}
                 
                 {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}&q={{ busca }}&uf={{ filtro_uf }}&situacao={{ filtro_situacao }}" class="px-3 py-1 bg-white border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-100">Próxima</a>
+                <a href="?page={{ page_obj.next_page_number }}&q={{ busca }}&uf={{ filtro_uf }}&situacao={{ filtro_situacao }}" class="px-3 py-1 bg-[#1E293B] border border-gray-700/50 rounded text-sm text-gray-300 hover:bg-[#0F172A]">Próxima</a>
                 {% endif %}
             </div>
         </div>

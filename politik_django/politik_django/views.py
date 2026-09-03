@@ -617,7 +617,7 @@ def api_estatisticas(request):
         })
 
     # Calcula Top PolÃ­ticos dinÃ¢mico (Frente 3)
-    top_politicos_query = queryset.values(
+    top_politicos_query = queryset.exclude(mandato__politico__nome_civil__iexact="SIGILOSO").values(
         'mandato__politico__id',
         'mandato__politico__nome_civil',
         'mandato__cargo',

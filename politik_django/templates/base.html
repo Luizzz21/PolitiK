@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <meta name="description" content="PolitiK - Plataforma de Transparência Pública para monitoramento de gastos políticos e detecção de corrupção.">
-    <link rel="icon" type="image/png" sizes="256x256" href="{% static 'img/favicon.png' %}">
+    <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
     <title>{% block title %}PolitiK - Transparência Pública{% endblock %}</title>
 
     <!-- Fonts -->
@@ -113,7 +113,7 @@
                 <!-- Links de Navegação e Logo -->
                 <div class="flex items-center gap-4 sm:gap-8 shrink-0">
                     <a href="/" class="flex items-center gap-2 group">
-                        <img src="{% static 'img/logo.png' %}" alt="PolitiK Logo" class="h-6 sm:h-8 object-contain bg-white rounded shadow p-0.5">
+                        <img src="{% static 'img/logo_transparent.png' %}" alt="PolitiK Logo" class="h-6 sm:h-8 object-contain ">
                     </a>
                     
                     <div class="hidden sm:flex sm:space-x-4 lg:space-x-6 h-16">
@@ -149,10 +149,10 @@
                         <div class="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none">
                             <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                         </div>
-                        <input type="text" id="global-search-input" placeholder="Pesquisar..." class="block w-full pl-8 sm:pl-10 pr-2 sm:pr-3 py-1.5 sm:py-2 border border-gray-600 rounded-md leading-5 bg-[#2d3748] text-gray-300 placeholder-gray-400 focus:outline-none focus:bg-white focus:text-[#373D3F] focus:border-[#1A9E96] focus:ring-2 focus:ring-[#1A9E96] text-xs sm:text-sm transition-all" autocomplete="off">
+                        <input type="text" id="global-search-input" placeholder="Pesquisar..." class="block w-full pl-8 sm:pl-10 pr-2 sm:pr-3 py-1.5 sm:py-2 border border-gray-600 rounded-md leading-5 bg-[#2d3748] text-gray-300 placeholder-gray-400 focus:outline-none focus:bg-[#1E293B] focus:text-white focus:border-[#1A9E96] focus:ring-2 focus:ring-[#1A9E96] text-xs sm:text-sm transition-all" autocomplete="off">
                     </div>
                     <!-- Menu Suspenso de Resultados -->
-                    <div id="global-search-dropdown" class="absolute z-50 w-full bg-white mt-1 rounded-md shadow-2xl border border-gray-200 hidden max-h-72 overflow-y-auto"></div>
+                    <div id="global-search-dropdown" class="absolute z-50 w-full bg-[#1E293B] mt-1 rounded-md shadow-2xl border border-gray-700/50 hidden max-h-72 overflow-y-auto"></div>
                 </div>
 
                 <!-- Notificações e Usuário -->
@@ -165,12 +165,12 @@
                         <span id="notification-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full hidden">0</span>
                         
                         <!-- Dropdown de Notificações -->
-                        <div id="notification-dropdown" class="absolute right-0 mt-2 w-72 sm:w-80 bg-white rounded-md shadow-xl border border-gray-200 hidden z-50">
+                        <div id="notification-dropdown" class="absolute right-0 mt-2 w-72 sm:w-80 bg-[#1E293B] rounded-md shadow-xl border border-gray-700/50 hidden z-50">
                             <div class="p-3 border-b border-gray-100 font-bold text-gray-700 bg-gray-50 flex justify-between">
                                 Notificações
                             </div>
                             <div id="notification-list" class="max-h-72 overflow-y-auto">
-                                <div class="p-4 text-sm text-gray-500 text-center">Carregando...</div>
+                                <div class="p-4 text-sm text-gray-400 text-center">Carregando...</div>
                             </div>
                             <div class="p-2 border-t border-gray-100 text-center">
                                 <a href="/alertas/" class="text-xs font-bold text-[#1A9E96] hover:underline">Ver todos</a>
@@ -220,7 +220,7 @@
                 <!-- Brand & Mission -->
                 <div class="space-y-4">
                     <div class="flex items-center gap-2">
-                        <img src="{% static 'img/logo.png' %}" alt="PolitiK Logo" class="h-8 object-contain bg-white rounded shadow p-1">
+                        <img src="{% static 'img/logo_transparent.png' %}" alt="PolitiK Logo" class="h-8 object-contain p-1">
                         <span class="text-xl font-black text-white tracking-tight">PolitiK</span>
                     </div>
                     <p class="text-sm text-gray-400 leading-relaxed">
@@ -230,7 +230,7 @@
 
                 <!-- Fontes de Dados -->
                 <div class="space-y-4">
-                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest">Fontes Oficiais</h3>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Fontes Oficiais</h3>
                     <ul class="space-y-2 text-sm text-gray-400">
                         <li><a href="https://dadosabertos.camara.leg.br/" target="_blank" class="hover:text-[#1A9E96] transition-colors flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg> Câmara dos Deputados</a></li>
                         <li><a href="https://www12.senado.leg.br/dados-abertos" target="_blank" class="hover:text-[#1A9E96] transition-colors flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg> Senado Federal</a></li>
@@ -241,7 +241,7 @@
 
                 <!-- Navigation -->
                 <div class="space-y-4">
-                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest">Navegação</h3>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Navegação</h3>
                     <ul class="space-y-2 text-sm text-gray-400">
                         <li><a href="{% url 'sobre' %}" class="hover:text-[#1A9E96] transition-colors">Sobre Nós</a></li>
                         <li><a href="{% url 'privacidade' %}" class="hover:text-[#1A9E96] transition-colors">Política de Privacidade</a></li>
@@ -255,7 +255,7 @@
 
                 <!-- Status & Disclaimer -->
                 <div class="space-y-4">
-                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest">Sistema</h3>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Sistema</h3>
                     <div class="p-4 rounded-xl bg-[#1E293B] border border-gray-700/50 shadow-inner">
                         <div class="flex items-center gap-3 mb-2">
                             <span class="relative flex h-3 w-3">
@@ -264,7 +264,7 @@
                             </span>
                             <span class="text-sm font-bold text-white">Sistemas Operacionais</span>
                         </div>
-                        <p class="text-[10px] text-gray-500 leading-tight">
+                        <p class="text-[10px] text-gray-400 leading-tight">
                             Os dados exibidos não sofrem alteração de mérito. A interpretação e o score de risco são algoritmos preditivos baseados em estatísticas.
                         </p>
                     </div>
@@ -272,11 +272,11 @@
             </div>
             
             <div class="mt-12 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-4">
-                <p class="text-xs text-gray-500 font-medium">
+                <p class="text-xs text-gray-400 font-medium">
                     &copy; 2026 PolitiK. Open-Source Data Intelligence.
                 </p>
                 <div class="flex gap-4">
-                    <a href="#" class="text-gray-500 hover:text-white transition-colors"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.379.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z"></path></svg></a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-colors"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.379.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z"></path></svg></a>
                 </div>
             </div>
         </div>
@@ -307,7 +307,7 @@
                         searchDropdown.innerHTML = '';
                         
                         if (data.success === false) {
-                            searchDropdown.innerHTML = `<div class="px-5 py-4 text-sm text-gray-500">${data.message}</div>`;
+                            searchDropdown.innerHTML = `<div class="px-5 py-4 text-sm text-gray-400">${data.message}</div>`;
                             searchDropdown.classList.remove('hidden');
                         } else if(data && data.politicos && data.politicos.length > 0) {
                             data.politicos.forEach(pol => {
@@ -315,14 +315,14 @@
                                 div.className = 'px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors';
                                 div.innerHTML = `
                                     <div class="font-bold text-gray-900">${pol.nome_civil}</div>
-                                    <div class="text-xs text-gray-500 uppercase mt-0.5">${pol.partido || 'S/P'} • ${pol.uf || 'BR'}</div>
+                                    <div class="text-xs text-gray-400 uppercase mt-0.5">${pol.partido || 'S/P'} • ${pol.uf || 'BR'}</div>
                                 `; 
                                 div.onclick = () => window.location.href = `/politico/${pol.id}/`;
                                 searchDropdown.appendChild(div);
                             });
                             searchDropdown.classList.remove('hidden');
                         } else {
-                            searchDropdown.innerHTML = '<div class="px-5 py-4 text-sm text-gray-500">Nenhum agente localizado.</div>';
+                            searchDropdown.innerHTML = '<div class="px-5 py-4 text-sm text-gray-400">Nenhum agente localizado.</div>';
                             searchDropdown.classList.remove('hidden');
                         }
                     } catch(e) {
@@ -361,12 +361,12 @@
                             if (data.success) {
                                 if (data.notificacoes.length > 0) {
                                     notifList.innerHTML = data.notificacoes.map(n => `
-                                        <div class="p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer text-left">
+                                        <div class="p-3 border-b border-gray-700/50 hover:bg-[#253248] cursor-pointer text-left">
                                             <div class="flex items-center gap-2 mb-1">
                                                 <span class="w-2 h-2 rounded-full ${n.severidade === 'critica' ? 'bg-red-500' : (n.severidade === 'alta' ? 'bg-orange-500' : 'bg-yellow-500')}"></span>
                                                 <span class="text-xs font-bold text-gray-800 line-clamp-1">${n.titulo}</span>
                                             </div>
-                                            <div class="text-xs text-gray-500 mb-1 line-clamp-2">${n.descricao}</div>
+                                            <div class="text-xs text-gray-400 mb-1 line-clamp-2">${n.descricao}</div>
                                             <div class="flex justify-between text-[10px] text-gray-400 font-medium">
                                                 <span>${n.politico_nome}</span>
                                                 <span>${n.data}</span>
@@ -377,15 +377,15 @@
                                     notifBadge.textContent = data.notificacoes.length;
                                     notifBadge.classList.remove('hidden');
                                 } else {
-                                    notifList.innerHTML = '<div class="p-4 text-sm text-gray-500 text-center">Nenhum alerta recente.</div>';
+                                    notifList.innerHTML = '<div class="p-4 text-sm text-gray-400 text-center">Nenhum alerta recente.</div>';
                                     notifBadge.classList.add('hidden');
                                 }
                             } else {
-                                notifList.innerHTML = `<div class="p-4 text-sm text-gray-500 text-center">${data.message || 'Erro ao carregar.'}</div>`;
+                                notifList.innerHTML = `<div class="p-4 text-sm text-gray-400 text-center">${data.message || 'Erro ao carregar.'}</div>`;
                             }
                         } else if (res.status === 401) {
                             localStorage.removeItem('politik_user');
-                            notifList.innerHTML = '<div class="p-4 text-sm text-gray-500 text-center">Sessão expirada. Recarregue a página.</div>';
+                            notifList.innerHTML = '<div class="p-4 text-sm text-gray-400 text-center">Sessão expirada. Recarregue a página.</div>';
                             setTimeout(() => window.location.reload(), 1500);
                         } else {
                             notifList.innerHTML = '<div class="p-4 text-sm text-red-500 text-center">Erro no servidor.</div>';
@@ -426,7 +426,7 @@
 
     <!-- Global Auth Modal -->
     <div id="global-auth-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[120] flex items-center justify-center p-4">
-        <div class="bg-white rounded-md p-6 sm:p-8 max-w-md w-full shadow-2xl relative">
+        <div class="bg-gradient-to-br from-[#1E293B] to-[#161F2E] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-gray-700/50 relative">
         <button onclick="window.location.href='/'" class="absolute top-4 right-4 text-gray-400 hover:text-[#1A9E96] text-xs font-bold uppercase flex items-center gap-1">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
             Sair
@@ -438,7 +438,7 @@
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
                 </div>
                 <h2 class="text-xl font-black text-[#333a3f] uppercase">Acesso à Plataforma</h2>
-                <p class="text-sm text-gray-500 mt-2">Faça login ou crie sua conta gratuitamente.</p>
+                <p class="text-sm text-gray-400 mt-2">Faça login ou crie sua conta gratuitamente.</p>
             </div>
             <div id="global-auth-error" class="hidden mb-4 p-3 bg-red-50 text-red-600 rounded text-sm text-center font-medium"></div>
             <form onsubmit="event.preventDefault(); AuthApp.submit();" class="space-y-4">
