@@ -7,41 +7,38 @@
     <header class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-end border-b border-gray-700 pb-4 gap-4">
         <div>
             <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight uppercase">Ranking <span class="text-[#1A9E96] font-light">Nacional</span></h1>
-            <p class="text-sm text-gray-400 mt-1">Classificação de agentes baseada em volume de despesas e anomalias detectadas.</p>
+            <p class="text-sm text-gray-400 mt-1">Classificacao de agentes baseada em volume de despesas e anomalias detectadas.</p>
         </div>
         <div class="flex items-center gap-2 w-full md:w-auto">
             <span class="text-sm font-bold text-gray-400 hidden sm:inline">Ordenar por:</span>
-            <select id="sort-by" class="px-3 py-2 text-sm font-bold text-gray-100 bg-[#1E293B] border border-gray-700/50 rounded shadow-sm outline-none cursor-pointer" onchange="updateUrlParam('sort', this.value)">
+            <select id="sort-by" class="px-3 py-2 text-sm font-bold text-white bg-[#1E293B] border border-gray-600 rounded shadow-sm outline-none cursor-pointer focus:border-[#1A9E96]" onchange="updateUrlParam('sort', this.value)">
                 <option value="-total_gasto" {% if current_sort == '-total_gasto' %}selected{% endif %}>Maior Volume de Gasto</option>
                 <option value="-score_risco" {% if current_sort == '-score_risco' %}selected{% endif %}>Maior Score de Risco</option>
-                <option value="politico__nome_civil" {% if current_sort == 'politico__nome_civil' %}selected{% endif %}>Ordem Alfabética</option>
+                <option value="politico__nome_civil" {% if current_sort == 'politico__nome_civil' %}selected{% endif %}>Ordem Alfabetica</option>
             </select>
         </div>
     </header>
 
-    <!-- Tabs de Escopo -->
-    <div class="mb-6 grid grid-cols-2 sm:flex sm:space-x-1 bg-[#1a1f23] p-1 rounded-lg w-full sm:w-fit border border-gray-700 gap-1 sm:gap-0">
+    <div class="mb-6 grid grid-cols-2 sm:flex sm:space-x-1 bg-[#0F172A] p-1 rounded-lg w-full sm:w-fit border border-gray-700 gap-1 sm:gap-0">
         <button onclick="updateUrlParam('escopo', '')" class="tab-escopo px-2 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-md transition-all {% if not current_escopo %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Nacional</button>
         <button onclick="updateUrlParam('escopo', 'Federal')" class="tab-escopo px-2 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-md transition-all {% if current_escopo == 'Federal' %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Federal</button>
         <button onclick="updateUrlParam('escopo', 'Estadual')" class="tab-escopo px-2 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-md transition-all {% if current_escopo == 'Estadual' %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Estadual</button>
         <button onclick="updateUrlParam('escopo', 'Municipal')" class="tab-escopo px-2 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-md transition-all {% if current_escopo == 'Municipal' %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Municipal</button>
     </div>
-    
-    
 
-    <div class="bg-[#1E293B] shadow-xl rounded-lg overflow-hidden border border-gray-700/50">
+    <div class="bg-[#1E293B] shadow-xl rounded-2xl overflow-hidden border border-gray-700/50">
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-[#373D3F]">
+            <table class="min-w-full divide-y divide-gray-700/50">
+                <thead class="bg-[#0F172A]">
                     <tr>
-                        <th scope="col" class="px-6 py-4 text-left text-xs font-black text-white uppercase tracking-widest">Agente Político</th>
-                        <th scope="col" class="px-6 py-4 text-left text-xs font-black text-white uppercase tracking-widest">Cargo / Esfera</th>
-                        <th scope="col" class="px-6 py-4 text-left text-xs font-black text-white uppercase tracking-widest">Total Liquidado</th>
-                        <th scope="col" class="px-6 py-4 text-left text-xs font-black text-white uppercase tracking-widest">Score Risco</th>
-                        <th scope="col" class="px-6 py-4 text-right text-xs font-black text-white uppercase tracking-widest">Ação</th>
+                        <th scope="col" class="px-6 py-4 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Agente Politico</th>
+                        <th scope="col" class="px-6 py-4 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Cargo / Esfera</th>
+                        <th scope="col" class="px-6 py-4 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Total Liquidado</th>
+                        <th scope="col" class="px-6 py-4 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Score Risco</th>
+                        <th scope="col" class="px-6 py-4 text-right text-xs font-black text-gray-400 uppercase tracking-widest">Acao</th>
                     </tr>
                 </thead>
-                <tbody class="bg-[#1E293B] divide-y divide-gray-200" id="ranking-body">
+                <tbody class="bg-[#1E293B] divide-y divide-gray-700/30" id="ranking-body">
                     {% for p in politicos %}
                     <tr class="hover:bg-[#0F172A] transition-colors">
                         <td class="px-6 py-4 whitespace-nowrap">
@@ -50,29 +47,33 @@
                                     {% if p.foto_url %}
                                         <img class="h-10 w-10 rounded-full object-cover border border-gray-700/50" src="{{ p.foto_url }}" alt="">
                                     {% else %}
-                                        <div class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center"><span class="text-gray-400 font-bold">{{ p.nome_civil|slice:':1' }}</span></div>
+                                        <div class="h-10 w-10 rounded-full bg-[#0F172A] border border-gray-700 flex items-center justify-center">
+                                            <span class="text-[#1A9E96] font-black text-sm">{{ p.nome_civil|slice:':1' }}</span>
+                                        </div>
                                     {% endif %}
                                 </div>
                                 <div class="ml-4">
-                                    <div class="text-sm font-black text-gray-100">{{ p.nome_civil }}</div>
-                                    <div class="text-xs text-gray-400 font-bold uppercase mt-0.5">{{ mandato.politico.partido|default:'-' }} • {{ mandato.estado_uf|default:'BR' }}</div>
+                                    <div class="text-sm font-black text-white">{{ p.nome_civil }}</div>
+                                    <div class="text-xs text-gray-500 font-bold uppercase mt-0.5">{{ p.esfera_display }}</div>
                                 </div>
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-bold text-white">{{ p.cargo_display }}</div>
-                            <div class="text-xs text-gray-400">{{ p.esfera_display }}</div>
+                            <div class="text-sm font-bold text-gray-200">{{ p.cargo_display }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm font-black text-[#1A9E96]">R$ {{ p.total_gasto|floatformat:2 }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-black rounded-full {% if p.score_risco >= 70 %}bg-red-100 text-red-800{% elif p.score_risco >= 30 %}bg-yellow-100 text-yellow-800{% else %}bg-green-100 text-green-800{% endif %}">
+                            <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-black rounded-full
+                                {% if p.score_risco >= 70 %}bg-red-900/60 text-red-300 border border-red-700
+                                {% elif p.score_risco >= 30 %}bg-yellow-900/60 text-yellow-300 border border-yellow-700
+                                {% else %}bg-[#0F172A] text-gray-400 border border-gray-700{% endif %}">
                                 {{ p.score_risco }}/100
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href="/politico/{{ p.id|stringformat:"d" }}/" class="text-white bg-[#373D3F] hover:bg-[#1A9E96] px-3 py-1.5 rounded transition-colors text-xs font-bold uppercase tracking-wider shadow">Dossiê</a>
+                            <a href="/politico/{{ p.id|stringformat:"d" }}/" class="text-white bg-[#1A2537] hover:bg-[#1A9E96] hover:text-white px-3 py-1.5 rounded-lg transition-colors text-xs font-bold uppercase tracking-wider shadow border border-gray-700 hover:border-[#1A9E96]">Dossie</a>
                         </td>
                     </tr>
                     {% empty %}
@@ -85,5 +86,16 @@
         </div>
     </div>
 </div>
-{% endblock %}
 
+<script>
+function updateUrlParam(key, value) {
+    const url = new URL(window.location.href);
+    if (value === '' || value === null) {
+        url.searchParams.delete(key);
+    } else {
+        url.searchParams.set(key, value);
+    }
+    window.location.href = url.toString();
+}
+</script>
+{% endblock %}

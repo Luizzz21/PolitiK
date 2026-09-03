@@ -25,19 +25,19 @@
         </div>
     </header>
 
-    <div class="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded shadow-sm text-yellow-800">
-        <h3 class="text-sm font-bold">Sobre gastos sigilosos</h3>
-        <p class="mt-2 text-sm">O Governo Federal permite o uso de sigilo bancário em despesas ligadas à Presidência e Ministérios sob alegação de segurança nacional. Nestes casos, o recebedor do dinheiro é ocultado. A PolitiK exibe essas informações como <span class="font-bold">"Informação protegida por sigilo"</span>.</p>
+    <div class="mb-6 bg-amber-950/50 border-l-4 border-amber-500 p-4 rounded-xl text-amber-300">
+        <h3 class="text-sm font-bold text-amber-200">Sobre gastos sigilosos</h3>
+        <p class="mt-2 text-sm text-amber-200/80">O Governo Federal permite o uso de sigilo bancário em despesas ligadas à Presidência e Ministérios sob alegação de segurança nacional. Nestes casos, o recebedor do dinheiro é ocultado. A PolitiK exibe essas informações como <span class="font-bold">"Informação protegida por sigilo"</span>.</p>
     </div>
 
     <div class="bg-[#1E293B] rounded-lg shadow-xl overflow-hidden flex flex-col lg:flex-row min-h-[600px]">
         
         <!-- Sidebar Filtros -->
         <div class="w-full lg:w-64 bg-[#0F172A] border-r border-gray-700/50 p-5 flex flex-col gap-4">
-            <h3 class="font-black text-[#373D3F] uppercase tracking-widest text-xs mb-2">Filtros de Busca</h3>
+            <h3 class="font-black text-gray-400 uppercase tracking-widest text-xs mb-2">Filtros de Busca</h3>
             
             <div>
-                <label class="block text-xs font-bold text-gray-600 mb-1">Visibilidade</label>
+                <label class="block text-xs font-bold text-gray-400 mb-1">Visibilidade</label>
                 <select id="filter-sigilo" class="w-full p-2 border border-gray-700/50 rounded text-sm bg-[#1E293B] font-bold text-gray-300">
                     <option value="">Todas</option>
                     <option value="true">Apenas Sigilosas</option>
@@ -46,16 +46,16 @@
             </div>
 
             <div>
-                <label class="block text-xs font-bold text-gray-600 mb-1">Período Específico</label>
+                <label class="block text-xs font-bold text-gray-400 mb-1">Período Específico</label>
                 <div class="flex gap-2">
-                    <input type="date" id="filter-data-inicio" class="w-1/2 px-2 py-2 text-xs border border-gray-700/50 rounded outline-none focus:border-[#1A9E96]">
-                    <input type="date" id="filter-data-fim" class="w-1/2 px-2 py-2 text-xs border border-gray-700/50 rounded outline-none focus:border-[#1A9E96]">
+                    <input type="date" id="filter-data-inicio" class="w-1/2 px-2 py-2 text-xs border border-gray-700/50 rounded outline-none focus:border-[#1A9E96] bg-[#1E293B] text-gray-300 [color-scheme:dark]">
+                    <input type="date" id="filter-data-fim" class="w-1/2 px-2 py-2 text-xs border border-gray-700/50 rounded outline-none focus:border-[#1A9E96] bg-[#1E293B] text-gray-300 [color-scheme:dark]">
                 </div>
             </div>
 
             <div>
-                <label class="block text-xs font-bold text-gray-600 mb-1">Ano</label>
-                <select id="filter-ano" class="w-full px-3 py-2 text-sm border border-gray-700/50 rounded outline-none">
+                <label class="block text-xs font-bold text-gray-400 mb-1">Ano</label>
+                <select id="filter-ano" class="w-full px-3 py-2 text-sm border border-gray-700/50 rounded outline-none bg-[#1E293B] text-gray-300">
                     <option value="">Todos</option>
                     <option value="2026">2026</option>
                     <option value="2025">2025</option>
@@ -64,8 +64,8 @@
             </div>
             
             <div>
-                <label class="block text-xs font-bold text-gray-600 mb-1">Categoria</label>
-                <select id="filter-categoria" class="w-full px-3 py-2 text-sm border border-gray-700/50 rounded outline-none">
+                <label class="block text-xs font-bold text-gray-400 mb-1">Categoria</label>
+                <select id="filter-categoria" class="w-full px-3 py-2 text-sm border border-gray-700/50 rounded outline-none bg-[#1E293B] text-gray-300">
                     <option value="">Todas</option>
                     <option value="Alimentação">Alimentação</option>
                     <option value="Combustível">Combustível</option>
@@ -95,7 +95,7 @@
                     <div class="loader"></div>
                 </div>
                 
-                <table class="min-w-full divide-y divide-gray-200">
+                <table class="min-w-full divide-y divide-gray-700/30">
                     <thead class="bg-[#0F172A]">
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-black text-gray-400 uppercase tracking-wider">Data</th>
@@ -105,7 +105,7 @@
                             <th class="px-4 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Valor (R$)</th>
                         </tr>
                     </thead>
-                    <tbody id="despesas-tbody" class="divide-y divide-gray-100">
+                    <tbody id="despesas-tbody" class="divide-y divide-gray-700/30">
                         <!-- Preenchido via JS -->
                     </tbody>
                 </table>
@@ -114,7 +114,7 @@
             <!-- Paginacao -->
             <div class="p-4 border-t border-gray-700/50 flex items-center justify-between bg-[#0F172A]">
                 <button onclick="prevPage()" id="btn-prev" class="px-4 py-2 border border-gray-700/50 rounded text-sm font-bold bg-[#1E293B] text-gray-300 disabled:opacity-50 hover:bg-[#0F172A] transition-colors">Anterior</button>
-                <span class="text-sm font-bold text-gray-600" id="page-info">Página 1 de 1</span>
+                <span class="text-sm font-bold text-gray-400" id="page-info">Página 1 de 1</span>
                 <button onclick="nextPage()" id="btn-next" class="px-4 py-2 border border-gray-700/50 rounded text-sm font-bold bg-[#1E293B] text-gray-300 disabled:opacity-50 hover:bg-[#0F172A] transition-colors">Próxima</button>
             </div>
         </div>
@@ -143,8 +143,7 @@
             page: page,
             limit: 50,
             ano: document.getElementById('filter-ano').value,
-            cargo: 'Executivo',
-            esfera: 'Federal',
+            fonte: 'transparencia',
             sigilo: document.getElementById('filter-sigilo') ? document.getElementById('filter-sigilo').value : '',
             categoria: document.getElementById('filter-categoria').value,
             data_inicio: document.getElementById('filter-data-inicio').value,
@@ -176,7 +175,7 @@
                     tr.innerHTML = `
                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-400 font-bold">${formatDate(d.data_emissao)}</td>
                         <td class="px-4 py-3 whitespace-nowrap">
-                            <div class="text-sm font-bold text-[#373D3F]">${d.politico_nome}</div>
+                            <div class="text-sm font-bold text-gray-100">${d.politico_nome}</div>
                             <div class="text-[10px] uppercase font-black tracking-wider text-gray-400 mt-0.5">${d.cargo}</div>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">
@@ -186,7 +185,7 @@
                             <div class="text-[10px] font-black text-gray-400 mt-0.5 tracking-wider">${d.fornecedor && d.fornecedor.cnpj ? d.fornecedor.cnpj : ''}</div>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">
-                            <span class="px-2 py-1 bg-[#0F172A] text-gray-600 rounded text-xs font-bold">${d.categoria}</span>
+                            <span class="px-2 py-1 bg-[#0F172A] border border-gray-700/50 text-gray-300 rounded text-xs font-bold">${d.categoria}</span>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-black text-[#1A9E96]">
                             ${formatCurrency(d.valor_liquidado)}
