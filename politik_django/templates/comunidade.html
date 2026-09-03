@@ -1,57 +1,75 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}PolitiK - Comunidade Open Source{% endblock %}
+{% block title %}PolitiK - Cobertura de Dados{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-
-    <div class="bg-gray-900 border border-[#f59e0b] shadow-2xl rounded-xl overflow-hidden relative">
-        <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#f59e0b] to-[#1e9b95]"></div>
+<div class="max-w-4xl mx-auto py-12 px-4 sm:px-6">
+    <div class="bg-gradient-to-br from-[#1E293B] to-[#161F2E] rounded-3xl p-8 sm:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-gray-700/50">
         
-        <div class="p-8 sm:p-12">
-            <div class="flex items-center gap-4 mb-6">
-                <div class="bg-[#f59e0b]/20 p-3 rounded-full text-[#f59e0b]">
-                    <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
-                </div>
-                <h1 class="text-3xl sm:text-4xl font-black text-white tracking-tight">O Desafio das APIs Estaduais</h1>
+        <div class="flex items-center gap-4 mb-8">
+            <div class="p-4 bg-[#10B981]/20 rounded-full">
+                <svg class="w-10 h-10 text-[#10B981]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                </svg>
             </div>
+            <div>
+                <h1 class="text-3xl sm:text-4xl font-black text-white tracking-tight">Cobertura de Dados</h1>
+                <p class="text-gray-400 mt-2 font-medium">Status da integrao de dados nos trs nveis governamentais</p>
+            </div>
+        </div>
 
-            <p class="text-gray-300 text-lg leading-relaxed mb-8 font-medium">
-                O PolitiK já coleta automaticamente <strong class="text-white">100% dos dados Federais</strong> (Senado, Câmara e Executivo Federal). No entanto, o nível estadual e municipal no Brasil sofre com a falta de padronização: portais de transparência instáveis, erros de servidor (Error 500) constantes, e ausência completa de APIs em muitos estados.
-            </p>
-
-            <div class="bg-[#1e293b] rounded-lg p-6 mb-8 border border-gray-700">
-                <h3 class="text-xl font-bold text-white mb-4">Como você pode ajudar (Iniciativa Open Source)</h3>
-                <p class="text-gray-400 mb-4 text-sm">
-                    Para resolver isso sem sobrecarregar o motor principal, nós criamos uma arquitetura <strong>Plug-and-Play</strong>. Qualquer desenvolvedor pode contribuir criando um pequeno arquivo (um "Adapter") que ensina o PolitiK a ler os dados de um estado específico. 
+        <div class="space-y-8">
+            
+            <section class="bg-[#0F172A] rounded-2xl p-6 border border-gray-700/50">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                        <svg class="w-6 h-6 text-[#10B981]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        Nvel Federal
+                    </h3>
+                    <span class="px-3 py-1 bg-[#10B981]/20 text-[#10B981] font-bold text-xs rounded-full uppercase tracking-widest border border-[#10B981]/30">100% Coberto</span>
+                </div>
+                <p class="text-gray-300 text-sm leading-relaxed mb-4">
+                    O PolitiK possui integrao completa e em tempo real com os rgos federais do Brasil. Nossos motores processam automaticamente:
                 </p>
-                <ul class="space-y-3">
-                    <li class="flex items-start gap-3">
-                        <svg class="w-5 h-5 text-[#1e9b95] mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        <span class="text-gray-300 text-sm">Nós já mapeamos a arquitetura no arquivo <code class="bg-gray-800 px-1.5 py-0.5 rounded text-[#f59e0b] font-mono text-xs">CONTRIBUTING_ESTADOS.md</code> no nosso repositório.</span>
+                <ul class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <li class="flex items-center gap-2 text-sm text-gray-400 font-bold bg-[#1E293B] p-3 rounded-lg border border-gray-700/50">
+                        <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                        Cmara (Deputados)
                     </li>
-                    <li class="flex items-start gap-3">
-                        <svg class="w-5 h-5 text-[#1e9b95] mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        <span class="text-gray-300 text-sm">Basta herdar a classe <code class="bg-gray-800 px-1.5 py-0.5 rounded text-[#f59e0b] font-mono text-xs">TCEBaseCollector</code> e programar o scraping para o seu estado (ex: <code class="bg-gray-800 px-1.5 py-0.5 rounded text-gray-300 font-mono text-xs">sp.py</code>, <code class="bg-gray-800 px-1.5 py-0.5 rounded text-gray-300 font-mono text-xs">mg.py</code>).</span>
+                    <li class="flex items-center gap-2 text-sm text-gray-400 font-bold bg-[#1E293B] p-3 rounded-lg border border-gray-700/50">
+                        <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                        Senado (Senadores)
                     </li>
-                    <li class="flex items-start gap-3">
-                        <svg class="w-5 h-5 text-[#1e9b95] mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        <span class="text-gray-300 text-sm">O nosso <code class="bg-gray-800 px-1.5 py-0.5 rounded text-[#1e9b95] font-mono text-xs">orchestrator.py</code> vai detectar seu script automaticamente e rodar a rotina para o estado.</span>
+                    <li class="flex items-center gap-2 text-sm text-gray-400 font-bold bg-[#1E293B] p-3 rounded-lg border border-gray-700/50">
+                        <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                        Executivo (Presidncia)
                     </li>
                 </ul>
-            </div>
+            </section>
 
-            <div class="flex flex-col sm:flex-row gap-4 items-center">
-                <a href="https://github.com/Luizzz21/PolitiK" target="_blank" class="w-full sm:w-auto text-center px-8 py-3 bg-[#f59e0b] hover:bg-[#d97706] text-gray-900 font-black rounded-lg transition-colors shadow-lg flex items-center justify-center gap-2 uppercase tracking-wide text-sm">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-                    Repositório no GitHub
-                </a>
-                <a href="https://github.com/Luizzz21/PolitiK/blob/main/CONTRIBUTING_ESTADOS.md" target="_blank" class="w-full sm:w-auto text-center px-8 py-3 bg-transparent border-2 border-gray-600 hover:border-gray-400 text-gray-300 font-bold rounded-lg transition-colors flex items-center justify-center gap-2 uppercase text-sm">
-                    Ler Manual (CONTRIBUTING)
-                </a>
-            </div>
+            <section class="bg-[#0F172A] rounded-2xl p-6 border border-gray-700/50">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                        <svg class="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        Nvel Estadual e Municipal
+                    </h3>
+                    <span class="px-3 py-1 bg-yellow-500/20 text-yellow-500 font-bold text-xs rounded-full uppercase tracking-widest border border-yellow-500/30">Em Expanso</span>
+                </div>
+                <div class="space-y-4">
+                    <p class="text-gray-300 text-sm leading-relaxed">
+                        Atualmente, a integrao com Assembleias Legislativas (Estaduais) e Cmaras Municipais encontra-se <strong>em fase de desenvolvimento e expanso comercial</strong>.
+                    </p>
+                    <p class="text-gray-300 text-sm leading-relaxed">
+                        Devido  ausncia de padronizao nos portais de transparncia locais e  instabilidade estrutural de diversas plataformas governamentais em mbito regional, nossos motores de ingesto esto sendo adaptados progressivamente para garantir a mesma preciso matemtica (Score de Risco) j aplicada ao mbito federal.
+                    </p>
+                    <div class="bg-[#1E293B] p-4 rounded-lg border border-gray-700/50 mt-4 border-l-4 border-l-yellow-500">
+                        <h4 class="font-bold text-white text-sm mb-1 uppercase tracking-wider">Aviso Importante</h4>
+                        <p class="text-gray-400 text-sm">Pesquisas por deputados estaduais, prefeitos ou vereadores podem retornar resultados limitados ou nulos at que a cobertura de seus respectivos estados seja concluda.</p>
+                    </div>
+                </div>
+            </section>
         </div>
     </div>
 </div>
 {% endblock %}
-
