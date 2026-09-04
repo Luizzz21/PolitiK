@@ -115,7 +115,7 @@ const ano = new URLSearchParams(window.location.search).get('ano') || '';
         <select onchange="updateUrlParam('ano', this.value)" class="bg-[#1E293B] border border-gray-700/50 text-gray-300 text-sm rounded-lg focus:ring-[#1A9E96] focus:border-[#1A9E96] p-2 font-bold transition-colors hover:border-[#1A9E96]">
             <option value="">Qualquer Ano</option>
             {% for a in anos %}
-            <option value="{{ a }}" {% if ano == a|stringformat:'s' %}selected{% endif %}>{{ a }}</option>
+            <option value="{{ a|stringformat:'s' }}" {% if ano == a|stringformat:'s' %}selected{% endif %}>{{ a|stringformat:'s' }}</option>
             {% endfor %}
         </select>
         

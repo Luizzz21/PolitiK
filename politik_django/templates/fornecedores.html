@@ -20,7 +20,7 @@
                 <select name="ano" class="px-4 py-2 bg-gray-800 text-white border-none rounded text-sm outline-none">
                     <option value="">Todos os Anos</option>
                     {% for a in anos %}
-                    <option value="{{ a }}" {% if filtro_ano == a|stringformat:'s' %}selected{% endif %}>{{ a }}</option>
+                    <option value="{{ a|stringformat:'s' }}" {% if filtro_ano == a|stringformat:'s' %}selected{% endif %}>{{ a|stringformat:'s' }}</option>
                     {% endfor %}
                 </select>
                 <select name="uf" class="px-4 py-2 bg-gray-800 text-white border-none rounded text-sm outline-none">

@@ -35,7 +35,7 @@ def ranking_view(request):
     """View para o Ranking de Risco"""
     busca = request.GET.get('q', '')
     esfera = request.GET.get('esfera') or request.GET.get('escopo', '')
-    ano = request.GET.get('ano', '')
+    ano = request.GET.get('ano', '').replace('.', '')
     incluir_sigiloso = request.GET.get('sigiloso', '1')
     
     queryset = Politico.objects.prefetch_related('mandatos').all()
@@ -68,7 +68,7 @@ def ranking_view(request):
     if ano:
         despesas_filter &= Q(mandatos__despesas__ano=ano)
     if incluir_sigiloso == '0':
-        despesas_filter &= ~Q(mandatos__despesas__categoria_absoluta='Sigiloso')
+        despesas_filter &= ~Q(mandatos__despesas__categoria='Sigiloso')
         despesas_filter &= ~Q(mandatos__despesas__fornecedor__isnull=True)
 
     if despesas_filter:
@@ -121,7 +121,7 @@ def presidencia_view(request):
 def index(request):
     """Main dashboard view (RF06 - Dynamic Filters)"""
     
-    ano_str = request.GET.get('ano')
+    ano_str = request.GET.get('ano', '').replace('.', '')
     try:
         ano_atual = int(ano_str) if ano_str else datetime.now().year
     except ValueError:
@@ -331,7 +331,7 @@ from django.http import HttpResponse
 
 def api_exportar_despesas_csv(request):
     """Exporta a lista filtrada de despesas para CSV (Frente 3.8)"""
-    ano = request.GET.get('ano')
+    ano = request.GET.get('ano', '').replace('.', '')
     categoria = request.GET.get('categoria')
     esfera = request.GET.get('esfera')
     
@@ -414,7 +414,7 @@ def api_buscar_politicos(request):
     cargo = request.GET.get('cargo')
     esfera = request.GET.get('esfera') or request.GET.get('escopo')
     estado = request.GET.get('estado_uf')
-    ano = request.GET.get('ano')
+    ano = request.GET.get('ano', '').replace('.', '')
     partido = request.GET.get('partido')
     busca = request.GET.get('busca')
 
@@ -471,7 +471,7 @@ def api_buscar_politicos(request):
 def api_buscar_despesas(request):
     """Buscar despesas com filtros dinÃ¢micos integrados"""
     mandato_id = request.GET.get('mandato_id')
-    ano = request.GET.get('ano')
+    ano = request.GET.get('ano', '').replace('.', '')
     mes = request.GET.get('mes')
     categoria = request.GET.get('categoria')
     fornecedor_cnpj = request.GET.get('fornecedor_cnpj')
@@ -582,7 +582,7 @@ def api_estatisticas(request):
     """
     Retorna mÃ©tricas globais e KPIs agregados (RF01, RF02, RNF01).
     """
-    ano = request.GET.get('ano')
+    ano = request.GET.get('ano', '').replace('.', '')
     categoria = request.GET.get('categoria')
     fonte = request.GET.get('fonte')
     cargo = request.GET.get('cargo')
@@ -598,10 +598,10 @@ def api_estatisticas(request):
     if fonte: queryset = queryset.filter(fonte=fonte)
     if cargo: queryset = queryset.filter(mandato__cargo=cargo)
     if incluir_sigiloso == '0':
-        queryset = queryset.exclude(categoria_absoluta='Sigiloso')
+        queryset = queryset.exclude(categoria='Sigiloso')
         queryset = queryset.filter(fornecedor__isnull=False)
     if incluir_sigiloso == '0':
-        queryset = queryset.exclude(categoria_absoluta='Sigiloso')
+        queryset = queryset.exclude(categoria='Sigiloso')
         queryset = queryset.filter(fornecedor__isnull=False)
     
     if esfera:
@@ -1103,7 +1103,7 @@ def fornecedores_view(request):
     busca = request.GET.get('q', '')
     filtro_uf = request.GET.get('uf', '')
     filtro_situacao = request.GET.get('situacao', '')
-    filtro_ano = request.GET.get('ano', '')
+    filtro_ano = request.GET.get('ano', '').replace('.', '').replace('.', '')
     
     if not busca and not filtro_uf and not filtro_situacao:
         # SUPER OPTIMIZED for default view (and with ano filter):
