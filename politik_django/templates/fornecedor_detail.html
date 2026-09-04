@@ -138,11 +138,19 @@
 
         
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6 mb-6">
-  <div class="bg-[#1E293B] rounded-2xl p-5 border border-gray-700/50">
+  <div class="relative bg-[#1E293B] rounded-2xl p-5 border border-gray-700/50">
+    <button onclick="toggleFullscreen(this)" class="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-white bg-gray-800/50 hover:bg-gray-700 rounded-md transition-colors z-10">
+        <svg class="w-4 h-4 icon-expand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+        <svg class="w-4 h-4 icon-compress hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    </button>
     <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Recebimentos Mensais</h3>
     <div style="position:relative;min-height:260px"><canvas id="chart-forn-detail-mes"></canvas></div>
   </div>
-  <div class="bg-[#1E293B] rounded-2xl p-5 border border-gray-700/50">
+  <div class="relative bg-[#1E293B] rounded-2xl p-5 border border-gray-700/50">
+    <button onclick="toggleFullscreen(this)" class="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-white bg-gray-800/50 hover:bg-gray-700 rounded-md transition-colors z-10">
+        <svg class="w-4 h-4 icon-expand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+        <svg class="w-4 h-4 icon-compress hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    </button>
     <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Top Políticos Pagadores</h3>
     <div style="position:relative;min-height:260px"><canvas id="chart-forn-detail-pol"></canvas></div>
   </div>

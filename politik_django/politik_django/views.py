@@ -1086,16 +1086,11 @@ def fornecedores_view(request):
     if filtro_situacao:
         queryset = queryset.filter(situacao_cadastral=filtro_situacao)
         
-    from django.db.models import Subquery, OuterRef
-    mandato_sq = Despesa.objects.filter(fornecedor=OuterRef('pk')).values('fornecedor').annotate(s=Sum('valor_liquidado')).values('s')
-    campanha_sq = DespesaCampanha.objects.filter(fornecedor=OuterRef('pk')).values('fornecedor').annotate(s=Sum('valor')).values('s')
-    
-    # Anota o total recebido (Cota Parlamentar + Fundo Eleitoral) evitando Produto Cartesiano
-    queryset = queryset.annotate(
-        total_mandato=Coalesce(Subquery(mandato_sq[:1]), 0.0, output_field=DecimalField()),
-        total_campanha=Coalesce(Subquery(campanha_sq[:1]), 0.0, output_field=DecimalField())
+    # Abordagem Otimizada: Apenas soma gastos de mandato para o ranking (super rapido)
+    queryset = queryset.filter(
+        despesas__isnull=False
     ).annotate(
-        total_recebido=F('total_mandato') + F('total_campanha')
+        total_recebido=Sum('despesas__valor_liquidado')
     ).filter(total_recebido__gt=0).order_by('-total_recebido')
     
     # PaginaÃ§Ã£o (20 por pÃ¡gina)
