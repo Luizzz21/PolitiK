@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}PolitiK - Ranking Nacional de Agentes
+<script>
 Chart.defaults.color = '#9ca3af';
 const escopo = new URLSearchParams(window.location.search).get('escopo') || '';
 fetch('/api/estatisticas/' + (escopo ? '?escopo=' + escopo : ''))
@@ -32,12 +33,13 @@ fetch('/api/estatisticas/' + (escopo ? '?escopo=' + escopo : ''))
         plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af', padding: 16 } } } }
     });
   });
-
+</script>
 {% endblock %}
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
+<script>
 Chart.defaults.color = '#9ca3af';
 const escopo = new URLSearchParams(window.location.search).get('escopo') || '';
 fetch('/api/estatisticas/' + (escopo ? '?escopo=' + escopo : ''))
@@ -69,7 +71,7 @@ fetch('/api/estatisticas/' + (escopo ? '?escopo=' + escopo : ''))
         plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af', padding: 16 } } } }
     });
   });
-
+</script>
 {% endblock %}
 
 {% block content %}
@@ -180,6 +182,7 @@ function updateUrlParam(key, value) {
 }
 </script>
 
+<script>
 Chart.defaults.color = '#9ca3af';
 const escopo = new URLSearchParams(window.location.search).get('escopo') || '';
 fetch('/api/estatisticas/' + (escopo ? '?escopo=' + escopo : ''))
@@ -211,5 +214,5 @@ fetch('/api/estatisticas/' + (escopo ? '?escopo=' + escopo : ''))
         plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af', padding: 16 } } } }
     });
   });
-
+</script>
 {% endblock %}

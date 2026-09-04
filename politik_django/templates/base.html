@@ -311,9 +311,9 @@
                         } else if(data && data.politicos && data.politicos.length > 0) {
                             data.politicos.forEach(pol => {
                                 const div = document.createElement('div');
-                                div.className = 'px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors';
+                                div.className = 'px-4 py-3 hover:bg-[#253248] cursor-pointer border-b border-gray-700/50 transition-colors';
                                 div.innerHTML = `
-                                    <div class="font-bold text-gray-900">${pol.nome_civil}</div>
+                                    <div class="font-bold text-gray-100">${pol.nome_civil}</div>
                                     <div class="text-xs text-gray-400 uppercase mt-0.5">${pol.partido || 'S/P'} • ${pol.uf || 'BR'}</div>
                                 `; 
                                 div.onclick = () => window.location.href = `/politico/${pol.id}/`;
@@ -363,7 +363,7 @@
                                         <div class="p-3 border-b border-gray-700/50 hover:bg-[#253248] cursor-pointer text-left">
                                             <div class="flex items-center gap-2 mb-1">
                                                 <span class="w-2 h-2 rounded-full ${n.severidade === 'critica' ? 'bg-red-500' : (n.severidade === 'alta' ? 'bg-orange-500' : 'bg-yellow-500')}"></span>
-                                                <span class="text-xs font-bold text-gray-800 line-clamp-1">${n.titulo}</span>
+                                                <span class="text-xs font-bold text-white line-clamp-1">${n.titulo}</span>
                                             </div>
                                             <div class="text-xs text-gray-400 mb-1 line-clamp-2">${n.descricao}</div>
                                             <div class="flex justify-between text-[10px] text-gray-400 font-medium">

@@ -634,15 +634,15 @@ const DashboardApp = (function() {
                                 : `<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>`;
 
                             return `
-                            <a href="/politico/${p.id}" class="w-[80vw] sm:w-auto shrink-0 snap-center bg-[#1E293B] rounded-2xl p-4 shadow-[0_4px_20px_rgb(0,0,0,0.3)] border border-gray-700/50 flex flex-col items-center text-center transform transition hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(26,158,150,0.2)] hover:border-[#1A9E96] group">
+                            <a href="/politico/${p.id}" class="w-[80vw] sm:w-auto h-full shrink-0 snap-center bg-[#1E293B] rounded-2xl p-4 shadow-[0_4px_20px_rgb(0,0,0,0.3)] border border-gray-700/50 flex flex-col items-center text-center transform transition hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(26,158,150,0.2)] hover:border-[#1A9E96] group overflow-hidden">
                                 <div class="w-16 h-16 rounded-full bg-[#0F172A] flex items-center justify-center overflow-hidden mb-3 border-2 ${borderColor}">
                                     ${imageHtml}
                                 </div>
-                                <h3 class="text-sm font-black text-white group-hover:text-[#1A9E96] line-clamp-1 transition-colors">${p.nome}</h3>
+                                <h3 class="text-sm font-black text-white group-hover:text-[#1A9E96] line-clamp-1 transition-colors break-words w-full" title="${p.nome}">${p.nome}</h3>
                                 <p class="text-[10px] text-gray-500 uppercase tracking-wider mb-2 font-bold">${p.cargo} - ${p.esfera}</p>
                                 <div class="mt-auto pt-3 border-t border-gray-700/50 w-full">
                                     <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">Volume</p>
-                                    <p class="text-sm font-black text-[#1A9E96] mb-2">${formatCurrencyFull(p.total)}</p>
+                                    <p class="text-sm font-black text-[#1A9E96] mb-2 break-all sm:break-normal" title="${formatCurrencyFull(p.total)}">${formatCurrencyFull(p.total)}</p>
                                     <div class="flex items-center justify-center gap-1">
                                         <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${badgeClass}">
                                             Score ${p.score}/100
