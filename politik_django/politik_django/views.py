@@ -1103,10 +1103,16 @@ def fornecedores_view(request):
     busca = request.GET.get('q', '')
     filtro_uf = request.GET.get('uf', '')
     filtro_situacao = request.GET.get('situacao', '')
+    filtro_ano = request.GET.get('ano', '')
     
     if not busca and not filtro_uf and not filtro_situacao:
-        # SUPER OPTIMIZED for default view:
-        despesas_qs = Despesa.objects.filter(fornecedor__isnull=False).values('fornecedor_id').annotate(
+        # SUPER OPTIMIZED for default view (and with ano filter):
+        despesas_qs = Despesa.objects.filter(fornecedor__isnull=False)
+        
+        if filtro_ano:
+            despesas_qs = despesas_qs.filter(ano=filtro_ano)
+            
+        despesas_qs = despesas_qs.values('fornecedor_id').annotate(
             total_recebido=Sum('valor_liquidado')
         ).filter(total_recebido__gt=0).order_by('-total_recebido')
         
@@ -1133,9 +1139,14 @@ def fornecedores_view(request):
         if filtro_situacao:
             queryset = queryset.filter(situacao_cadastral=filtro_situacao)
             
-        queryset = queryset.filter(despesas__isnull=False).annotate(
-            total_recebido=Sum('despesas__valor_liquidado')
-        ).filter(total_recebido__gt=0).order_by('-total_recebido')
+        if filtro_ano:
+            queryset = queryset.filter(despesas__ano=filtro_ano, despesas__isnull=False).annotate(
+                total_recebido=Sum('despesas__valor_liquidado', filter=Q(despesas__ano=filtro_ano))
+            ).filter(total_recebido__gt=0).order_by('-total_recebido')
+        else:
+            queryset = queryset.filter(despesas__isnull=False).annotate(
+                total_recebido=Sum('despesas__valor_liquidado')
+            ).filter(total_recebido__gt=0).order_by('-total_recebido')
         
         paginator = Paginator(queryset, 20)
         page_number = request.GET.get('page')
@@ -1143,6 +1154,7 @@ def fornecedores_view(request):
         
     ufs = Fornecedor.objects.exclude(uf__isnull=True).exclude(uf='').values_list('uf', flat=True).distinct().order_by('uf')
     situacoes = [c[1].upper() for c in Fornecedor.SITUACAO_CADASTRAL_CHOICES]
+    anos = Despesa.objects.values_list('ano', flat=True).distinct().order_by('-ano')
     
     cargos_count = Mandato.objects.values('cargo').annotate(count=Count('id')).order_by('-count')
 
@@ -1151,8 +1163,10 @@ def fornecedores_view(request):
         'busca': busca,
         'filtro_uf': filtro_uf,
         'filtro_situacao': filtro_situacao,
+        'filtro_ano': filtro_ano,
         'ufs': ufs,
         'situacoes': situacoes,
+        'anos': anos,
         'cargos_count': cargos_count,
     }
     return render(request, 'fornecedores.html', context)

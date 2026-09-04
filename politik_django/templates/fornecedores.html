@@ -17,6 +17,12 @@
             </div>
             
             <form method="GET" class="flex flex-col md:flex-row gap-2 w-full lg:w-auto">
+                <select name="ano" class="px-4 py-2 bg-gray-800 text-white border-none rounded text-sm outline-none">
+                    <option value="">Todos os Anos</option>
+                    {% for a in anos %}
+                    <option value="{{ a }}" {% if filtro_ano == a|stringformat:'s' %}selected{% endif %}>{{ a }}</option>
+                    {% endfor %}
+                </select>
                 <select name="uf" class="px-4 py-2 bg-gray-800 text-white border-none rounded text-sm outline-none">
                     <option value="">Todos os Estados</option>
                     {% for uf in ufs %}
@@ -120,7 +126,7 @@ new Chart(document.getElementById('chart-forn-situacao'), {
                     {% for f in page_obj %}
                     <tr class="hover:bg-[#0F172A] transition-colors">
                         <td class="px-6 py-4 whitespace-nowrap font-medium text-white">{{ f.cnpj }}</td>
-                        <td class="px-6 py-4 font-bold text-[#373D3F]">{{ f.razao_social }}</td>
+                        <td class="px-6 py-4 font-bold text-gray-200">{{ f.razao_social }}</td>
                         <td class="px-6 py-4">{{ f.uf|default:"-" }}</td>
                         <td class="px-6 py-4 text-right font-black text-[#1A9E96]">R$ {{ f.total_recebido|floatformat:2 }}</td>
                         <td class="px-6 py-4 text-center whitespace-nowrap">
