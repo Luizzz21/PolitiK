@@ -4,7 +4,14 @@
 <script>
 Chart.defaults.color = '#9ca3af';
 const escopo = new URLSearchParams(window.location.search).get('escopo') || '';
-fetch('/api/estatisticas/' + (escopo ? '?escopo=' + escopo : ''))
+const ano = new URLSearchParams(window.location.search).get('ano') || '';
+    const sigiloso = new URLSearchParams(window.location.search).get('sigiloso') || '1';
+    let urlParams = [];
+    if(escopo) urlParams.push(`escopo=${escopo}`);
+    if(ano) urlParams.push(`ano=${ano}`);
+    if(sigiloso) urlParams.push(`sigiloso=${sigiloso}`);
+    const qs = urlParams.length > 0 ? '?' + urlParams.join('&') : '';
+    fetch('/api/estatisticas/' + qs)
   .then(r => r.json())
   .then(data => {
     const top = (data.top_politicos || []).slice(0, 10);
@@ -42,7 +49,14 @@ fetch('/api/estatisticas/' + (escopo ? '?escopo=' + escopo : ''))
 <script>
 Chart.defaults.color = '#9ca3af';
 const escopo = new URLSearchParams(window.location.search).get('escopo') || '';
-fetch('/api/estatisticas/' + (escopo ? '?escopo=' + escopo : ''))
+const ano = new URLSearchParams(window.location.search).get('ano') || '';
+    const sigiloso = new URLSearchParams(window.location.search).get('sigiloso') || '1';
+    let urlParams = [];
+    if(escopo) urlParams.push(`escopo=${escopo}`);
+    if(ano) urlParams.push(`ano=${ano}`);
+    if(sigiloso) urlParams.push(`sigiloso=${sigiloso}`);
+    const qs = urlParams.length > 0 ? '?' + urlParams.join('&') : '';
+    fetch('/api/estatisticas/' + qs)
   .then(r => r.json())
   .then(data => {
     const top = (data.top_politicos || []).slice(0, 10);
@@ -96,6 +110,19 @@ fetch('/api/estatisticas/' + (escopo ? '?escopo=' + escopo : ''))
         <button onclick="updateUrlParam('escopo', 'Federal')" class="tab-escopo px-2 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-md transition-all {% if current_escopo == 'Federal' %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Federal</button>
         <button onclick="updateUrlParam('escopo', 'Estadual')" class="tab-escopo px-2 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-md transition-all {% if current_escopo == 'Estadual' %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Estadual</button>
         <button onclick="updateUrlParam('escopo', 'Municipal')" class="tab-escopo px-2 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-md transition-all {% if current_escopo == 'Municipal' %}bg-[#1e9b95] text-white shadow{% else %}text-gray-400 hover:text-white hover:bg-gray-700{% endif %}">Municipal</button>
+    </div>
+    <div class="flex flex-wrap items-center gap-3 mt-4">
+        <select onchange="updateUrlParam('ano', this.value)" class="bg-[#1E293B] border border-gray-700/50 text-gray-300 text-sm rounded-lg focus:ring-[#1A9E96] focus:border-[#1A9E96] p-2 font-bold transition-colors hover:border-[#1A9E96]">
+            <option value="">Qualquer Ano</option>
+            {% for a in anos %}
+            <option value="{{ a }}" {% if ano == a|stringformat:'s' %}selected{% endif %}>{{ a }}</option>
+            {% endfor %}
+        </select>
+        
+        <select onchange="updateUrlParam('sigiloso', this.value)" class="bg-[#1E293B] border border-gray-700/50 text-gray-300 text-sm rounded-lg focus:ring-[#1A9E96] focus:border-[#1A9E96] p-2 font-bold transition-colors hover:border-[#1A9E96]">
+            <option value="1" {% if incluir_sigiloso != '0' %}selected{% endif %}>Incluir Sigilosos</option>
+            <option value="0" {% if incluir_sigiloso == '0' %}selected{% endif %}>Ocultar Sigilosos</option>
+        </select>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
@@ -164,7 +191,7 @@ fetch('/api/estatisticas/' + (escopo ? '?escopo=' + escopo : ''))
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href="/politico/{{ p.id|stringformat:"d" }}/" class="text-white bg-[#1A2537] hover:bg-[#1A9E96] hover:text-white px-3 py-1.5 rounded-lg transition-colors text-xs font-bold uppercase tracking-wider shadow border border-gray-700 hover:border-[#1A9E96]">Dossie</a>
+                            <a href="/politico/{{ p.id|stringformat:"d" }}/" class="text-white bg-[#1A2537] hover:bg-[#1A9E96] hover:text-white px-3 py-1.5 rounded-lg transition-colors text-xs font-bold uppercase tracking-wider shadow border border-gray-700 hover:border-[#1A9E96]">Dossiêêe</a>
                         </td>
                     </tr>
                     {% empty %}
@@ -193,7 +220,14 @@ function updateUrlParam(key, value) {
 <script>
 Chart.defaults.color = '#9ca3af';
 const escopo = new URLSearchParams(window.location.search).get('escopo') || '';
-fetch('/api/estatisticas/' + (escopo ? '?escopo=' + escopo : ''))
+const ano = new URLSearchParams(window.location.search).get('ano') || '';
+    const sigiloso = new URLSearchParams(window.location.search).get('sigiloso') || '1';
+    let urlParams = [];
+    if(escopo) urlParams.push(`escopo=${escopo}`);
+    if(ano) urlParams.push(`ano=${ano}`);
+    if(sigiloso) urlParams.push(`sigiloso=${sigiloso}`);
+    const qs = urlParams.length > 0 ? '?' + urlParams.join('&') : '';
+    fetch('/api/estatisticas/' + qs)
   .then(r => r.json())
   .then(data => {
     const top = (data.top_politicos || []).slice(0, 10);

@@ -35,6 +35,8 @@ def ranking_view(request):
     """View para o Ranking de Risco"""
     busca = request.GET.get('q', '')
     esfera = request.GET.get('esfera') or request.GET.get('escopo', '')
+    ano = request.GET.get('ano', '')
+    incluir_sigiloso = request.GET.get('sigiloso', '1')
     
     queryset = Politico.objects.prefetch_related('mandatos').all()
     
@@ -53,7 +55,6 @@ def ranking_view(request):
         
     sort_param = request.GET.get('sort', '-total_gasto')
     
-    # Map front-end sort values to valid model fields/annotations
     sort_mapping = {
         '-total_gasto': '-total_gasto',
         '-score_risco': '-max_score',
@@ -62,33 +63,53 @@ def ranking_view(request):
     }
     
     order_by_field = sort_mapping.get(sort_param, '-total_gasto')
+    
+    despesas_filter = Q()
+    if ano:
+        despesas_filter &= Q(mandatos__despesas__ano=ano)
+    if incluir_sigiloso == '0':
+        despesas_filter &= ~Q(mandatos__despesas__categoria_absoluta='Sigiloso')
+        despesas_filter &= ~Q(mandatos__despesas__fornecedor__isnull=True)
 
-    politicos_raw = queryset.annotate(
-        total_gasto=Sum('mandatos__despesas__valor_liquidado'),
-        max_score=Max('mandatos__score_risco')
-    ).filter(total_gasto__gt=0).order_by(order_by_field)[:100]
-
+    if despesas_filter:
+        politicos_raw = queryset.annotate(
+            total_gasto=Sum('mandatos__despesas__valor_liquidado', filter=despesas_filter),
+            max_score=Max('mandatos__score_risco')
+        ).filter(total_gasto__gt=0).order_by(order_by_field)[:100]
+    else:
+        politicos_raw = queryset.annotate(
+            total_gasto=Sum('mandatos__despesas__valor_liquidado'),
+            max_score=Max('mandatos__score_risco')
+        ).filter(total_gasto__gt=0).order_by(order_by_field)[:100]
 
     politicos = []
     for p in politicos_raw:
-        # Tenta pegar o mandato principal (o mais recente)
-        mandato_principal = p.mandatos.first()
-        cargo_str = mandato_principal.cargo if mandato_principal else 'Agente PÃºblico'
-        esfera_str = mandato_principal.esfera if mandato_principal else '-'
+        mandatos = list(p.mandatos.all())
+        if not mandatos:
+            continue
+        mandatos.sort(key=lambda m: m.ano_inicio or 0, reverse=True)
+        mandato_principal = mandatos[0]
         
-        politicos.append({
-            'id': p.id,
-            'nome_civil': p.nome_civil,
-            'cargo_display': cargo_str,
-            'esfera_display': esfera_str,
-            'score_risco': p.max_score or 0,
-            'total_gasto': p.total_gasto or 0,
-            'foto_url': p.foto_url if hasattr(p, 'foto_url') else None,
-        })
-
+        p.cargo_display = mandato_principal.cargo
+        p.esfera_display = mandato_principal.esfera
+        p.score_risco = getattr(p, 'max_score', 0) or 0
+        p.total_gasto = getattr(p, 'total_gasto', 0) or 0
+        politicos.append(p)
+        
+    current_escopo = request.GET.get('escopo', '')
+    anos_disponiveis = Despesa.objects.values_list('ano', flat=True).distinct().order_by('-ano')
     
-    return render(request, 'ranking.html', {'politicos': politicos, 'busca': busca, 'esfera_filtro': esfera, 'current_escopo': esfera, 'current_sort': sort_param})
-
+    context = {
+        'politicos': politicos,
+        'busca': busca,
+        'esfera': esfera,
+        'ano': ano,
+        'incluir_sigiloso': incluir_sigiloso,
+        'anos': anos_disponiveis,
+        'sort': sort_param,
+        'current_escopo': 'Federal' if current_escopo.lower()=='federal' else ('Estadual' if current_escopo.lower()=='estadual' else ('Municipal' if current_escopo.lower()=='municipal' else ''))
+    }
+    return render(request, 'ranking.html', context)
 
 def despesas_view(request):
     return render(request, 'despesas.html')
@@ -237,7 +258,7 @@ def fornecedor_detail(request, cnpj):
     return render(request, 'fornecedor_detail.html', context)
 
 def pagina_politico(request, politico_id):
-    """Detailed view for a specific politician (DossiÃª)"""
+    """Detailed view for a specific politician (DossiêêÃª)"""
     politico = get_object_or_404(Politico, id=politico_id)
     mandatos = Mandato.objects.filter(politico=politico)
     
@@ -567,6 +588,8 @@ def api_estatisticas(request):
     cargo = request.GET.get('cargo')
     esfera = request.GET.get('esfera') or request.GET.get('escopo')
     politico_id = request.GET.get('politico_id')
+    incluir_sigiloso = request.GET.get('sigiloso', '1')
+    incluir_sigiloso = request.GET.get('sigiloso', '1')
 
     queryset = Despesa.objects.all()
 
@@ -574,6 +597,12 @@ def api_estatisticas(request):
     if categoria: queryset = queryset.filter(categoria=categoria)
     if fonte: queryset = queryset.filter(fonte=fonte)
     if cargo: queryset = queryset.filter(mandato__cargo=cargo)
+    if incluir_sigiloso == '0':
+        queryset = queryset.exclude(categoria_absoluta='Sigiloso')
+        queryset = queryset.filter(fornecedor__isnull=False)
+    if incluir_sigiloso == '0':
+        queryset = queryset.exclude(categoria_absoluta='Sigiloso')
+        queryset = queryset.filter(fornecedor__isnull=False)
     
     if esfera:
         if esfera.lower() == 'federal':
@@ -1068,37 +1097,50 @@ from django.core.paginator import Paginator
 from django.db.models.functions import Coalesce
 from django.db.models import F, DecimalField
 
-@cache_page(60 * 30)  # Cache de 30 minutos
+@cache_page(60 * 30)
 def fornecedores_view(request):
-    """PÃ¡gina que lista as empresas beneficiadas ordenadas por volume de dinheiro recebido."""
+    """Página que lista as empresas beneficiadas ordenadas por volume de dinheiro recebido."""
     busca = request.GET.get('q', '')
     filtro_uf = request.GET.get('uf', '')
     filtro_situacao = request.GET.get('situacao', '')
     
-    queryset = Fornecedor.objects.all()
-    
-    if busca:
-        queryset = queryset.filter(Q(razao_social__icontains=busca) | Q(cnpj__icontains=busca))
-    
-    if filtro_uf:
-        queryset = queryset.filter(uf=filtro_uf)
+    if not busca and not filtro_uf and not filtro_situacao:
+        # SUPER OPTIMIZED for default view:
+        despesas_qs = Despesa.objects.filter(fornecedor__isnull=False).values('fornecedor_id').annotate(
+            total_recebido=Sum('valor_liquidado')
+        ).filter(total_recebido__gt=0).order_by('-total_recebido')
         
-    if filtro_situacao:
-        queryset = queryset.filter(situacao_cadastral=filtro_situacao)
+        paginator = Paginator(despesas_qs, 20)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
         
-    # Abordagem Otimizada: Apenas soma gastos de mandato para o ranking (super rapido)
-    queryset = queryset.filter(
-        despesas__isnull=False
-    ).annotate(
-        total_recebido=Sum('despesas__valor_liquidado')
-    ).filter(total_recebido__gt=0).order_by('-total_recebido')
-    
-    # PaginaÃ§Ã£o (20 por pÃ¡gina)
-    paginator = Paginator(queryset, 20)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    # OpÃ§Ãµes para os filtros
+        fornecedor_ids = [d['fornecedor_id'] for d in page_obj.object_list]
+        fornecedores_dict = {f.id: f for f in Fornecedor.objects.filter(id__in=fornecedor_ids)}
+        
+        page_items = []
+        for d in page_obj.object_list:
+            f = fornecedores_dict.get(d['fornecedor_id'])
+            if f:
+                f.total_recebido = d['total_recebido']
+                page_items.append(f)
+        page_obj.object_list = page_items
+    else:
+        queryset = Fornecedor.objects.all()
+        if busca:
+            queryset = queryset.filter(Q(razao_social__icontains=busca) | Q(cnpj__icontains=busca))
+        if filtro_uf:
+            queryset = queryset.filter(uf=filtro_uf)
+        if filtro_situacao:
+            queryset = queryset.filter(situacao_cadastral=filtro_situacao)
+            
+        queryset = queryset.filter(despesas__isnull=False).annotate(
+            total_recebido=Sum('despesas__valor_liquidado')
+        ).filter(total_recebido__gt=0).order_by('-total_recebido')
+        
+        paginator = Paginator(queryset, 20)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        
     ufs = Fornecedor.objects.exclude(uf__isnull=True).exclude(uf='').values_list('uf', flat=True).distinct().order_by('uf')
     situacoes = [c[1].upper() for c in Fornecedor.SITUACAO_CADASTRAL_CHOICES]
     
@@ -1110,12 +1152,10 @@ def fornecedores_view(request):
         'filtro_uf': filtro_uf,
         'filtro_situacao': filtro_situacao,
         'ufs': ufs,
-        'situacoes': situacoes
+        'situacoes': situacoes,
+        'cargos_count': cargos_count,
     }
-    
     return render(request, 'fornecedores.html', context)
-
-
 
 def comunidade_view(request):
     return render(request, 'comunidade.html')

@@ -25,7 +25,7 @@
             <div class="w-16 h-16 bg-[#e0f2f1] text-[#1A9E96] rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
             </div>
-            <h2 class="text-2xl font-black text-gray-100 uppercase tracking-tight">Dossiê Restrito</h2>
+            <h2 class="text-2xl font-black text-gray-100 uppercase tracking-tight">Dossiêêê Restrito</h2>
             <p class="text-sm text-gray-400 mt-2">Identifique-se para visualizar gastos detalhados, cruzamento de fornecedores e alertas deste agente.</p>
         </div>
 
@@ -213,7 +213,7 @@ fetch('/api/despesas/?fornecedor_cnpj=' + fornCnpj + '&limit=300')
                                 <td class="py-3 text-xs text-gray-500 font-bold uppercase tracking-wider">{{ pagador.mandato__cargo }} ({{ pagador.mandato__esfera }})</td>
                                 <td class="py-3 text-sm font-black text-[#1A9E96] text-right">R$ {{ pagador.total_pago|floatformat:2 }}</td>
                                 <td class="py-3 text-right">
-                                    <a href="/politico/{{ pagador.mandato__politico__id|stringformat:"d" }}/" class="text-xs font-bold text-white bg-[#0F172A] hover:bg-[#1A9E96] px-2 py-1 rounded transition-colors shadow">Dossiê</a>
+                                    <a href="/politico/{{ pagador.mandato__politico__id|stringformat:"d" }}/" class="text-xs font-bold text-white bg-[#0F172A] hover:bg-[#1A9E96] px-2 py-1 rounded transition-colors shadow">Dossiêêê</a>
                                 </td>
                             </tr>
                             {% empty %}
