@@ -1,0 +1,60 @@
+def fornecedor_detail(request, cnpj):
+    """Perfil individual do fornecedor e anÃ¡lise de risco (Frente 3.4)"""
+    fornecedor = get_object_or_404(Fornecedor, cnpj=cnpj)
+    
+    # Busca dados na Receita Federal (BrasilAPI) se estiverem vazios
+    if not getattr(fornecedor, 'cnae_fiscal', None) or fornecedor.cnae_fiscal == '':
+        try:
+            import requests
+            resp = requests.get(f'https://brasilapi.com.br/api/cnpj/v1/{fornecedor.cnpj}', timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                fornecedor.razao_social = data.get('razao_social', fornecedor.razao_social)
+                fornecedor.nome_fantasia = data.get('nome_fantasia')
+                fornecedor.cnae_fiscal = f"{data.get('cnae_fiscal', '')} - {data.get('cnae_fiscal_descricao', '')}"
+                fornecedor.natureza_juridica = data.get('natureza_juridica')
+                fornecedor.capital_social = data.get('capital_social')
+                
+                situacao = data.get('descricao_situacao_cadastral', '')
+                if situacao in [c[1].upper() for c in Fornecedor.SITUACAO_CADASTRAL_CHOICES]:
+                    fornecedor.situacao_cadastral = situacao.upper()
+                else:
+                    fornecedor.situacao_cadastral = 'NULO'
+                    
+                fornecedor.uf = data.get('uf')
+                fornecedor.municipio = data.get('municipio')
+                fornecedor.logradouro = data.get('logradouro')
+                fornecedor.numero = data.get('numero')
+                fornecedor.bairro = data.get('bairro')
+                fornecedor.save()
+            elif resp.status_code == 404:
+                # CNPJ not found or invalid type, mark as DADOS INDISPONÃVEIS so we don't query again
+                fornecedor.cnae_fiscal = "DADOS INDISPONÃVEIS (RECEITA FEDERAL)"
+                fornecedor.save()
+        except Exception as e:
+            # Em caso de timeout ou erro de rede, nÃ£o travamos a pÃ¡gina do usuÃ¡rio
+            pass
+            
+    # AgregaÃ§Ãµes de despesas
+    despesas = Despesa.objects.filter(fornecedor=fornecedor).select_related('mandato__politico')
+    
+    total_recebido = despesas.aggregate(total=Sum('valor_liquidado'))['total'] or 0.0
+    
+    # Maiores pagadores (polÃ­ticos)
+    pagadores = despesas.values(
+        'mandato__politico__id', 
+        'mandato__politico__nome_civil', 
+        'mandato__cargo', 
+        'mandato__esfera'
+    ).annotate(total_pago=Sum('valor_liquidado')).order_by('-total_pago')
+    
+    cargos_count = Mandato.objects.values('cargo').annotate(count=Count('id')).order_by('-count')
+
+    context = {
+        'fornecedor': fornecedor,
+        'total_recebido': total_recebido,
+        'pagadores': pagadores,
+        'despesas_recentes': despesas.order_by('-data_emissao')[:50]
+    }
+    return render(request, 'fornecedor_detail.html', context)
+
